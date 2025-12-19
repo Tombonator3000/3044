@@ -995,17 +995,47 @@
         let canvas, ctx;
         let gameState = null;
         let keys = {};
+
+        // 🚀 PERFORMANCE: Cached DOM element references
+        const cachedUI = {
+            score: null,
+            wave: null,
+            lives: null,
+            bombs: null,
+            highScore: null,
+            menuScreen: null,
+            gameUI: null,
+            gameOverScreen: null,
+            continueScreen: null,
+            insertCoinText: null,
+            creditsCount: null,
+            highScoreEntryScreen: null,
+            highScoreListScreen: null,
+            startGameBtn: null
+        };
+
+        // Initialize cached UI references (call after DOM ready)
+        function initCachedUI() {
+            cachedUI.score = document.getElementById('scoreDisplay');
+            cachedUI.wave = document.getElementById('waveDisplay');
+            cachedUI.lives = document.getElementById('livesDisplay');
+            cachedUI.bombs = document.getElementById('bombsDisplay');
+            cachedUI.highScore = document.getElementById('highScoreDisplay');
+            cachedUI.menuScreen = document.getElementById('menuScreen');
+            cachedUI.gameUI = document.getElementById('gameUI');
+            cachedUI.gameOverScreen = document.getElementById('gameOverScreen');
+            cachedUI.continueScreen = document.getElementById('continueScreen');
+            cachedUI.insertCoinText = document.getElementById('insertCoinText');
+            cachedUI.creditsCount = document.getElementById('creditsCount');
+            cachedUI.highScoreEntryScreen = document.getElementById('highScoreEntryScreen');
+            cachedUI.highScoreListScreen = document.getElementById('highScoreListScreen');
+            cachedUI.startGameBtn = document.getElementById('startGameBtn');
+        }
         
         let credits = 3;
         let coinInsertSound = null;
         let continueTimer = 0;
         let maxContinueTime = 600;
-
-// 🧱 Hazard system
-// New global variables for environmental hazards. These will be initialised in startGame().
-// hazardPool manages a pool of Hazard objects; hazardManager controls hazard spawning behaviour.
-let hazardPool = null;
-let hazardManager = null;
         let showingContinueScreen = false;
         
         let menuMusic = null;
@@ -1067,25 +1097,6 @@ let hazardManager = null;
         
         let touchJoystick = { active: false, startX: 0, startY: 0, currentX: 0, currentY: 0 };
         let touchButtons = { fire: false, bomb: false };
-
-        // 🚀 PERFORMANCE: Cached DOM references (avoid repeated getElementById calls)
-        let cachedUI = {
-            score: null,
-            wave: null,
-            lives: null,
-            bombs: null,
-            highScore: null,
-            menuScreen: null,
-            gameUI: null,
-            gameOverScreen: null
-        };
-
-        // 🚀 PERFORMANCE: Per-frame time cache (avoid multiple Date.now() calls)
-        let frameTime = 0;
-
-        // 🚀 PERFORMANCE: Cached formatted score (avoid toLocaleString every frame)
-        let cachedScoreFormatted = '0';
-        let lastCachedScore = -1;
         
         let particleSystem, bulletPool, enemyBulletPool, waveManager, soundSystem;
         let attractMode = false;
@@ -2647,8 +2658,8 @@ let hazardManager = null;
             update() {
                 if (this.glitchTimer > 0) {
                     this.glitchTimer--;
-                    this.scanlineOffset = Math.sin(frameTime * 0.01) * 2;
-                    this.chromaShift = Math.sin(frameTime * 0.02) * this.colorSeparation;
+                    this.scanlineOffset = Math.sin(Date.now() * 0.01) * 2;
+                    this.chromaShift = Math.sin(Date.now() * 0.02) * this.colorSeparation;
                     
                     // Update distortion lines
                     this.horizontalDistortion = this.horizontalDistortion.filter(line => {
@@ -2776,7 +2787,7 @@ let hazardManager = null;
                 ctx.globalAlpha = 0.03;
                 
                 this.scanLines.forEach(line => {
-                    const flicker = Math.sin(frameTime * line.flickerSpeed) * 0.3 + 0.7;
+                    const flicker = Math.sin(Date.now() * line.flickerSpeed) * 0.3 + 0.7;
                     ctx.fillStyle = `rgba(0, 255, 100, ${line.brightness * flicker})`;
                     ctx.fillRect(0, line.y, config.width, 1);
                 });
@@ -3952,7 +3963,7 @@ let hazardManager = null;
                     ctx.shadowColor = '#ff0000';
                 } else if (this.ghostMode > 0) {
                     // Ghost mode transparency
-                    ctx.globalAlpha = 0.5 + Math.sin(frameTime * 0.01) * 0.3;
+                    ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
                     this.color = '#aaaaff';
                 } else {
                     this.color = config.colors.player;
@@ -3985,7 +3996,7 @@ let hazardManager = null;
                 // Draw vortex effect
                 if (this.vortexActive > 0) {
                     ctx.save();
-                    const vortexRadius = 80 + Math.sin(frameTime * 0.01) * 20;
+                    const vortexRadius = 80 + Math.sin(Date.now() * 0.01) * 20;
                     ctx.strokeStyle = '#80ff80';
                     ctx.lineWidth = 2;
                     ctx.globalAlpha = 0.6;
@@ -3997,7 +4008,7 @@ let hazardManager = null;
                     
                     // Swirling lines
                     for (let i = 0; i < 8; i++) {
-                        const angle = (frameTime * 0.005) + (i * Math.PI / 4);
+                        const angle = (Date.now() * 0.005) + (i * Math.PI / 4);
                         ctx.beginPath();
                         ctx.moveTo(Math.cos(angle) * 40, Math.sin(angle) * 40);
                         ctx.lineTo(Math.cos(angle) * vortexRadius, Math.sin(angle) * vortexRadius);
@@ -4051,7 +4062,7 @@ let hazardManager = null;
                     ctx.lineWidth = 2;
                     ctx.shadowBlur = 20;
                     ctx.shadowColor = '#00ffff';
-                    ctx.globalAlpha = 0.5 + Math.sin(frameTime * 0.01) * 0.3;
+                    ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
                     ctx.beginPath();
                     ctx.arc(0, 0, 35, 0, Math.PI * 2);
                     ctx.stroke();
@@ -4180,10 +4191,6 @@ let hazardManager = null;
                     case 'sinewave':
                         this.setupSineWaveElite(currentWave, intelligenceLevel);
                         break;
-                    case 'hexagon':
-                        // New spinner enemy type with radial firing
-                        this.setupHexagonSpinner(currentWave, intelligenceLevel);
-                        break;
                 }
                 
                 // Store original values for fever mode
@@ -4282,55 +4289,6 @@ let hazardManager = null;
                 this.canTeleport = intelligence >= 4;
                 this.teleportCooldown = 0;
             }
-
-            // New spinner enemy setup. Hexagon enemies descend steadily and
-            // periodically emit radial bursts of bullets. Their behaviour
-            // scales with the current wave and intelligence level.
-            setupHexagonSpinner(wave, intelligence) {
-                this.sides = 6;
-                this.size = 26;
-                this.hp = 2 + Math.floor(wave / 4);
-                this.speed = Math.max(1.5, 2.2 + (wave * 0.1));
-                this.points = 350;
-                // Fire rate determines how often radial bursts occur
-                this.fireRate = Math.max(70, 140 - (wave * 6));
-                this.bulletSpeed = Math.max(3.5, 4 + (wave * 0.12));
-                this.color = '#ffcc00';
-                // Use our new spinner behaviour when sufficiently intelligent
-                this.behavior = intelligence >= 3 ? 'spinner' : 'zigzag';
-                this.role = 'spinner';
-                this.spinnerFireTimer = 0;
-                this.intelligence = intelligence;
-            }
-
-            // Movement and attack logic for spinner enemies. They drift
-            // horizontally while falling and release radial bursts at
-            // intervals defined by fireRate. Bullet count scales with
-            // intelligence.
-            updateSpinnerBehavior() {
-                // Descend and oscillate horizontally
-                this.y += this.speed;
-                this.x += Math.sin(this.moveTimer * 0.05) * 2.0;
-                // Track time since last burst
-                this.spinnerFireTimer++;
-                if (this.spinnerFireTimer > this.fireRate) {
-                    this.spinnerFireTimer = 0;
-                    const bulletCount = 8 + Math.min(this.intelligence * 2, 12);
-                    const speed = this.bulletSpeed;
-                    if (enemyBulletPool) {
-                        for (let i = 0; i < bulletCount; i++) {
-                            const angle = (Math.PI * 2 * i) / bulletCount;
-                            const vx = Math.cos(angle) * speed;
-                            const vy = Math.sin(angle) * speed;
-                            enemyBulletPool.get(this.x, this.y, vx, vy, false);
-                        }
-                    }
-                }
-                // Mark inactive if far off‑screen
-                if (this.y > config.height + 50 || this.x < -50 || this.x > config.width + 50) {
-                    this.active = false;
-                }
-            }
             
             update() {
                 if (!this.active) return;
@@ -4413,9 +4371,6 @@ let hazardManager = null;
                         break;
                     case 'sine_tactical':
                         this.updateTacticalSineBehavior();
-                        break;
-                    case 'spinner':
-                        this.updateSpinnerBehavior();
                         break;
                     default:
                         this.updateBasicBehavior();
@@ -6683,281 +6638,6 @@ let hazardManager = null;
             }
         }
 
-        /*
-         * Environmental Hazard System
-         *
-         * Hazards are non‑enemy obstacles that spawn independently of enemies
-         * and force the player to manoeuvre around them. We implement a simple
-         * hazard system with two types: meteors (falling rocks) and laser
-         * sweeps (horizontal beams). Hazards are pooled to avoid per‑frame
-         * allocations. Each hazard checks collision with the player and deals
-         * damage using player.takeDamage(). Hazards are spawned via the
-         * HazardManager below.
-         */
-        class Hazard {
-            constructor(type, x, y) {
-                this.active = true;
-                this.type = type;
-                this.x = x;
-                this.y = y;
-                this.vx = 0;
-                this.vy = 0;
-                this.size = 20;
-                this.rotation = 0;
-                this.rotationSpeed = 0;
-                this.width = 0;
-                this.height = 0;
-                this.setup();
-            }
-
-            setup() {
-                // Configure hazard based on its type
-                if (this.type === 'meteor') {
-                    // Meteors tumble downward with slight horizontal drift
-                    this.size = 18 + Math.random() * 10;
-                    this.vx = (Math.random() - 0.5) * 2;
-                    this.vy = 2 + Math.random() * 2;
-                    this.rotation = Math.random() * Math.PI * 2;
-                    this.rotationSpeed = (Math.random() - 0.5) * 0.06;
-                } else if (this.type === 'laser') {
-                    // Laser hazards sweep horizontally across the screen
-                    this.width = config.width;
-                    this.height = 8;
-                    this.vx = 0;
-                    this.vy = 3 + Math.random() * 2;
-                    // Lasers start at top of screen and move downwards
-                    this.size = 0; // not used for laser
-                } else if (this.type === 'blackhole') {
-                    // Black hole: large swirling entity that slowly descends and pulls nearby bullets
-                    // Size determines both its visible radius and gravitational influence
-                    this.size = 30 + Math.random() * 20;
-                    // Black holes drift slowly downward with a slight horizontal drift
-                    this.vx = (Math.random() - 0.5) * 1.5;
-                    this.vy = 0.5 + Math.random() * 1.2;
-                    this.rotation = Math.random() * Math.PI * 2;
-                    this.rotationSpeed = 0.01 + Math.random() * 0.03;
-                    // Influence radius for gravitational pull (multiple of size)
-                    this.influenceRadius = this.size * 6;
-                    // Strength of the gravitational pull (higher values pull bullets harder)
-                    this.gravityStrength = 80;
-                    // Width/height are not used but reset for consistency
-                    this.width = 0;
-                    this.height = 0;
-                }
-            }
-
-            checkCollision(player) {
-                if (!player || !player.isAlive) return false;
-                if (this.type === 'meteor' || this.type === 'blackhole') {
-                    // Circle collision between player and circular hazard (meteor/black hole)
-                    const dx = player.x - this.x;
-                    const dy = player.y - this.y;
-                    const dist = Math.hypot(dx, dy);
-                    return dist < this.size + player.size;
-                } else if (this.type === 'laser') {
-                    // A horizontal laser spans entire width; check vertical overlap
-                    return (player.y + player.size > this.y &&
-                            player.y - player.size < this.y + this.height);
-                }
-                return false;
-            }
-
-            update() {
-                if (!this.active) return;
-
-                // Behaviour based on type
-                if (this.type === 'meteor') {
-                    // Move tumbling meteor
-                    this.x += this.vx;
-                    this.y += this.vy;
-                    this.rotation += this.rotationSpeed;
-                } else if (this.type === 'laser') {
-                    // Lasers move straight down
-                    this.y += this.vy;
-                } else if (this.type === 'blackhole') {
-                    // Black holes drift and rotate slowly
-                    this.x += this.vx;
-                    this.y += this.vy;
-                    this.rotation += this.rotationSpeed;
-
-                    // Apply gravitational pull on all active bullets
-                    // Pulls bullets toward the black hole; bullets too close get consumed
-                    if (typeof bulletPool !== 'undefined' && bulletPool && bulletPool.bullets) {
-                        const radSq = this.influenceRadius * this.influenceRadius;
-                        for (const bullet of bulletPool.bullets) {
-                            if (!bullet.active) continue;
-                            // Only affect bullets within influence radius
-                            const dx = this.x - bullet.x;
-                            const dy = this.y - bullet.y;
-                            const distSq = dx * dx + dy * dy;
-                            if (distSq < radSq) {
-                                // Clamp extremely small distances to avoid division by zero and infinite forces
-                                const safeDistSq = Math.max(distSq, 16);
-                                const dist = Math.sqrt(safeDistSq);
-                                // 1/r^2 gravitational force with safety check
-                                const force = this.gravityStrength / safeDistSq;
-                                // Adjust bullet velocity toward the black hole
-                                bullet.vx += force * dx / dist;
-                                bullet.vy += force * dy / dist;
-                                // Clamp bullet speed to prevent runaway velocities
-                                const maxSpeed = 6;
-                                if (bullet.vx > maxSpeed) bullet.vx = maxSpeed;
-                                else if (bullet.vx < -maxSpeed) bullet.vx = -maxSpeed;
-                                if (bullet.vy > maxSpeed) bullet.vy = maxSpeed;
-                                else if (bullet.vy < -maxSpeed) bullet.vy = -maxSpeed;
-                                // Consume bullets that reach the event horizon
-                                if (dist < this.size) {
-                                    bullet.active = false;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Check collision with player for meteor and blackhole (lasers use width/height overlap)
-                if (gameState && gameState.player && this.checkCollision(gameState.player)) {
-                    if (gameState.player.takeDamage()) {
-                        // Deactivate hazard after hitting player
-                        this.active = false;
-                    }
-                }
-
-                // Deactivate when off‑screen
-                if (this.y > config.height + 50 || this.x < -50 || this.x > config.width + 50) {
-                    this.active = false;
-                }
-            }
-
-            draw(ctx) {
-                if (!this.active) return;
-                ctx.save();
-                if (this.type === 'meteor') {
-                    // Draw a rotating hexagonal meteor
-                    ctx.translate(this.x, this.y);
-                    ctx.rotate(this.rotation);
-                    ctx.fillStyle = '#996633';
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = '#996633';
-                    ctx.beginPath();
-                    for (let i = 0; i < 6; i++) {
-                        const angle = (Math.PI * 2 * i) / 6;
-                        const px = Math.cos(angle) * this.size;
-                        const py = Math.sin(angle) * this.size;
-                        if (i === 0) ctx.moveTo(px, py);
-                        else ctx.lineTo(px, py);
-                    }
-                    ctx.closePath();
-                    ctx.fill();
-                } else if (this.type === 'laser') {
-                    // Draw a glowing horizontal laser bar
-                    ctx.fillStyle = 'rgba(255, 0, 64, 0.5)';
-                    ctx.shadowBlur = 20;
-                    ctx.shadowColor = '#ff0040';
-                    ctx.fillRect(0, this.y, this.width, this.height);
-                } else if (this.type === 'blackhole') {
-                    // Draw a swirling black hole using a radial gradient
-                    ctx.translate(this.x, this.y);
-                    ctx.rotate(this.rotation);
-                    // Outer radius for gradient: bigger than visual size to create falloff
-                    const outerRadius = this.size * 2.5;
-                    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, outerRadius);
-                    // Dark center fading to purple halo
-                    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.9)');
-                    gradient.addColorStop(0.4, 'rgba(32, 0, 64, 0.6)');
-                    gradient.addColorStop(0.8, 'rgba(96, 0, 160, 0.3)');
-                    gradient.addColorStop(1, 'rgba(160, 0, 240, 0)');
-                    ctx.fillStyle = gradient;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, outerRadius, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                ctx.restore();
-            }
-        }
-
-        class HazardPool {
-            constructor() {
-                this.hazards = [];
-                // Limit number of active hazards for performance
-                this.maxHazards = 20;
-            }
-
-            get(type, x, y) {
-                // Reuse inactive hazard if available
-                for (const hazard of this.hazards) {
-                    if (!hazard.active) {
-                        hazard.type = type;
-                        hazard.x = x;
-                        hazard.y = y;
-                        hazard.active = true;
-                        hazard.setup();
-                        return hazard;
-                    }
-                }
-                // Create new hazard if under limit
-                if (this.hazards.length < this.maxHazards) {
-                    const hazard = new Hazard(type, x, y);
-                    this.hazards.push(hazard);
-                    return hazard;
-                }
-                return null;
-            }
-
-            update() {
-                this.hazards.forEach(hazard => {
-                    if (hazard.active) hazard.update();
-                });
-            }
-
-            draw(ctx) {
-                this.hazards.forEach(hazard => {
-                    if (hazard.active) hazard.draw(ctx);
-                });
-            }
-
-            clear() {
-                this.hazards.forEach(hazard => hazard.active = false);
-            }
-        }
-
-        class HazardManager {
-            constructor() {
-                this.spawnTimer = 0;
-                this.spawnInterval = 300; // Base interval between hazard spawns
-            }
-
-            update(deltaTime) {
-                this.spawnTimer += deltaTime;
-                // Only spawn hazards after early waves and when game is running
-                if (gameState && gameState.wave >= 3 && this.spawnTimer > this.spawnInterval) {
-                    this.spawnHazard();
-                    this.spawnTimer = 0;
-                    // Speed up hazard spawning as waves increase
-                    this.spawnInterval = Math.max(150, 400 - (gameState.wave * 10));
-                }
-            }
-
-            spawnHazard() {
-                if (!hazardPool) return;
-                const x = Math.random() * (config.width - 100) + 50;
-                // Determine current wave to scale hazard types
-                const currentWave = gameState && gameState.wave ? gameState.wave : 0;
-                // Until wave 5, spawn only meteors. After that, introduce black holes.
-                if (currentWave >= 5) {
-                    // Weighted random: mostly meteors, occasionally a black hole
-                    const r = Math.random();
-                    // Probability of black hole increases with wave number
-                    const blackholeChance = Math.min(0.1 + (currentWave - 5) * 0.02, 0.4);
-                    if (r < blackholeChance) {
-                        hazardPool.get('blackhole', x, -30);
-                        return;
-                    }
-                }
-                // Default to meteor
-                hazardPool.get('meteor', x, -30);
-            }
-        }
-
         // Enhanced Wave Manager with Formation Attacks and Progressive Difficulty
         class WaveManager {
             constructor() {
@@ -7086,8 +6766,6 @@ let hazardManager = null;
                     if (gameState.wave >= 3) availableTypes.push('sinewave');
                     if (gameState.wave >= 4) availableTypes.push('pentagon');
                     if (gameState.wave >= 5) availableTypes.push('divebomber');
-                    // Introduce hexagon spinner enemies in mid game
-                    if (gameState.wave >= 6) availableTypes.push('hexagon');
                     
                     let type = this.selectEnemyType(availableTypes);
                     
@@ -7105,10 +6783,6 @@ let hazardManager = null;
             selectEnemyType(availableTypes) {
                 const rand = Math.random();
                 const wave = gameState.wave;
-                // Chance to spawn our new spinner enemy in later waves
-                if (wave >= 8 && Math.random() < 0.1) {
-                    return 'hexagon';
-                }
                 
                 // Progressive enemy distribution
                 if (wave >= 12) {
@@ -8091,7 +7765,7 @@ let hazardManager = null;
                             if (this.intensity >= 2) {
                                 // Rainbow effect for tier 2+
                                 const gradient = ctx.createLinearGradient(-200, 0, 200, 0);
-                                const hue = frameTime * 0.01 % 360;
+                                const hue = Date.now() * 0.01 % 360;
                                 gradient.addColorStop(0, `hsl(${hue}, 100%, 50%)`);
                                 gradient.addColorStop(0.5, `hsl(${(hue + 120) % 360}, 100%, 50%)`);
                                 gradient.addColorStop(1, `hsl(${(hue + 240) % 360}, 100%, 50%)`);
@@ -8444,7 +8118,7 @@ let hazardManager = null;
                 for (let [type, data] of effects.powerUps) {
                     const x = 20 + (index * 45);
                     const alpha = data.duration < 60 ? (data.duration / 60) : 1;
-                    const pulse = Math.sin(frameTime * 0.01) * 0.2 + 0.8;
+                    const pulse = Math.sin(Date.now() * 0.01) * 0.2 + 0.8;
                     
                     ctx.save();
                     ctx.globalAlpha = alpha;
@@ -8797,24 +8471,18 @@ let hazardManager = null;
                 cancelAnimationFrame(gameLoopId);
                 gameLoopId = null;
             }
-            
-            document.getElementById('menuScreen').style.display = 'none';
-            document.getElementById('gameUI').style.display = 'block';
-            
+
+            // 🚀 PERFORMANCE: Use cached UI references
+            if (cachedUI.menuScreen) cachedUI.menuScreen.style.display = 'none';
+            if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'block';
+
             keys = {};
             
             bulletPool = new BulletPool();
             enemyBulletPool = new BulletPool();
-
-            // Initialise environmental hazard systems for attract mode
-            hazardPool = new HazardPool();
-            hazardManager = new HazardManager();
             particleSystem = new ParticleSystem();
             soundSystem = new SoundSystem();
             waveManager = new WaveManager();
-            // Initialise environmental hazard systems
-            hazardPool = new HazardPool();
-            hazardManager = new HazardManager();
             
             // 🎬 VISUAL EFFECTS SHOULD ALREADY BE INITIALIZED
             // Just reset epic explosions array for new game
@@ -9046,25 +8714,25 @@ let hazardManager = null;
                         showHighScoreEntry();
                     }
                 } else {
+                    // 🚀 PERFORMANCE: Use cached UI references
                     setTimeout(() => {
-                        const gameOverScreen = document.getElementById('gameOverScreen');
-                        const gameUI = document.getElementById('gameUI');
-                        if (gameOverScreen) gameOverScreen.style.display = 'flex';
-                        if (gameUI) gameUI.style.display = 'none';
+                        if (cachedUI.gameOverScreen) cachedUI.gameOverScreen.style.display = 'flex';
+                        if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'none';
                     }, 500);
                 }
             }
         }
-        
+
         window.restartGame = function() {
             if (gameLoopId) {
                 cancelAnimationFrame(gameLoopId);
                 gameLoopId = null;
             }
-            
+
             if (soundSystem) soundSystem.enabled = true;
-            
-            document.getElementById('gameOverScreen').style.display = 'none';
+
+            // 🚀 PERFORMANCE: Use cached UI references
+            if (cachedUI.gameOverScreen) cachedUI.gameOverScreen.style.display = 'none';
             startGame();
         }
         
@@ -9083,11 +8751,12 @@ let hazardManager = null;
                 cancelAnimationFrame(gameLoopId);
                 gameLoopId = null;
             }
-            
-            document.getElementById('gameOverScreen').style.display = 'none';
-            document.getElementById('menuScreen').style.display = 'flex';
-            document.getElementById('gameUI').style.display = 'none';
-            
+
+            // 🚀 PERFORMANCE: Use cached UI references
+            if (cachedUI.gameOverScreen) cachedUI.gameOverScreen.style.display = 'none';
+            if (cachedUI.menuScreen) cachedUI.menuScreen.style.display = 'flex';
+            if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'none';
+
             setTimeout(() => {
                 if (soundSystem) {
                     soundSystem.playVoiceSample('GET READY');
@@ -9315,18 +8984,17 @@ let hazardManager = null;
         }
         
         function updateCreditsDisplay() {
-            const creditsEl = document.getElementById('creditsCount');
-            if (creditsEl) {
-                creditsEl.textContent = credits;
-                
-                const startBtn = document.getElementById('startGameBtn');
-                if (startBtn) {
+            // 🚀 PERFORMANCE: Use cached UI references
+            if (cachedUI.creditsCount) {
+                cachedUI.creditsCount.textContent = credits;
+
+                if (cachedUI.startGameBtn) {
                     if (credits > 0) {
-                        startBtn.style.opacity = '1';
-                        startBtn.style.pointerEvents = 'auto';
+                        cachedUI.startGameBtn.style.opacity = '1';
+                        cachedUI.startGameBtn.style.pointerEvents = 'auto';
                     } else {
-                        startBtn.style.opacity = '0.5';
-                        startBtn.style.pointerEvents = 'none';
+                        cachedUI.startGameBtn.style.opacity = '0.5';
+                        cachedUI.startGameBtn.style.pointerEvents = 'none';
                     }
                 }
             }
@@ -9419,17 +9087,18 @@ let hazardManager = null;
             
             gameState.lastScoreIncrease = gameState.score;
 
-            // 🚀 PERFORMANCE: Use cached DOM references and cached score formatting
-            // Only format score when it changes (toLocaleString is expensive)
-            if (gameState.score !== lastCachedScore) {
-                cachedScoreFormatted = gameState.score.toLocaleString();
-                lastCachedScore = gameState.score;
-            }
-
-            if (cachedUI.score) cachedUI.score.textContent = cachedScoreFormatted;
+            // 🚀 PERFORMANCE: Use cached UI element references
+            if (cachedUI.score) cachedUI.score.textContent = gameState.score.toLocaleString();
             if (cachedUI.wave) cachedUI.wave.textContent = gameState.wave;
             if (cachedUI.lives) cachedUI.lives.textContent = gameState.lives;
             if (cachedUI.bombs) cachedUI.bombs.textContent = gameState.bombs;
+
+            // Update high score display
+            const highScores = getHighScores();
+            const topScore = highScores.length > 0 ? highScores[0].score : 0;
+            if (cachedUI.highScore) {
+                cachedUI.highScore.textContent = topScore.toLocaleString();
+            }
         }
 
         // Collision Detection
@@ -9442,13 +9111,12 @@ let hazardManager = null;
                     if (ufoManager && ufoManager.ufos) {
                         ufoManager.ufos.forEach(ufo => {
                             if (ufo && ufo.active) {
-                                // 🚀 PERFORMANCE: Use squared distance (avoid sqrt)
-                                const dx = bullet.x - ufo.x;
-                                const dy = bullet.y - ufo.y;
-                                const distSq = dx * dx + dy * dy;
-                                const radiusSq = ufo.size * ufo.size;
-
-                                if (distSq < radiusSq) {
+                                const dist = Math.hypot(
+                                    bullet.x - ufo.x,
+                                    bullet.y - ufo.y
+                                );
+                                
+                                if (dist < ufo.size) {
                                     bullet.active = false;
                                     const damage = bullet.damage || 1;
                                     ufo.takeDamage(damage);
@@ -9541,13 +9209,12 @@ let hazardManager = null;
                     }
                     
                     if (gameState.boss && gameState.boss.active) {
-                        // 🚀 PERFORMANCE: Use squared distance (avoid sqrt)
-                        const dx = bullet.x - gameState.boss.x;
-                        const dy = bullet.y - gameState.boss.y;
-                        const distSq = dx * dx + dy * dy;
-                        const radiusSq = gameState.boss.size * gameState.boss.size;
-
-                        if (distSq < radiusSq) {
+                        const dist = Math.hypot(
+                            bullet.x - gameState.boss.x,
+                            bullet.y - gameState.boss.y
+                        );
+                        
+                        if (dist < gameState.boss.size) {
                             bullet.active = false;
                             if (gameState.boss && gameState.boss.takeDamage) {
                                 gameState.boss.takeDamage(bullet.damage);
@@ -9560,13 +9227,12 @@ let hazardManager = null;
                     
                     gameState.enemies.forEach(enemy => {
                         if (enemy && enemy.active && enemy.color) {
-                            // 🚀 PERFORMANCE: Use squared distance (avoid sqrt)
-                            const dx = bullet.x - enemy.x;
-                            const dy = bullet.y - enemy.y;
-                            const distSq = dx * dx + dy * dy;
-                            const radiusSq = enemy.size * enemy.size;
-
-                            if (distSq < radiusSq) {
+                            const dist = Math.hypot(
+                                bullet.x - enemy.x,
+                                bullet.y - enemy.y
+                            );
+                            
+                            if (dist < enemy.size) {
                                 bullet.active = false;
                                 const damage = bullet.damage || 1;
                                 enemy.takeDamage(damage);
@@ -9736,13 +9402,12 @@ let hazardManager = null;
             if (!gameState.player.invulnerable && gameState.player.feverMode <= 0 && gameState.player.isAlive) {
                 enemyBulletPool.getActiveBullets().forEach(bullet => {
                     if (!bullet.isPlayerBullet && bullet.active) {
-                        // 🚀 PERFORMANCE: Use squared distance (avoid sqrt)
-                        const dx = bullet.x - gameState.player.x;
-                        const dy = bullet.y - gameState.player.y;
-                        const distSq = dx * dx + dy * dy;
-                        const radiusSq = gameState.player.size * gameState.player.size;
-
-                        if (distSq < radiusSq) {
+                        const dist = Math.hypot(
+                            bullet.x - gameState.player.x,
+                            bullet.y - gameState.player.y
+                        );
+                        
+                        if (dist < gameState.player.size) {
                             bullet.active = false;
                             
                             if (gameState.player.takeDamage()) {
@@ -9765,14 +9430,12 @@ let hazardManager = null;
             if (!gameState.player.invulnerable && gameState.player.feverMode <= 0 && gameState.player.isAlive) {
                 gameState.enemies.forEach(enemy => {
                     if (enemy && enemy.active && enemy.size && enemy.x !== undefined && enemy.y !== undefined) {
-                        // 🚀 PERFORMANCE: Use squared distance (avoid sqrt)
-                        const dx = enemy.x - gameState.player.x;
-                        const dy = enemy.y - gameState.player.y;
-                        const distSq = dx * dx + dy * dy;
-                        const combinedRadius = enemy.size + gameState.player.size;
-                        const radiusSq = combinedRadius * combinedRadius;
-
-                        if (distSq < radiusSq) {
+                        const dist = Math.hypot(
+                            enemy.x - gameState.player.x,
+                            enemy.y - gameState.player.y
+                        );
+                        
+                        if (dist < enemy.size + gameState.player.size) {
                             if (gameState.player.takeDamage()) {
                                 gameState.lives--;
                                 enemy.active = false;
@@ -9798,12 +9461,12 @@ let hazardManager = null;
             
             gameState.powerUps.forEach(powerUp => {
                 if (powerUp && powerUp.active) {
-                    // 🚀 PERFORMANCE: Use squared distance (avoid sqrt)
-                    const dx = powerUp.x - gameState.player.x;
-                    const dy = powerUp.y - gameState.player.y;
-                    const distSq = dx * dx + dy * dy;
-
-                    if (distSq < 900) { // 30 * 30 = 900
+                    const dist = Math.hypot(
+                        powerUp.x - gameState.player.x,
+                        powerUp.y - gameState.player.y
+                    );
+                    
+                    if (dist < 30) {
                         powerUp.active = false;
                         
                         // Initialize PowerUpManager if not exists
@@ -10115,9 +9778,8 @@ let hazardManager = null;
         function update() {
             try {
                 if (!gameState || !gameState.running) return;
-
-                // 🚀 PERFORMANCE: Cache time values once per frame
-                frameTime = Date.now();
+                
+                // 🚀 PERFORMANCE MONITOR
                 const frameStart = performance.now();
                 
                 const timeScale = gameState.slowMotion > 0 ? 0.3 : 1.0;
@@ -10129,22 +9791,16 @@ let hazardManager = null;
                 if (holographicUI && frameStart % 4 === 0) holographicUI.update(); // Every 4th frame
                 if (laserTargeting) laserTargeting.update();
                 
-                // 🚀 PERFORMANCE: Update explosions with in-place removal (avoid filter/slice)
+                // Update epic explosions with limit check
                 if (epic80sExplosions && epic80sExplosions.length > 0) {
-                    // Hard cap at 3 explosions - just truncate if over
+                    // 🚀 PERFORMANCE: Limit concurrent explosions
                     if (epic80sExplosions.length > 3) {
-                        epic80sExplosions.length = 3;
+                        epic80sExplosions = epic80sExplosions.slice(-3); // Keep only newest 3
                     }
-                    // In-place update and removal
-                    let writeIdx = 0;
-                    for (let i = 0; i < epic80sExplosions.length; i++) {
-                        const explosion = epic80sExplosions[i];
+                    epic80sExplosions = epic80sExplosions.filter(explosion => {
                         explosion.update();
-                        if (explosion.active) {
-                            epic80sExplosions[writeIdx++] = explosion;
-                        }
-                    }
-                    epic80sExplosions.length = writeIdx;
+                        return explosion.active;
+                    });
                 }
                 
                 if (attractMode) {
@@ -10164,9 +9820,6 @@ let hazardManager = null;
                 if (particleSystem) particleSystem.update();
                 if (bulletPool) bulletPool.update();
                 if (enemyBulletPool && timeScale === 1) enemyBulletPool.update();
-                // 🌍 Update environmental hazards
-                if (hazardManager && timeScale === 1) hazardManager.update(1);
-                if (hazardPool && timeScale === 1) hazardPool.update();
                 
                 if (starfield) starfield.update();
                 if (formationManager && timeScale === 1) formationManager.update();
@@ -10189,27 +9842,24 @@ let hazardManager = null;
                 }
                 
                 if (gameState.enemies && timeScale === 1) {
-                    // 🚀 PERFORMANCE: Limit enemy count - use length truncation instead of slice
+                    // 🚀 PERFORMANCE: Limit enemy count and updates
                     if (gameState.enemies.length > 15) {
-                        gameState.enemies.length = 15;
+                        gameState.enemies = gameState.enemies.slice(0, 15); // Hard cap at 15 enemies
                     }
-
-                    // 🚀 PERFORMANCE: In-place update and removal (avoid filter)
-                    let writeIdx = 0;
-                    for (let i = 0; i < gameState.enemies.length; i++) {
-                        const enemy = gameState.enemies[i];
+                    
+                    gameState.enemies = gameState.enemies.filter(enemy => {
                         if (enemy && enemy.active && typeof enemy.update === 'function') {
                             enemy.update();
-
+                            
                             // 🎯 ADD LASER TARGETING TO ENEMIES (reduced frequency)
-                            if (laserTargeting && Math.random() < 0.005) {
+                            if (laserTargeting && Math.random() < 0.005) { // Reduced from 0.02
                                 laserTargeting.addTarget(enemy.x, enemy.y, enemy.type);
                             }
-
-                            gameState.enemies[writeIdx++] = enemy;
+                            
+                            return true;
                         }
-                    }
-                    gameState.enemies.length = writeIdx;
+                        return false;
+                    });
                 }
                 
                 if (gameState.boss && gameState.boss.active && timeScale === 1) {
@@ -10221,54 +9871,46 @@ let hazardManager = null;
                     }
                 }
                 
-                // 🚀 PERFORMANCE: Optimize particle updates with in-place removal
+                // 🚀 PERFORMANCE: Optimize particle updates with batching
                 if (gameState.particles && gameState.particles.length > 0) {
+                    // Limit particle processing per frame
                     const maxParticlesPerFrame = 30;
-                    const len = Math.min(gameState.particles.length, maxParticlesPerFrame);
-                    let writeIdx = 0;
-                    let hasInactive = false;
-
-                    for (let i = 0; i < len; i++) {
+                    const particlesToProcess = Math.min(gameState.particles.length, maxParticlesPerFrame);
+                    
+                    for (let i = 0; i < particlesToProcess; i++) {
                         const p = gameState.particles[i];
                         try {
                             if (p && typeof p.update === 'function') {
                                 p.update();
-                            }
-                            if (p && p.active !== false && (p.life === undefined || p.life > 0)) {
-                                gameState.particles[writeIdx++] = p;
-                            } else {
-                                hasInactive = true;
+                                if (p.active === false) {
+                                    gameState.particles.splice(i, 1);
+                                    i--;
+                                    break; // Only remove one per frame to avoid hitching
+                                }
                             }
                         } catch (err) {
-                            hasInactive = true;
+                            console.warn('Particle update error:', err);
+                            gameState.particles.splice(i, 1);
+                            i--;
                         }
                     }
-
-                    // Copy remaining unprocessed particles
-                    for (let i = len; i < gameState.particles.length; i++) {
-                        gameState.particles[writeIdx++] = gameState.particles[i];
-                    }
-                    gameState.particles.length = writeIdx;
-
-                    // Hard cap at 100 particles
-                    if (gameState.particles.length > 100) {
-                        gameState.particles.length = 100;
+                    
+                    // Clean up expired particles periodically
+                    if (frameStart % 120 === 0) { // Every 2 seconds
+                        gameState.particles = gameState.particles.filter(p => 
+                            p && p.active !== false && (p.life === undefined || p.life > 0)
+                        );
                     }
                 }
-
-                // 🚀 PERFORMANCE: In-place powerUp update
-                if (gameState.powerUps && gameState.powerUps.length > 0) {
-                    let writeIdx = 0;
-                    for (let i = 0; i < gameState.powerUps.length; i++) {
-                        const p = gameState.powerUps[i];
+                
+                if (gameState.powerUps) {
+                    gameState.powerUps = gameState.powerUps.filter(p => {
                         if (p && typeof p.update === 'function') {
                             p.update();
-                            if (p.active) {
-                                gameState.powerUps[writeIdx++] = p;
-                            }
+                            return p.active;
                         }
-                    }
-                    gameState.powerUps.length = writeIdx;
+                        return false;
+                    });
                 }
                 
                 if (waveManager && timeScale === 1) waveManager.update(1);
@@ -10358,7 +10000,7 @@ let hazardManager = null;
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; // Reduced from 0.8
                     for (let i = 0; i < 100; i++) {
                         const x = Math.random() * config.width;
-                        const y = (Math.random() * config.height + frameTime * 0.1) % (config.height + 50) - 50;
+                        const y = (Math.random() * config.height + Date.now() * 0.1) % (config.height + 50) - 50;
                         const size = Math.random() * 1.5; // Reduced from 2
                         ctx.beginPath();
                         ctx.arc(x, y, size, 0, Math.PI * 2);
@@ -10376,11 +10018,6 @@ let hazardManager = null;
                 // 📊 OSCILLOSCOPE SCAN LINES (with null check)
                 if (oscilloscopeUI) {
                     oscilloscopeUI.drawScanLines(ctx);
-                }
-
-                // 🌍 Draw environmental hazards before particles and enemies
-                if (hazardPool) {
-                    hazardPool.draw(ctx);
                 }
                 
                 // Draw bonus round
@@ -10450,7 +10087,7 @@ let hazardManager = null;
                 }
                 
                 if (gameState.player && gameState.player.isAlive) {
-                    if (!gameState.player.invulnerable || Math.floor(frameTime / 100) % 2) {
+                    if (!gameState.player.invulnerable || Math.floor(Date.now() / 100) % 2) {
                         gameState.player.draw(ctx);
                     }
                 }
@@ -10503,7 +10140,7 @@ let hazardManager = null;
                                 font: 'bold 20px ' + (terminalFonts ? terminalFonts.primary : 'Courier New'),
                                 color: '#ffff00',
                                 align: 'center',
-                                flicker: Math.sin(frameTime * 0.008) > 0,
+                                flicker: Math.sin(Date.now() * 0.008) > 0,
                                 shadowBlur: 25
                             });
                         }
@@ -10514,27 +10151,27 @@ let hazardManager = null;
                         ctx.fillStyle = '#00ffff';
                         ctx.shadowBlur = 20;
                         ctx.shadowColor = '#00ffff';
-                        ctx.globalAlpha = 0.8 + Math.sin(frameTime * 0.005) * 0.2;
+                        ctx.globalAlpha = 0.8 + Math.sin(Date.now() * 0.005) * 0.2;
                         ctx.fillText(
-                            gameState.promoTexts[gameState.currentPromoIndex],
-                            config.width / 2,
+                            gameState.promoTexts[gameState.currentPromoIndex], 
+                            config.width / 2, 
                             config.height * 0.85
                         );
-
+                        
                         ctx.font = 'bold 16px Courier New';
                         ctx.fillStyle = '#ff00ff';
                         ctx.shadowBlur = 15;
                         ctx.shadowColor = '#ff00ff';
-                        ctx.globalAlpha = 0.6 + Math.sin(frameTime * 0.01) * 0.4;
+                        ctx.globalAlpha = 0.6 + Math.sin(Date.now() * 0.01) * 0.4;
                         ctx.fillText('DEMO MODE', config.width / 2, 30);
-
-                        if (gameState.promoTexts[gameState.currentPromoIndex].includes('PRESS ANY KEY') ||
+                        
+                        if (gameState.promoTexts[gameState.currentPromoIndex].includes('PRESS ANY KEY') || 
                             gameState.promoTexts[gameState.currentPromoIndex].includes('PRESS C TO INSERT')) {
                             ctx.font = 'bold 20px Courier New';
                             ctx.fillStyle = '#ffff00';
                             ctx.shadowBlur = 25;
                             ctx.shadowColor = '#ffff00';
-                            ctx.globalAlpha = Math.sin(frameTime * 0.008) > 0 ? 1 : 0.3;
+                            ctx.globalAlpha = Math.sin(Date.now() * 0.008) > 0 ? 1 : 0.3;
                             ctx.fillText('PRESS C TO INSERT COIN', config.width / 2, config.height * 0.92);
                         }
                     }
@@ -10585,7 +10222,7 @@ let hazardManager = null;
                         textGradient.addColorStop(1, '#ff00ff');
                         
                         ctx.fillStyle = textGradient;
-                        ctx.globalAlpha = 0.9 + Math.sin(frameTime * 0.01) * 0.1;
+                        ctx.globalAlpha = 0.9 + Math.sin(Date.now() * 0.01) * 0.1;
                         
                         const comboText = `${gameState.combo}x COMBO`;
                         ctx.fillText(comboText, config.width / 2, meterY - 15);
@@ -10622,7 +10259,7 @@ let hazardManager = null;
                         ctx.textBaseline = 'middle';
                         ctx.shadowBlur = 30;
                         ctx.shadowColor = '#ff0000';
-                        ctx.globalAlpha = 0.8 + Math.sin(frameTime * 0.01) * 0.2;
+                        ctx.globalAlpha = 0.8 + Math.sin(Date.now() * 0.01) * 0.2;
                         ctx.fillText('GAME OVER', config.width / 2, config.height / 2);
                     }
                     
@@ -10675,17 +10312,17 @@ let hazardManager = null;
             
             ctx.save();
             
-            const pulse = Math.sin(frameTime * 0.001) * 0.3 + 0.7;
-            const colorShift = Math.sin(frameTime * 0.0005) * 30;
-
+            const pulse = Math.sin(Date.now() * 0.001) * 0.3 + 0.7;
+            const colorShift = Math.sin(Date.now() * 0.0005) * 30;
+            
             const hue = theme.gridHue + colorShift;
             ctx.strokeStyle = `hsla(${hue}, 100%, 50%, ${0.15 * pulse})`;
             ctx.lineWidth = 1;
             ctx.shadowBlur = 8 * pulse;
             ctx.shadowColor = `hsla(${hue}, 100%, 50%, 0.4)`;
-
+            
             const gridSize = 60;
-            const offset = (frameTime * 0.02) % gridSize;
+            const offset = (Date.now() * 0.02) % gridSize;
             
             // Vertical grid lines with perspective
             for (let x = -gridSize; x < config.width + gridSize; x += gridSize) {
@@ -11083,7 +10720,10 @@ let hazardManager = null;
                     console.error('Could not get canvas context!');
                     return;
                 }
-                
+
+                // 🚀 PERFORMANCE: Initialize cached UI references
+                initCachedUI();
+
                 function resizeCanvas() {
                     canvas.width = window.innerWidth;
                     canvas.height = window.innerHeight;
@@ -11129,20 +10769,9 @@ let hazardManager = null;
                     }
                 }
                 
-                // 🚀 PERFORMANCE: Cache DOM references once at startup
-                cachedUI.score = document.getElementById('scoreDisplay');
-                cachedUI.wave = document.getElementById('waveDisplay');
-                cachedUI.lives = document.getElementById('livesDisplay');
-                cachedUI.bombs = document.getElementById('bombsDisplay');
-                cachedUI.highScore = document.getElementById('highScoreDisplay');
-                cachedUI.menuScreen = document.getElementById('menuScreen');
-                cachedUI.gameUI = document.getElementById('gameUI');
-                cachedUI.gameOverScreen = document.getElementById('gameOverScreen');
-                console.log('🚀 DOM references cached for performance');
-
                 const highScores = getHighScores();
                 const topScore = highScores.length > 0 ? highScores[0].score : 0;
-                if (cachedUI.highScore) cachedUI.highScore.textContent = topScore.toLocaleString();
+                document.getElementById('highScoreDisplay').textContent = topScore.toLocaleString();
                 
                 soundSystem = new SoundSystem();
                 
