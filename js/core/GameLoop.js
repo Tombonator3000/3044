@@ -1,0 +1,626 @@
+/**
+ * Geometry 3044 - GameLoop Module
+ * Main game loop with update and render phases
+ */
+
+import { CONFIG, getCurrentTheme } from '../config.js';
+
+/**
+ * GameLoop class - manages the main game loop
+ */
+export class GameLoop {
+    constructor(options = {}) {
+        // Core references
+        this.canvas = options.canvas;
+        this.ctx = options.ctx;
+        this.gameState = options.gameState;
+        this.inputHandler = options.inputHandler;
+        this.collisionSystem = options.collisionSystem;
+
+        // Systems (optional, can be set later)
+        this.particleSystem = options.particleSystem || null;
+        this.bulletPool = options.bulletPool || null;
+        this.waveManager = options.waveManager || null;
+        this.soundSystem = options.soundSystem || null;
+        this.starfield = options.starfield || null;
+        this.vhsGlitch = options.vhsGlitch || null;
+
+        // Render functions (can be customized)
+        this.renderCRT = options.renderCRT || null;
+
+        // Loop state
+        this.running = false;
+        this.paused = false;
+        this.animationFrameId = null;
+
+        // Timing
+        this.targetFPS = 60;
+        this.frameTime = 1000 / this.targetFPS;
+        this.lastFrameTime = 0;
+        this.deltaTime = 0;
+        this.frameCount = 0;
+
+        // Performance monitoring
+        this.fpsHistory = [];
+        this.fpsHistoryMaxLength = 60;
+        this.currentFPS = 60;
+        this.showFPS = false;
+
+        // Callbacks
+        this.onUpdate = options.onUpdate || null;
+        this.onRender = options.onRender || null;
+        this.onPreRender = options.onPreRender || null;
+        this.onPostRender = options.onPostRender || null;
+
+        // Bound loop function
+        this._boundLoop = this.loop.bind(this);
+    }
+
+    /**
+     * Set a system reference
+     */
+    setSystem(name, system) {
+        this[name] = system;
+    }
+
+    /**
+     * Set callback function
+     */
+    setCallback(name, callback) {
+        if (name === 'update') this.onUpdate = callback;
+        else if (name === 'render') this.onRender = callback;
+        else if (name === 'preRender') this.onPreRender = callback;
+        else if (name === 'postRender') this.onPostRender = callback;
+    }
+
+    /**
+     * Start the game loop
+     */
+    start() {
+        if (this.running) return;
+
+        this.running = true;
+        this.lastFrameTime = performance.now();
+        this.animationFrameId = requestAnimationFrame(this._boundLoop);
+
+        console.log('🎮 GameLoop started');
+    }
+
+    /**
+     * Stop the game loop
+     */
+    stop() {
+        this.running = false;
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+
+        console.log('🛑 GameLoop stopped');
+    }
+
+    /**
+     * Pause the game loop (renders but doesn't update)
+     */
+    pause() {
+        this.paused = true;
+        if (this.gameState) {
+            this.gameState.gamePaused = true;
+        }
+    }
+
+    /**
+     * Resume the game loop
+     */
+    resume() {
+        this.paused = false;
+        if (this.gameState) {
+            this.gameState.gamePaused = false;
+        }
+        this.lastFrameTime = performance.now();
+    }
+
+    /**
+     * Toggle pause state
+     */
+    togglePause() {
+        if (this.paused) {
+            this.resume();
+        } else {
+            this.pause();
+        }
+        return this.paused;
+    }
+
+    /**
+     * Main loop function
+     */
+    loop(currentTime) {
+        if (!this.running) return;
+
+        // Calculate delta time
+        this.deltaTime = currentTime - this.lastFrameTime;
+        this.lastFrameTime = currentTime;
+
+        // Calculate FPS
+        this.updateFPS(this.deltaTime);
+
+        // Update game state timing
+        if (this.gameState) {
+            this.gameState.frameCount++;
+            this.gameState.deltaTime = this.deltaTime;
+            this.gameState.lastFrameTime = currentTime;
+        }
+
+        // Update phase (skip if paused)
+        if (!this.paused) {
+            this.update(this.deltaTime);
+        }
+
+        // Render phase (always render)
+        this.render();
+
+        // Schedule next frame
+        this.animationFrameId = requestAnimationFrame(this._boundLoop);
+
+        this.frameCount++;
+    }
+
+    /**
+     * Update game state
+     */
+    update(deltaTime) {
+        const gs = this.gameState;
+        if (!gs || !gs.gameRunning) return;
+
+        // Apply slow motion if active
+        const timeFactor = gs.slowMotion.active ? gs.slowMotion.factor : 1;
+
+        // Update input
+        if (this.inputHandler) {
+            // Check for pause
+            if (this.inputHandler.isActionPressed('pause')) {
+                this.togglePause();
+                return;
+            }
+        }
+
+        // Update player
+        if (gs.player && gs.player.update) {
+            const movement = this.inputHandler ? this.inputHandler.getMovement() : { x: 0, y: 0 };
+            const firing = this.inputHandler ? this.inputHandler.isActionActive('fire') : false;
+            gs.player.update(movement, firing, timeFactor);
+        }
+
+        // Update enemies
+        for (let i = gs.enemies.length - 1; i >= 0; i--) {
+            const enemy = gs.enemies[i];
+            if (enemy && enemy.update) {
+                enemy.update(timeFactor);
+
+                // Remove dead enemies
+                if (!enemy.alive) {
+                    gs.enemies.splice(i, 1);
+                }
+            }
+        }
+
+        // Update player bullets
+        for (let i = gs.bullets.length - 1; i >= 0; i--) {
+            const bullet = gs.bullets[i];
+            if (bullet && bullet.update) {
+                bullet.update(timeFactor);
+
+                // Remove inactive bullets
+                if (!bullet.active) {
+                    gs.bullets.splice(i, 1);
+                }
+            }
+        }
+
+        // Update enemy bullets
+        for (let i = gs.enemyBullets.length - 1; i >= 0; i--) {
+            const bullet = gs.enemyBullets[i];
+            if (bullet && bullet.update) {
+                bullet.update(timeFactor);
+
+                // Remove inactive bullets
+                if (!bullet.active) {
+                    gs.enemyBullets.splice(i, 1);
+                }
+            }
+        }
+
+        // Update power-ups
+        for (let i = gs.powerUps.length - 1; i >= 0; i--) {
+            const powerUp = gs.powerUps[i];
+            if (powerUp && powerUp.update) {
+                powerUp.update(timeFactor);
+
+                // Remove inactive power-ups
+                if (!powerUp.active) {
+                    gs.powerUps.splice(i, 1);
+                }
+            }
+        }
+
+        // Update explosions
+        for (let i = gs.explosions.length - 1; i >= 0; i--) {
+            const explosion = gs.explosions[i];
+            if (explosion && explosion.update) {
+                explosion.update();
+
+                // Remove finished explosions
+                if (explosion.finished) {
+                    gs.explosions.splice(i, 1);
+                }
+            }
+        }
+
+        // Update collision detection
+        if (this.collisionSystem) {
+            this.collisionSystem.update();
+        }
+
+        // Update game systems
+        if (this.particleSystem) {
+            this.particleSystem.update();
+        }
+
+        if (this.waveManager && gs.gameRunning) {
+            this.waveManager.update();
+        }
+
+        if (this.starfield) {
+            this.starfield.update();
+        }
+
+        if (this.vhsGlitch) {
+            this.vhsGlitch.update();
+        }
+
+        // Update game state effects
+        gs.updateCombo();
+        gs.updateEffects();
+
+        // Update input state (clear single-frame flags)
+        if (this.inputHandler) {
+            this.inputHandler.update();
+        }
+
+        // Custom update callback
+        if (this.onUpdate) {
+            this.onUpdate(deltaTime, gs);
+        }
+    }
+
+    /**
+     * Render game
+     */
+    render() {
+        const ctx = this.ctx;
+        const gs = this.gameState;
+        const canvas = this.canvas;
+
+        if (!ctx || !canvas) return;
+
+        // Pre-render callback
+        if (this.onPreRender) {
+            this.onPreRender(ctx, gs);
+        }
+
+        // Apply screen shake
+        ctx.save();
+        if (gs && gs.screenShake.duration > 0) {
+            ctx.translate(gs.screenShake.x, gs.screenShake.y);
+        }
+
+        // Clear screen
+        this.renderBackground(ctx, canvas, gs);
+
+        // Render starfield (background layer)
+        if (this.starfield) {
+            this.starfield.draw(ctx);
+        }
+
+        // Render game entities
+        this.renderEntities(ctx, gs);
+
+        // Render particles
+        if (this.particleSystem) {
+            this.particleSystem.draw(ctx);
+        }
+
+        // Render explosions
+        if (gs) {
+            for (const explosion of gs.explosions) {
+                if (explosion && explosion.draw) {
+                    explosion.draw(ctx);
+                }
+            }
+        }
+
+        // Render UI
+        this.renderUI(ctx, gs);
+
+        // Custom render callback
+        if (this.onRender) {
+            this.onRender(ctx, gs);
+        }
+
+        // Restore transform (before effects)
+        ctx.restore();
+
+        // Render VHS glitch effect
+        if (this.vhsGlitch) {
+            this.vhsGlitch.draw(ctx);
+        }
+
+        // Render CRT effect (last layer)
+        if (this.renderCRT) {
+            this.renderCRT(ctx);
+        }
+
+        // Render flash effect
+        if (gs && gs.flashEffect.active) {
+            ctx.fillStyle = gs.flashEffect.color;
+            ctx.globalAlpha = gs.flashEffect.alpha;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.globalAlpha = 1;
+        }
+
+        // Render touch controls
+        if (this.inputHandler) {
+            this.inputHandler.drawTouchControls(ctx);
+        }
+
+        // Render FPS counter
+        if (this.showFPS) {
+            this.renderFPS(ctx);
+        }
+
+        // Render pause overlay
+        if (this.paused) {
+            this.renderPauseOverlay(ctx, canvas);
+        }
+
+        // Post-render callback
+        if (this.onPostRender) {
+            this.onPostRender(ctx, gs);
+        }
+    }
+
+    /**
+     * Render background
+     */
+    renderBackground(ctx, canvas, gs) {
+        const wave = gs ? gs.wave : 1;
+        const theme = getCurrentTheme(wave);
+
+        // Gradient background
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, theme.bgStart);
+        gradient.addColorStop(1, theme.bgEnd);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Grid effect
+        ctx.strokeStyle = `hsla(${theme.gridHue}, 100%, 50%, 0.1)`;
+        ctx.lineWidth = 1;
+
+        // Vertical lines
+        for (let x = 0; x < canvas.width; x += 50) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+        }
+
+        // Horizontal lines
+        for (let y = 0; y < canvas.height; y += 50) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+    }
+
+    /**
+     * Render game entities
+     */
+    renderEntities(ctx, gs) {
+        if (!gs) return;
+
+        // Render power-ups
+        for (const powerUp of gs.powerUps) {
+            if (powerUp && powerUp.draw) {
+                powerUp.draw(ctx);
+            }
+        }
+
+        // Render enemy bullets
+        for (const bullet of gs.enemyBullets) {
+            if (bullet && bullet.draw) {
+                bullet.draw(ctx);
+            }
+        }
+
+        // Render player bullets
+        for (const bullet of gs.bullets) {
+            if (bullet && bullet.draw) {
+                bullet.draw(ctx);
+            }
+        }
+
+        // Render enemies
+        for (const enemy of gs.enemies) {
+            if (enemy && enemy.draw) {
+                enemy.draw(ctx);
+            }
+        }
+
+        // Render player
+        if (gs.player && gs.player.draw) {
+            // Flash during invulnerability
+            if (gs.playerInvulnerable && Math.floor(gs.frameCount / 4) % 2 === 0) {
+                ctx.globalAlpha = 0.5;
+            }
+            gs.player.draw(ctx);
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    /**
+     * Render UI elements
+     */
+    renderUI(ctx, gs) {
+        if (!gs) return;
+
+        const wave = gs.wave;
+        const theme = getCurrentTheme(wave);
+
+        ctx.save();
+
+        // Score
+        ctx.font = 'bold 24px "Courier New", monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = CONFIG.colors.score;
+        ctx.fillStyle = CONFIG.colors.score;
+        ctx.fillText(`SCORE: ${gs.score.toLocaleString()}`, 20, 20);
+
+        // High score
+        ctx.font = '16px "Courier New", monospace';
+        ctx.fillText(`HI: ${gs.highScore.toLocaleString()}`, 20, 50);
+
+        // Wave
+        ctx.textAlign = 'center';
+        ctx.shadowColor = CONFIG.colors.wave;
+        ctx.fillStyle = CONFIG.colors.wave;
+        ctx.font = 'bold 20px "Courier New", monospace';
+        ctx.fillText(`WAVE ${wave}`, this.canvas.width / 2, 20);
+
+        // Lives
+        ctx.textAlign = 'right';
+        ctx.shadowColor = CONFIG.colors.lives;
+        ctx.fillStyle = CONFIG.colors.lives;
+        ctx.font = '20px "Courier New", monospace';
+        ctx.fillText(`♥ ${gs.lives}`, this.canvas.width - 20, 20);
+
+        // Bombs
+        ctx.shadowColor = CONFIG.colors.bombs;
+        ctx.fillStyle = CONFIG.colors.bombs;
+        ctx.fillText(`★ ${gs.bombs}`, this.canvas.width - 20, 50);
+
+        // Combo
+        if (gs.combo > 1) {
+            ctx.textAlign = 'center';
+            ctx.shadowColor = theme.accent;
+            ctx.fillStyle = theme.accent;
+            ctx.font = 'bold 28px "Courier New", monospace';
+            ctx.fillText(`${gs.combo}x COMBO!`, this.canvas.width / 2, 60);
+        }
+
+        // Theme name display
+        if (gs.showThemeName && gs.themeChangeTimer > 0) {
+            const alpha = Math.min(1, gs.themeChangeTimer / 30);
+            ctx.globalAlpha = alpha;
+            ctx.font = 'bold 36px "Courier New", monospace';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = theme.primary;
+            ctx.fillStyle = theme.primary;
+            ctx.fillText(theme.name, this.canvas.width / 2, this.canvas.height / 2 - 50);
+            ctx.globalAlpha = 1;
+        }
+
+        ctx.shadowBlur = 0;
+        ctx.restore();
+    }
+
+    /**
+     * Render pause overlay
+     */
+    renderPauseOverlay(ctx, canvas) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.font = 'bold 48px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#00ffff';
+        ctx.fillStyle = '#00ffff';
+        ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+
+        ctx.font = '20px "Courier New", monospace';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('Press ESC or P to resume', canvas.width / 2, canvas.height / 2 + 50);
+
+        ctx.shadowBlur = 0;
+    }
+
+    /**
+     * Update FPS tracking
+     */
+    updateFPS(deltaTime) {
+        const fps = 1000 / deltaTime;
+        this.fpsHistory.push(fps);
+
+        if (this.fpsHistory.length > this.fpsHistoryMaxLength) {
+            this.fpsHistory.shift();
+        }
+
+        // Calculate average FPS
+        const sum = this.fpsHistory.reduce((a, b) => a + b, 0);
+        this.currentFPS = Math.round(sum / this.fpsHistory.length);
+    }
+
+    /**
+     * Render FPS counter
+     */
+    renderFPS(ctx) {
+        ctx.save();
+        ctx.font = '14px monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = this.currentFPS < 30 ? '#ff0000' : this.currentFPS < 50 ? '#ffff00' : '#00ff00';
+        ctx.fillText(`FPS: ${this.currentFPS}`, 10, this.canvas.height - 10);
+
+        if (this.collisionSystem) {
+            const stats = this.collisionSystem.getStats();
+            ctx.fillText(`Checks: ${stats.checksPerFrame}`, 10, this.canvas.height - 30);
+        }
+
+        ctx.restore();
+    }
+
+    /**
+     * Toggle FPS display
+     */
+    toggleFPS() {
+        this.showFPS = !this.showFPS;
+        return this.showFPS;
+    }
+
+    /**
+     * Get current FPS
+     */
+    getFPS() {
+        return this.currentFPS;
+    }
+
+    /**
+     * Check if loop is running
+     */
+    isRunning() {
+        return this.running;
+    }
+
+    /**
+     * Check if loop is paused
+     */
+    isPaused() {
+        return this.paused;
+    }
+}

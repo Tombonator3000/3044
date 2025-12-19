@@ -20,6 +20,9 @@ import { BulletPool, ParticleSystem, WaveManager, SoundSystem } from './systems/
 // Phase 4: Effect modules
 import { Starfield, VHSGlitchEffects, drawEnhancedCRT, Epic80sExplosion, RadicalSlang } from './effects/index.js';
 
+// Phase 5: Core engine modules
+import { GameState, InputHandler, CollisionSystem, GameLoop } from './core/index.js';
+
 // Temporary: Log that modules are loading
 console.log('🎮 Geometry 3044 - Module System Loading...');
 console.log('📦 CONFIG loaded:', CONFIG.screen);
@@ -27,6 +30,7 @@ console.log('🎨 WAVE_THEMES loaded:', Object.keys(WAVE_THEMES).length, 'themes
 console.log('🚀 Entity modules loaded: Player, Enemy, Bullet');
 console.log('⚙️ System modules loaded: BulletPool, ParticleSystem, WaveManager, SoundSystem');
 console.log('✨ Effect modules loaded: Starfield, VHSGlitchEffects, CRTEffect, Epic80sExplosion, RadicalSlang');
+console.log('🎯 Core modules loaded: GameState, InputHandler, CollisionSystem, GameLoop');
 
 /**
  * Initialize the game
@@ -69,7 +73,8 @@ function init() {
     console.log('✅ Phase 2 Complete: Entity modules (Player, Enemy, Bullet)');
     console.log('✅ Phase 3 Complete: System modules (BulletPool, ParticleSystem, WaveManager, SoundSystem)');
     console.log('✅ Phase 4 Complete: Effect modules (Starfield, VHSGlitch, CRT, Explosions)');
-    console.log('📝 Next: Implement managers (Phase 5)');
+    console.log('✅ Phase 5 Complete: Core engine (GameState, InputHandler, CollisionSystem, GameLoop)');
+    console.log('📝 Next: Wire up complete game with all modules');
 }
 
 /**
@@ -147,16 +152,22 @@ function drawTestPattern(ctx, canvas) {
     ctx.shadowColor = '#ff00ff';
     ctx.fillStyle = '#ff00ff';
     ctx.fillText('✓ Starfield.js', canvas.width / 2 - 120, canvas.height / 2 + 220);
-    ctx.fillText('✓ VHSGlitch.js', canvas.width / 2 - 120, canvas.height / 2 + 245);
-    ctx.fillText('✓ CRTEffect.js', canvas.width / 2 + 100, canvas.height / 2 + 220);
-    ctx.fillText('✓ Explosions.js', canvas.width / 2 + 100, canvas.height / 2 + 245);
+    ctx.fillText('✓ VHSGlitch.js', canvas.width / 2 + 100, canvas.height / 2 + 220);
+
+    // Core modules status (Phase 5)
+    ctx.shadowColor = '#ffff00';
+    ctx.fillStyle = '#ffff00';
+    ctx.fillText('✓ GameState.js', canvas.width / 2 - 120, canvas.height / 2 + 245);
+    ctx.fillText('✓ InputHandler.js', canvas.width / 2 + 100, canvas.height / 2 + 245);
+    ctx.fillText('✓ CollisionSystem.js', canvas.width / 2 - 120, canvas.height / 2 + 270);
+    ctx.fillText('✓ GameLoop.js', canvas.width / 2 + 100, canvas.height / 2 + 270);
 
     ctx.shadowBlur = 0;
 
     // Info box
     ctx.font = '14px "Courier New", monospace';
     ctx.fillStyle = '#666666';
-    ctx.fillText('Phase 4 Complete - Effects Modules Ready', canvas.width / 2, canvas.height - 50);
+    ctx.fillText('Phase 5 Complete - Core Engine Ready', canvas.width / 2, canvas.height - 50);
 }
 
 // Initialize when DOM is ready
@@ -185,5 +196,10 @@ window.DEBUG = {
     VHSGlitchEffects,
     drawEnhancedCRT,
     Epic80sExplosion,
-    RadicalSlang
+    RadicalSlang,
+    // Core engine classes (Phase 5)
+    GameState,
+    InputHandler,
+    CollisionSystem,
+    GameLoop
 };
