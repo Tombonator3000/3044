@@ -141,10 +141,12 @@ export class MenuManager {
                 if (cachedUI.menuScreen) cachedUI.menuScreen.style.display = 'flex';
                 break;
             case MenuState.GAME:
-                if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'block';
+                // Canvas-based HUD is now used instead of DOM elements
+                // if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'block';
                 break;
             case MenuState.PAUSED:
-                if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'block';
+                // Canvas-based HUD is now used instead of DOM elements
+                // if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'block';
                 if (pauseOverlay) pauseOverlay.style.display = 'flex';
                 break;
             case MenuState.GAME_OVER:
