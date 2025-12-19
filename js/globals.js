@@ -36,6 +36,7 @@ export const cachedUI = {
     lives: null,
     bombs: null,
     highScore: null,
+    gameHighScore: null,
     menuScreen: null,
     gameUI: null,
     gameOverScreen: null,
@@ -125,7 +126,8 @@ export function initCachedUI() {
     cachedUI.wave = document.getElementById('waveDisplay');
     cachedUI.lives = document.getElementById('livesDisplay');
     cachedUI.bombs = document.getElementById('bombsDisplay');
-    cachedUI.highScore = document.getElementById('highScoreDisplay');
+    cachedUI.highScore = document.getElementById('highScoreDisplay'); // Menu high score
+    cachedUI.gameHighScore = document.getElementById('gameHighScoreDisplay'); // In-game high score
     cachedUI.menuScreen = document.getElementById('menuScreen');
     cachedUI.gameUI = document.getElementById('gameUI');
     cachedUI.gameOverScreen = document.getElementById('gameOverScreen');

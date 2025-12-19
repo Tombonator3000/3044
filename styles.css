@@ -56,10 +56,22 @@ body {
         );
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
+    padding-top: 80px;
     z-index: 10;
     overflow: hidden;
+}
+
+/* Menu content container */
+.menu-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 15px;
+    z-index: 5;
+    margin-top: 80px;
 }
 
 #menuScreen::before {
@@ -104,11 +116,11 @@ body {
 }
 
 .logo {
-    font-size: 5em;
+    font-size: 4em;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.15em;
-    margin-bottom: 0.3em;
+    margin-bottom: 0.5em;
     background: linear-gradient(45deg, #ffffff, #e6e6e6, #ffffff, #cccccc);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -121,6 +133,7 @@ body {
     animation: chrome-pulse 3s ease-in-out infinite;
     position: relative;
     z-index: 5;
+    text-align: center;
 }
 
 .logo::before {
@@ -480,11 +493,11 @@ body {
 /* Synthwave decorative elements */
 .synthwave-sun {
     position: absolute;
-    top: 15%;
+    top: 5%;
     left: 50%;
     transform: translateX(-50%);
-    width: 200px;
-    height: 200px;
+    width: 150px;
+    height: 150px;
     border-radius: 50%;
     background: radial-gradient(circle, #ff6b00 0%, #ff0080 70%, transparent 100%);
     box-shadow:
@@ -575,7 +588,7 @@ body {
 .bombs { color: #ff0; }
 .wave { color: #f0f; }
 
-#highScore {
+#gameHighScore {
     position: absolute;
     bottom: 30px;
     left: 50%;
@@ -595,17 +608,54 @@ body {
     box-shadow:
         0 0 15px rgba(255, 255, 0, 0.3),
         inset 0 0 10px rgba(255, 255, 0, 0.1);
+    display: none; /* Hidden during menu, shown during gameplay */
+    z-index: 5;
 }
 
 .controls {
-    position: absolute;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
     text-align: center;
     font-size: 0.9em;
     color: #0ff;
-    opacity: 0.7;
+    opacity: 0.8;
+    line-height: 1.8;
+}
+
+.controls .coin-hint {
+    color: #ffff00;
+    font-weight: bold;
+}
+
+/* Credits display in menu */
+#creditsDisplay {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: #00ff00;
+    text-transform: uppercase;
+    text-shadow: 0 0 15px #00ff00;
+    letter-spacing: 0.1em;
+}
+
+/* High score in menu */
+#menuHighScore {
+    font-size: 1.2em;
+    font-weight: 700;
+    color: #ffff00;
+    text-transform: uppercase;
+    text-shadow: 0 0 15px #ffff00;
+    letter-spacing: 0.1em;
+    margin-top: 10px;
+}
+
+/* Insert coin text */
+#insertCoinText {
+    font-size: 1.5em;
+    font-weight: 900;
+    color: #ff00ff;
+    text-transform: uppercase;
+    text-shadow: 0 0 20px #ff00ff;
+    letter-spacing: 0.15em;
+    animation: blink 1s ease-in-out infinite;
+    margin-top: 20px;
 }
 
 #gameOverScreen {
