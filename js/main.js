@@ -12,13 +12,17 @@ import {
 // Phase 2: Entity modules
 import { Player } from './entities/Player.js';
 import { Enemy } from './entities/Enemy.js';
-import { Bullet, BulletPool } from './entities/Bullet.js';
+import { Bullet } from './entities/Bullet.js';
+
+// Phase 3: System modules
+import { BulletPool, ParticleSystem, WaveManager, SoundSystem } from './systems/index.js';
 
 // Temporary: Log that modules are loading
 console.log('🎮 Geometry 3044 - Module System Loading...');
 console.log('📦 CONFIG loaded:', CONFIG.screen);
 console.log('🎨 WAVE_THEMES loaded:', Object.keys(WAVE_THEMES).length, 'themes');
-console.log('🚀 Entity modules loaded: Player, Enemy, Bullet, BulletPool');
+console.log('🚀 Entity modules loaded: Player, Enemy, Bullet');
+console.log('⚙️ System modules loaded: BulletPool, ParticleSystem, WaveManager, SoundSystem');
 
 /**
  * Initialize the game
@@ -51,16 +55,15 @@ function init() {
     // Draw a test pattern to verify everything works
     drawTestPattern(context, canvasElement);
 
-    // TODO: Initialize game systems (Phase 3+)
-    // - ParticleSystem
-    // - WaveManager
-    // - SoundSystem
+    // TODO: Initialize game systems (Phase 4+)
     // - FormationManager
+    // - Starfield
     // - etc.
 
     console.log('🎮 Geometry 3044 - Module System Ready!');
     console.log('✅ Phase 2 Complete: Entity modules (Player, Enemy, Bullet)');
-    console.log('📝 Next: Implement game systems (Phase 3)');
+    console.log('✅ Phase 3 Complete: System modules (BulletPool, ParticleSystem, WaveManager, SoundSystem)');
+    console.log('📝 Next: Implement managers (Phase 4)');
 }
 
 /**
@@ -121,19 +124,27 @@ function drawTestPattern(ctx, canvas) {
     ctx.fillText('✓ globals.js loaded', canvas.width / 2, canvas.height / 2 + 85);
     ctx.fillText('✓ main.js loaded', canvas.width / 2, canvas.height / 2 + 110);
 
-    // Entity modules status
+    // Entity modules status (Phase 2)
     ctx.shadowColor = theme.accent;
     ctx.fillStyle = theme.accent;
-    ctx.fillText('✓ Player.js loaded', canvas.width / 2, canvas.height / 2 + 145);
-    ctx.fillText('✓ Enemy.js loaded', canvas.width / 2, canvas.height / 2 + 170);
-    ctx.fillText('✓ Bullet.js loaded', canvas.width / 2, canvas.height / 2 + 195);
+    ctx.fillText('✓ Player.js', canvas.width / 2 - 120, canvas.height / 2 + 145);
+    ctx.fillText('✓ Enemy.js', canvas.width / 2 - 120, canvas.height / 2 + 170);
+    ctx.fillText('✓ Bullet.js', canvas.width / 2 - 120, canvas.height / 2 + 195);
+
+    // System modules status (Phase 3)
+    ctx.shadowColor = '#00ffff';
+    ctx.fillStyle = '#00ffff';
+    ctx.fillText('✓ BulletPool.js', canvas.width / 2 + 100, canvas.height / 2 + 145);
+    ctx.fillText('✓ ParticleSystem.js', canvas.width / 2 + 100, canvas.height / 2 + 170);
+    ctx.fillText('✓ WaveManager.js', canvas.width / 2 + 100, canvas.height / 2 + 195);
+    ctx.fillText('✓ SoundSystem.js', canvas.width / 2 + 100, canvas.height / 2 + 220);
 
     ctx.shadowBlur = 0;
 
     // Info box
     ctx.font = '14px "Courier New", monospace';
     ctx.fillStyle = '#666666';
-    ctx.fillText('Phase 2 Complete - Entity Modules Ready', canvas.width / 2, canvas.height - 50);
+    ctx.fillText('Phase 3 Complete - Systems Modules Ready', canvas.width / 2, canvas.height - 50);
 }
 
 // Initialize when DOM is ready
@@ -152,5 +163,9 @@ window.DEBUG = {
     Player,
     Enemy,
     Bullet,
-    BulletPool
+    // System classes (Phase 3)
+    BulletPool,
+    ParticleSystem,
+    WaveManager,
+    SoundSystem
 };

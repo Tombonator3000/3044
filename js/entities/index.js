@@ -5,4 +5,7 @@
 
 export { Player } from './Player.js';
 export { Enemy } from './Enemy.js';
-export { Bullet, BulletPool } from './Bullet.js';
+export { Bullet } from './Bullet.js';
+
+// BulletPool is now in systems/BulletPool.js
+// Import from systems/index.js instead
