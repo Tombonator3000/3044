@@ -7,6 +7,7 @@ export { Player } from './Player.js';
 export { Enemy } from './Enemy.js';
 export { Bullet } from './Bullet.js';
 export { PowerUp } from './PowerUp.js';
+export { Boss } from './Boss.js';
 
 // BulletPool is now in systems/BulletPool.js
 // Import from systems/index.js instead
