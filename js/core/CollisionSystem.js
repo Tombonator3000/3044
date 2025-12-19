@@ -9,8 +9,24 @@ import { CONFIG } from '../config.js';
  * CollisionSystem class - manages collision detection
  */
 export class CollisionSystem {
-    constructor(gameState) {
-        this.gameState = gameState;
+    constructor(options = {}) {
+        // Support both old style (gameState directly) and new style (options object)
+        if (options.gameState) {
+            this.gameState = options.gameState;
+            this.particleSystem = options.particleSystem || null;
+            this.soundSystem = options.soundSystem || null;
+
+            // Store callbacks from options
+            this._onEnemyDestroyed = options.onEnemyDestroyed || null;
+            this._onPlayerHit = options.onPlayerHit || null;
+        } else {
+            // Legacy: direct gameState parameter
+            this.gameState = options;
+            this.particleSystem = null;
+            this.soundSystem = null;
+            this._onEnemyDestroyed = null;
+            this._onPlayerHit = null;
+        }
 
         // Collision callbacks
         this.callbacks = {
@@ -21,11 +37,43 @@ export class CollisionSystem {
             playerCollectPowerUp: null
         };
 
+        // Set up default callbacks if provided in options
+        if (this._onPlayerHit) {
+            this.callbacks.playerHitByBullet = (player, bullet) => {
+                this._onPlayerHit();
+            };
+            this.callbacks.playerHitByEnemy = (player, enemy, index) => {
+                this._onPlayerHit();
+            };
+        }
+
+        if (this._onEnemyDestroyed) {
+            this.callbacks.enemyHitByBullet = (enemy, bullet, enemyIndex, bulletIndex) => {
+                // Deal damage to enemy
+                if (enemy.takeDamage) {
+                    const killed = enemy.takeDamage(bullet.damage || 1);
+                    if (killed) {
+                        this._onEnemyDestroyed(enemy, bullet);
+                        if (this.particleSystem && this.particleSystem.createExplosion) {
+                            this.particleSystem.createExplosion(enemy.x, enemy.y, enemy.color || '#ff6600', 15);
+                        }
+                    }
+                } else {
+                    // Simple enemy without takeDamage
+                    enemy.alive = false;
+                    enemy.active = false;
+                    this._onEnemyDestroyed(enemy, bullet);
+                }
+            };
+        }
+
         // Collision stats for debugging
         this.stats = {
             checksPerFrame: 0,
             collisionsDetected: 0
         };
+
+        console.log('✅ CollisionSystem initialized with gameState:', !!this.gameState);
     }
 
     /**

@@ -153,19 +153,22 @@ class FallbackBulletPool {
     }
 
     update(canvas, deltaTime = 1) {
-        this.bullets = this.bullets.filter(b => {
-            if (!b.active) return false;
+        // Update bullets in place to preserve array reference
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            const b = this.bullets[i];
+            if (!b.active) {
+                this.bullets.splice(i, 1);
+                continue;
+            }
 
             b.x += b.vx * deltaTime;
             b.y += b.vy * deltaTime;
 
             if (b.x < -50 || b.x > canvas.width + 50 ||
                 b.y < -50 || b.y > canvas.height + 50) {
-                return false;
+                this.bullets.splice(i, 1);
             }
-
-            return true;
-        });
+        }
     }
 
     draw(ctx) {
@@ -183,7 +186,8 @@ class FallbackBulletPool {
     }
 
     clear() {
-        this.bullets = [];
+        // Clear array in place to preserve reference
+        this.bullets.length = 0;
     }
 
     getActiveBullets() {
@@ -831,6 +835,18 @@ function startGame() {
             () => new FallbackBulletPool()
         );
         setEnemyBulletPool(enemyBulletPool);
+
+        // CRITICAL: Connect bullet arrays to gameState
+        // GameLoop reads from gameState.bullets, but Player spawns to bulletPool.bullets
+        // This ensures they reference the SAME array!
+        if (bulletPool && bulletPool.bullets) {
+            gameStateInstance.bullets = bulletPool.bullets;
+            console.log('✅ Player bullets connected to gameState');
+        }
+        if (enemyBulletPool && enemyBulletPool.bullets) {
+            gameStateInstance.enemyBullets = enemyBulletPool.bullets;
+            console.log('✅ Enemy bullets connected to gameState');
+        }
 
         // Input Handler
         inputHandler = safeInit('InputHandler',

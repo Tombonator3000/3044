@@ -101,8 +101,13 @@ export class BulletPool {
         }
 
         // Compact array when too many inactive bullets
+        // Use splice to preserve array reference (gameState.bullets points here)
         if (this.bullets.length > this.maxBullets * 0.8) {
-            this.bullets = this.bullets.filter(b => b.active);
+            for (let i = this.bullets.length - 1; i >= 0; i--) {
+                if (!this.bullets[i].active) {
+                    this.bullets.splice(i, 1);
+                }
+            }
             console.log(`🧹 Bullet pool compacted: ${this.bullets.length} bullets remaining`);
         }
 
