@@ -70,7 +70,8 @@ body {
     align-items: center;
     justify-content: flex-start;
     gap: 15px;
-    z-index: 5;
+    position: relative;
+    z-index: 10;
     margin-top: 80px;
 }
 
@@ -506,6 +507,7 @@ body {
         inset 0 0 50px rgba(255, 255, 255, 0.1);
     animation: sun-glow 4s ease-in-out infinite alternate;
     z-index: 1;
+    pointer-events: none;
 }
 
 .synthwave-sun::before {
@@ -531,6 +533,7 @@ body {
         linear-gradient(45deg, transparent 40%, rgba(51, 0, 102, 0.8) 45%, rgba(51, 0, 102, 0.9) 55%, transparent 60%);
     clip-path: polygon(0% 100%, 10% 70%, 20% 85%, 30% 60%, 40% 75%, 50% 45%, 60% 65%, 70% 40%, 80% 55%, 90% 75%, 100% 100%);
     z-index: 2;
+    pointer-events: none;
 }
 
 @keyframes sun-glow {
