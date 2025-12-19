@@ -9,7 +9,8 @@ import {
     cachedUI, setCanvas, setCtx, initCachedUI,
     setGameState, setParticleSystem, setBulletPool,
     setEnemyBulletPool, setWaveManager, setSoundSystem,
-    setStarfield, setVhsGlitch, setWeaponManager
+    setStarfield, setVhsGlitch, setWeaponManager,
+    gameStarting, setGameStarting
 } from './globals.js';
 
 // Entity modules
@@ -177,6 +178,14 @@ function drawMenuBackground() {
 function startGame() {
     console.log('🎮 [1] startGame() called');
 
+    // Guard against multiple startGame calls
+    if (gameStarting) {
+        console.log('🎮 [!] startGame already in progress, ignoring');
+        return;
+    }
+    setGameStarting(true);
+    console.log('🎮 [1b] gameStarting guard set');
+
     try {
         // Initialize sound system if not already done
         console.log('🎮 [2] Checking sound system...');
@@ -194,6 +203,7 @@ function startGame() {
         console.log('  - menuManager:', menuManager ? '✅' : '❌');
         if (!menuManager.useCredit()) {
             console.log('❌ No credits available!');
+            setGameStarting(false); // Reset guard on failure
             return;
         }
         console.log('🎮 [4] Credit used successfully');
@@ -349,6 +359,7 @@ function startGame() {
     } catch (error) {
         console.error('🎮 [ERROR] Game failed to start:', error);
         console.error('Stack trace:', error.stack);
+        setGameStarting(false); // Reset guard on error
     }
 }
 
@@ -426,6 +437,9 @@ function gameOver() {
 
     // Show game over screen
     menuManager.showGameOver(gameStateInstance ? gameStateInstance.score : 0);
+
+    // Reset game starting guard so player can start a new game
+    setGameStarting(false);
 
     // Set up play again button
     const playAgainBtn = document.getElementById('playAgainBtn');

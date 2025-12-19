@@ -66,6 +66,7 @@ export let credits = CONFIG.game.credits;
 export let continueTimer = 0;
 export let maxContinueTime = CONFIG.game.continueTime;
 export let showingContinueScreen = false;
+export let gameStarting = false; // Guard against multiple startGame calls
 
 // Music
 export let menuMusic = null;
@@ -119,6 +120,10 @@ export function setNewHighScoreIndex(i) { newHighScoreIndex = i; }
 export function setHighScoreFromAttractMode(h) { highScoreFromAttractMode = h; }
 export function setGameLoopId(id) { gameLoopId = id; }
 export function setBossDeathTimeoutId(id) { bossDeathTimeoutId = id; }
+export function setGameStarting(s) { gameStarting = s; }
+
+// Direct getter for credits (ensures fresh read)
+export function getCredits() { return credits; }
 
 // Initialize cached UI references
 export function initCachedUI() {
