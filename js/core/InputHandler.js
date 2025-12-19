@@ -159,13 +159,16 @@ export class InputHandler {
      */
     handleKeyDown(e) {
         const code = e.code;
+        const key = e.key;
 
         // Track press state (only fire once per press)
         if (!this.keys[code]) {
             this.keysPressed[code] = true;
         }
 
+        // Set both code (KeyA) and key (a) for compatibility
         this.keys[code] = true;
+        this.keys[key] = true;
 
         // Prevent default for game keys
         if (this.isGameKey(code)) {
@@ -178,7 +181,10 @@ export class InputHandler {
      */
     handleKeyUp(e) {
         const code = e.code;
+        const key = e.key;
+        // Clear both code (KeyA) and key (a) for compatibility
         this.keys[code] = false;
+        this.keys[key] = false;
         this.keysReleased[code] = true;
     }
 
