@@ -20,6 +20,7 @@ import { SoundSystem } from './systems/SoundSystem.js';
 import { HUD } from './ui/HUD.js';
 import { drawThemedGrid, drawBackground } from './rendering/GridRenderer.js';
 import { initCachedUI } from './globals.js';
+import { MobileControls } from './ui/MobileControls.js';
 
 // === GLOBAL STATE ===
 let canvas, ctx;
@@ -40,11 +41,13 @@ let vhsEffect = null;
 let soundSystem = null;
 let hud = null;
 let powerUpManager = null;
+let mobileControls = null;
 
 // === INPUT ===
 let keys = {};
 let touchJoystick = { active: false, startX: 0, startY: 0, currentX: 0, currentY: 0 };
 let touchButtons = { fire: false, bomb: false };
+let bombPressedLastFrame = false;
 
 // === MENU STATE ===
 let credits = 3;
@@ -108,6 +111,10 @@ function init() {
     hud = new HUD();
     hud.resize(canvas.width, canvas.height);
 
+    // Initialize mobile controls
+    mobileControls = new MobileControls(canvas);
+    mobileControls.resize(canvas.width, canvas.height);
+
     // Update config
     updateConfig(canvas.width, canvas.height);
 
@@ -133,6 +140,7 @@ function resizeCanvas() {
 
     if (starfield) starfield.resize(canvas.width, canvas.height);
     if (hud) hud.resize(canvas.width, canvas.height);
+    if (mobileControls) mobileControls.resize(canvas.width, canvas.height);
 }
 
 // ============================================
@@ -188,7 +196,7 @@ function initInput() {
         keys[e.code] = false;
     });
 
-    // Touch controls
+    // Legacy touch controls - only used as fallback when MobileControls is not active
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
@@ -203,6 +211,16 @@ function initInput() {
 }
 
 function handleTouchStart(e) {
+    // Skip if mobileControls is handling touch
+    if (mobileControls && mobileControls.enabled) {
+        // Still handle attract mode exit and timeout reset
+        resetAttractModeTimeout();
+        if (attractMode) {
+            exitAttractMode();
+        }
+        return;
+    }
+
     e.preventDefault();
     resetAttractModeTimeout();
 
@@ -235,6 +253,9 @@ function handleTouchStart(e) {
 }
 
 function handleTouchMove(e) {
+    // Skip if mobileControls is handling touch
+    if (mobileControls && mobileControls.enabled) return;
+
     e.preventDefault();
 
     if (touchJoystick.active && e.touches[0]) {
@@ -246,6 +267,9 @@ function handleTouchMove(e) {
 }
 
 function handleTouchEnd(e) {
+    // Skip if mobileControls is handling touch
+    if (mobileControls && mobileControls.enabled) return;
+
     e.preventDefault();
     touchJoystick.active = false;
     touchButtons.fire = false;
@@ -605,6 +629,28 @@ function update(deltaTime) {
     // Update starfield
     if (starfield) starfield.update(deltaTime);
 
+    // Update mobile controls and sync touch state
+    if (mobileControls && mobileControls.enabled) {
+        mobileControls.update(deltaTime);
+
+        // Sync mobile controls state with legacy touch variables
+        const movement = mobileControls.getMovement();
+        touchJoystick.active = mobileControls.joystick.active;
+        touchJoystick.startX = mobileControls.joystick.baseX;
+        touchJoystick.startY = mobileControls.joystick.baseY;
+        touchJoystick.currentX = mobileControls.joystick.stickX;
+        touchJoystick.currentY = mobileControls.joystick.stickY;
+
+        touchButtons.fire = mobileControls.isFiring();
+        touchButtons.bomb = mobileControls.isBombing();
+
+        // Trigger bomb on button press (not hold)
+        if (touchButtons.bomb && !bombPressedLastFrame && gameState?.running && !gameState.paused) {
+            useBomb();
+        }
+        bombPressedLastFrame = touchButtons.bomb;
+    }
+
     // Update player
     if (player && player.isAlive) {
         player.update(keys, canvas, bulletPool, gameState, touchJoystick, touchButtons, particleSystem, soundSystem);
@@ -799,6 +845,11 @@ function render() {
 
     // Power-up manager UI
     if (powerUpManager) powerUpManager.drawUI(ctx);
+
+    // Mobile controls (rendered on top)
+    if (mobileControls && mobileControls.enabled) {
+        mobileControls.draw(ctx);
+    }
 }
 
 // ============================================
@@ -824,6 +875,12 @@ function menuLoop() {
 
     // VHS effect
     if (vhsEffect) vhsEffect.apply(ctx, canvas);
+
+    // Update and draw mobile controls in menu
+    if (mobileControls && mobileControls.enabled) {
+        mobileControls.update(1);
+        mobileControls.draw(ctx);
+    }
 
     requestAnimationFrame(menuLoop);
 }
