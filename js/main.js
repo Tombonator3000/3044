@@ -24,7 +24,10 @@ import { Starfield, VHSGlitchEffects, drawEnhancedCRT, Epic80sExplosion, Radical
 import { GameState, InputHandler, CollisionSystem, GameLoop } from './core/index.js';
 
 // Phase 6: UI modules
-import { MenuManager, MenuState, HUD, ComboDisplay, RadicalSlangUI } from './ui/index.js';
+import {
+    MenuManager, MenuState, HUD, ComboDisplay, RadicalSlangUI,
+    OptionsMenu, HUD_THEMES, DEFAULT_THEME, getTheme, getAllThemes
+} from './ui/index.js';
 
 // Phase 7: Weapons modules
 import { WeaponManager } from './weapons/index.js';
@@ -37,7 +40,7 @@ console.log('🚀 Entity modules loaded: Player, Enemy, Bullet');
 console.log('⚙️ System modules loaded: BulletPool, ParticleSystem, WaveManager, SoundSystem');
 console.log('✨ Effect modules loaded: Starfield, VHSGlitchEffects, CRTEffect, Epic80sExplosion, RadicalSlang');
 console.log('🎯 Core modules loaded: GameState, InputHandler, CollisionSystem, GameLoop');
-console.log('🖥️ UI modules loaded: MenuManager, HUD, ComboDisplay, RadicalSlangUI');
+console.log('🖥️ UI modules loaded: MenuManager, HUD (4 themes), ComboDisplay, RadicalSlangUI, OptionsMenu');
 console.log('🔫 Weapons modules loaded: WeaponManager');
 
 /**
@@ -183,7 +186,8 @@ function drawTestPattern(ctx, canvas) {
     // Info box
     ctx.font = '14px "Courier New", monospace';
     ctx.fillStyle = '#666666';
-    ctx.fillText('Phase 6 Complete - UI System Ready', canvas.width / 2, canvas.height - 50);
+    ctx.fillText('HUD System: 4 Themes (Neo-Arcade, Holographic, Minimalist, Retro CRT)', canvas.width / 2, canvas.height - 50);
+    ctx.fillText('Press O to open Options Menu during gameplay', canvas.width / 2, canvas.height - 30);
 }
 
 // Initialize when DOM is ready
@@ -224,6 +228,12 @@ window.DEBUG = {
     HUD,
     ComboDisplay,
     RadicalSlangUI,
+    OptionsMenu,
+    // HUD Theme System
+    HUD_THEMES,
+    DEFAULT_THEME,
+    getTheme,
+    getAllThemes,
     // Weapons (Phase 7)
     WeaponManager
 };

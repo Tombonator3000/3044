@@ -26,6 +26,10 @@ export class GameLoop {
         this.vhsGlitch = options.vhsGlitch || null;
         this.weaponManager = options.weaponManager || null;
 
+        // UI Systems
+        this.hud = options.hud || null;
+        this.optionsMenu = options.optionsMenu || null;
+
         // Render functions (can be customized)
         this.renderCRT = options.renderCRT || null;
 
@@ -179,6 +183,32 @@ export class GameLoop {
 
         // Update input
         if (this.inputHandler) {
+            // Check for options menu toggle (O key)
+            if (this.inputHandler.isKeyPressed('o') || this.inputHandler.isKeyPressed('O')) {
+                if (this.optionsMenu) {
+                    if (this.optionsMenu.isVisible()) {
+                        this.optionsMenu.close();
+                        this.resume();
+                    } else {
+                        this.optionsMenu.show();
+                        this.pause();
+                    }
+                    return;
+                }
+            }
+
+            // Handle options menu input if visible
+            if (this.optionsMenu && this.optionsMenu.isVisible()) {
+                const keys = this.inputHandler.getKeys();
+                for (const key in keys) {
+                    if (keys[key]) {
+                        this.optionsMenu.handleInput(key);
+                        break;
+                    }
+                }
+                return; // Don't process other input while menu is open
+            }
+
             // Check for pause
             if (this.inputHandler.isActionPressed('pause')) {
                 this.togglePause();
@@ -294,6 +324,16 @@ export class GameLoop {
         // Update game state effects
         gs.updateCombo();
         gs.updateEffects();
+
+        // Update HUD system
+        if (this.hud) {
+            this.hud.update(gs, timeFactor);
+        }
+
+        // Update options menu
+        if (this.optionsMenu) {
+            this.optionsMenu.update(timeFactor);
+        }
 
         // Update input state (clear single-frame flags)
         if (this.inputHandler) {
@@ -493,6 +533,29 @@ export class GameLoop {
     renderUI(ctx, gs) {
         if (!gs) return;
 
+        // Use new HUD system if available
+        if (this.hud) {
+            this.hud.draw(ctx);
+
+            // Draw wave announcement if active
+            if (gs.showThemeName && gs.themeChangeTimer > 0) {
+                this.hud.drawWaveAnnouncement(ctx, gs);
+            }
+        } else {
+            // Fallback to legacy UI rendering
+            this.renderLegacyUI(ctx, gs);
+        }
+
+        // Render options menu if available and visible
+        if (this.optionsMenu && this.optionsMenu.isVisible()) {
+            this.optionsMenu.draw(ctx, this.canvas.width, this.canvas.height);
+        }
+    }
+
+    /**
+     * Legacy UI rendering (fallback when HUD system is not available)
+     */
+    renderLegacyUI(ctx, gs) {
         const wave = gs.wave;
         const theme = getCurrentTheme(wave);
 
@@ -523,12 +586,12 @@ export class GameLoop {
         ctx.shadowColor = CONFIG.colors.lives;
         ctx.fillStyle = CONFIG.colors.lives;
         ctx.font = '20px "Courier New", monospace';
-        ctx.fillText(`♥ ${gs.lives}`, this.canvas.width - 20, 20);
+        ctx.fillText(`\u2665 ${gs.lives}`, this.canvas.width - 20, 20);
 
         // Bombs
         ctx.shadowColor = CONFIG.colors.bombs;
         ctx.fillStyle = CONFIG.colors.bombs;
-        ctx.fillText(`★ ${gs.bombs}`, this.canvas.width - 20, 50);
+        ctx.fillText(`\u2605 ${gs.bombs}`, this.canvas.width - 20, 50);
 
         // Combo
         if (gs.combo > 1) {
