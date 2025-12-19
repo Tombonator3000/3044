@@ -4,7 +4,7 @@
  */
 
 import { CONFIG, WAVE_THEMES, getCurrentTheme } from '../config.js';
-import { cachedUI, credits, setCredits } from '../globals.js';
+import { cachedUI, getCredits, setCredits, gameStarting, setGameStarting } from '../globals.js';
 
 /**
  * Menu screen states
@@ -47,11 +47,23 @@ export class MenuManager {
     init() {
         console.log('🎮 MenuManager.init() called');
 
-        // Bind start button
+        // Bind start button (with guard against multiple clicks)
         if (cachedUI.startGameBtn) {
             console.log('  - Start button found, binding click event');
+            // Remove any existing handlers by cloning and replacing
+            const newBtn = cachedUI.startGameBtn.cloneNode(true);
+            cachedUI.startGameBtn.parentNode.replaceChild(newBtn, cachedUI.startGameBtn);
+            cachedUI.startGameBtn = newBtn;
+
             cachedUI.startGameBtn.addEventListener('click', () => {
                 console.log('🔘 START GAME button clicked!');
+
+                // Guard against multiple calls
+                if (gameStarting) {
+                    console.log('  - Game already starting, ignoring click');
+                    return;
+                }
+
                 console.log('  - onStartGame callback:', this.onStartGame ? '✅ set' : '❌ not set');
                 if (this.onStartGame) {
                     console.log('  - Calling onStartGame()...');
@@ -64,15 +76,8 @@ export class MenuManager {
             console.error('❌ Start button NOT found in cachedUI!');
         }
 
-        // Bind play again button
-        const playAgainBtn = document.getElementById('playAgainBtn');
-        if (playAgainBtn) {
-            playAgainBtn.addEventListener('click', () => {
-                if (this.onStartGame) {
-                    this.onStartGame();
-                }
-            });
-        }
+        // Note: playAgainBtn is handled in main.js to show main menu
+        // Do NOT add a handler here to avoid duplicate calls
 
         // Bind continue button
         const continueBtn = document.getElementById('continueBtn');
@@ -272,11 +277,13 @@ export class MenuManager {
      * @returns {boolean} True if credit was used successfully
      */
     useCredit() {
+        const currentCredits = getCredits();
         console.log('🪙 useCredit() called');
-        console.log('  - Current credits:', credits);
-        if (credits > 0) {
-            this.updateCredits(credits - 1);
-            console.log('  - Credit used! New credits:', credits - 1);
+        console.log('  - Current credits:', currentCredits);
+        if (currentCredits > 0) {
+            const newCredits = currentCredits - 1;
+            this.updateCredits(newCredits);
+            console.log('  - Credit used! New credits:', newCredits);
             return true;
         }
         console.log('  - No credits available!');
@@ -287,7 +294,7 @@ export class MenuManager {
      * Add a credit
      */
     addCredit() {
-        this.updateCredits(credits + 1);
+        this.updateCredits(getCredits() + 1);
     }
 
     /**
