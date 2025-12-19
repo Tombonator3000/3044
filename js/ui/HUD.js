@@ -1,270 +1,400 @@
 /**
- * Geometry 3044 - HUD Module
- * In-game heads-up display rendering
+ * Geometry 3044 - HUD Manager
+ * Main HUD system with 4 selectable themes
  */
 
 import { CONFIG, getCurrentTheme } from '../config.js';
 import { cachedUI } from '../globals.js';
+import { getTheme, DEFAULT_THEME } from './HUDThemes.js';
+import { ScoreDisplay } from './components/ScoreDisplay.js';
+import { LivesDisplay } from './components/LivesDisplay.js';
+import { WaveDisplay } from './components/WaveDisplay.js';
+import { BombsDisplay } from './components/BombsDisplay.js';
+import { ComboMeter } from './components/ComboMeter.js';
+import { BossHealthBar } from './components/BossHealthBar.js';
+import { PowerUpSlots } from './components/PowerUpSlots.js';
+import { HighScoreDisplay } from './components/HighScoreDisplay.js';
+import { MultiplierPopup } from './components/MultiplierPopup.js';
 
-/**
- * HUD class - renders in-game HUD elements
- */
 export class HUD {
     constructor() {
-        // HUD positioning
-        this.padding = 20;
-        this.fontSize = 24;
-        this.fontFamily = '"Courier New", monospace';
+        // Load saved theme or use default
+        this.currentThemeId = this.loadThemePreference();
+        this.theme = getTheme(this.currentThemeId);
 
-        // Animation states
-        this.scoreAnimValue = 0;
-        this.targetScore = 0;
-        this.livesFlash = 0;
-        this.bombsFlash = 0;
-        this.waveFlash = 0;
+        // Initialize components
+        this.initComponents();
 
-        // Previous values for change detection
+        // Screen dimensions (updated on resize)
+        this.width = CONFIG.screen.width;
+        this.height = CONFIG.screen.height;
+
+        // Animation state
+        this.time = 0;
+        this.flickerOffset = 0;
+
+        // Score popups pool
+        this.scorePopups = [];
+        this.maxPopups = 10;
+
+        // Previous state tracking for DOM updates
         this.prevLives = 0;
         this.prevBombs = 0;
         this.prevWave = 0;
+        this.prevScore = 0;
+        this.prevHighScore = 0;
+
+        // Track last combo for multiplier popups
+        this.lastCombo = 0;
     }
 
-    /**
-     * Update HUD animations and DOM elements
-     * @param {GameState} gameState - Current game state
-     */
-    update(gameState) {
-        // Animate score counter
-        if (this.targetScore !== gameState.score) {
-            this.targetScore = gameState.score;
+    loadThemePreference() {
+        try {
+            return localStorage.getItem('hudTheme') || DEFAULT_THEME;
+        } catch (e) {
+            return DEFAULT_THEME;
+        }
+    }
+
+    initComponents() {
+        this.scoreDisplay = new ScoreDisplay(this.theme);
+        this.livesDisplay = new LivesDisplay(this.theme);
+        this.waveDisplay = new WaveDisplay(this.theme);
+        this.bombsDisplay = new BombsDisplay(this.theme);
+        this.comboMeter = new ComboMeter(this.theme);
+        this.bossHealthBar = new BossHealthBar(this.theme);
+        this.powerUpSlots = new PowerUpSlots(this.theme);
+        this.highScoreDisplay = new HighScoreDisplay(this.theme);
+        this.multiplierPopup = new MultiplierPopup(this.theme);
+    }
+
+    setTheme(themeId) {
+        this.currentThemeId = themeId;
+        this.theme = getTheme(themeId);
+
+        try {
+            localStorage.setItem('hudTheme', themeId);
+        } catch (e) {
+            // localStorage not available
         }
 
-        // Smooth score animation
-        const scoreDiff = this.targetScore - this.scoreAnimValue;
-        if (Math.abs(scoreDiff) > 1) {
-            this.scoreAnimValue += scoreDiff * 0.1;
+        // Re-initialize all components with new theme
+        this.initComponents();
+
+        // Re-apply resize
+        this.resize(this.width, this.height);
+    }
+
+    getThemeId() {
+        return this.currentThemeId;
+    }
+
+    resize(width, height) {
+        this.width = width;
+        this.height = height;
+
+        // Update all components
+        this.scoreDisplay.resize(width, height);
+        this.livesDisplay.resize(width, height);
+        this.waveDisplay.resize(width, height);
+        this.bombsDisplay.resize(width, height);
+        this.comboMeter.resize(width, height);
+        this.bossHealthBar.resize(width, height);
+        this.powerUpSlots.resize(width, height);
+        this.highScoreDisplay.resize(width, height);
+        this.multiplierPopup.resize(width, height);
+    }
+
+    // Call when score increases for popup effect
+    addScorePopup(x, y, amount, color = null) {
+        if (this.scorePopups.length >= this.maxPopups) {
+            this.scorePopups.shift();
+        }
+
+        this.scorePopups.push({
+            x, y,
+            amount,
+            color: color || this.theme.colors.score,
+            life: 60,
+            maxLife: 60,
+            vy: -2,
+            scale: 1.5
+        });
+    }
+
+    update(gameState, deltaTime = 1) {
+        this.time += deltaTime;
+
+        // Flicker effect
+        if (this.theme.effects.flicker) {
+            this.flickerOffset = Math.random() < 0.05
+                ? this.theme.effects.flickerIntensity
+                : 0;
+        }
+
+        // Update all components
+        this.scoreDisplay.update(gameState.score, deltaTime);
+        this.livesDisplay.update(gameState.lives, deltaTime);
+
+        // Get theme name from wave theme
+        const waveTheme = getCurrentTheme(gameState.wave);
+        const themeName = waveTheme ? waveTheme.name : '';
+        this.waveDisplay.update(gameState.wave, themeName, deltaTime);
+
+        this.bombsDisplay.update(gameState.bombs, deltaTime);
+
+        // Combo meter - use combo timeout from CONFIG or default
+        const comboTimeout = CONFIG.gameplay?.comboTimeout || 120;
+        this.comboMeter.update(
+            gameState.combo || 0,
+            gameState.comboTimer || 0,
+            comboTimeout,
+            deltaTime
+        );
+
+        // Power-ups
+        this.powerUpSlots.update(gameState.activePowerUps || [], deltaTime);
+
+        // High score
+        this.highScoreDisplay.update(gameState.highScore || 0, deltaTime);
+
+        // Boss health - only show if boss is active
+        if (gameState.bossActive && gameState.boss) {
+            this.bossHealthBar.show(
+                gameState.boss.name || 'BOSS',
+                gameState.boss.health || 0,
+                gameState.boss.maxHealth || 100
+            );
         } else {
-            this.scoreAnimValue = this.targetScore;
+            this.bossHealthBar.hide();
         }
+        this.bossHealthBar.update(deltaTime);
 
-        // Detect changes for flash effects
-        if (gameState.lives !== this.prevLives) {
-            this.livesFlash = 30;
-            this.prevLives = gameState.lives;
+        // Multiplier popup
+        const combo = gameState.combo || 0;
+        if (combo > 0 && combo !== this.lastCombo) {
+            if (combo > 5 && combo % 5 === 0) {
+                this.multiplierPopup.trigger(combo);
+            }
         }
-        if (gameState.bombs !== this.prevBombs) {
-            this.bombsFlash = 30;
-            this.prevBombs = gameState.bombs;
-        }
-        if (gameState.wave !== this.prevWave) {
-            this.waveFlash = 60;
-            this.prevWave = gameState.wave;
-        }
+        this.lastCombo = combo;
+        this.multiplierPopup.update(deltaTime);
 
-        // Decay flash timers
-        if (this.livesFlash > 0) this.livesFlash--;
-        if (this.bombsFlash > 0) this.bombsFlash--;
-        if (this.waveFlash > 0) this.waveFlash--;
+        // Score popups
+        this.scorePopups = this.scorePopups.filter(popup => {
+            popup.life -= deltaTime;
+            popup.y += popup.vy;
+            popup.vy *= 0.95;
+            popup.scale = Math.max(1, popup.scale - 0.02);
+            return popup.life > 0;
+        });
 
-        // Update DOM elements
+        // Update DOM elements for backwards compatibility
         this.updateDOMElements(gameState);
     }
 
-    /**
-     * Update DOM HUD elements
-     * @param {GameState} gameState - Current game state
-     */
     updateDOMElements(gameState) {
-        if (cachedUI.score) {
-            cachedUI.score.textContent = Math.floor(this.scoreAnimValue).toLocaleString();
+        // Only update if values changed
+        if (cachedUI.score && gameState.score !== this.prevScore) {
+            cachedUI.score.textContent = Math.floor(gameState.score).toLocaleString();
+            this.prevScore = gameState.score;
         }
-        if (cachedUI.lives) {
+        if (cachedUI.lives && gameState.lives !== this.prevLives) {
             cachedUI.lives.textContent = gameState.lives;
+            this.prevLives = gameState.lives;
         }
-        if (cachedUI.bombs) {
+        if (cachedUI.bombs && gameState.bombs !== this.prevBombs) {
             cachedUI.bombs.textContent = gameState.bombs;
+            this.prevBombs = gameState.bombs;
         }
-        if (cachedUI.wave) {
+        if (cachedUI.wave && gameState.wave !== this.prevWave) {
             cachedUI.wave.textContent = gameState.wave;
+            this.prevWave = gameState.wave;
         }
-        if (cachedUI.highScore) {
+        if (cachedUI.highScore && gameState.highScore !== this.prevHighScore) {
             cachedUI.highScore.textContent = gameState.highScore.toLocaleString();
+            this.prevHighScore = gameState.highScore;
         }
     }
 
-    /**
-     * Draw HUD on canvas (for retro effects)
-     * @param {CanvasRenderingContext2D} ctx - Canvas context
-     * @param {GameState} gameState - Current game state
-     */
-    draw(ctx, gameState) {
-        const theme = getCurrentTheme(gameState.wave);
-
+    draw(ctx) {
         ctx.save();
-        ctx.font = `bold ${this.fontSize}px ${this.fontFamily}`;
-        ctx.textBaseline = 'top';
 
-        // Draw score (top left)
-        this.drawScore(ctx, gameState, theme);
-
-        // Draw high score (top center)
-        this.drawHighScore(ctx, gameState, theme);
-
-        // Draw wave (top right)
-        this.drawWave(ctx, gameState, theme);
-
-        // Draw lives (bottom left)
-        this.drawLives(ctx, gameState, theme);
-
-        // Draw bombs (bottom right)
-        this.drawBombs(ctx, gameState, theme);
-
-        // Draw wave announcement
-        if (gameState.showThemeName && gameState.themeChangeTimer > 0) {
-            this.drawWaveAnnouncement(ctx, gameState, theme);
+        // Apply global flicker
+        if (this.flickerOffset > 0) {
+            ctx.globalAlpha = 1 - this.flickerOffset;
         }
+
+        // Draw theme-specific background elements
+        this.drawThemeBackground(ctx);
+
+        // Draw all HUD components
+        this.scoreDisplay.draw(ctx);
+        this.livesDisplay.draw(ctx);
+        this.waveDisplay.draw(ctx);
+        this.bombsDisplay.draw(ctx);
+        this.comboMeter.draw(ctx);
+        this.bossHealthBar.draw(ctx);
+        this.powerUpSlots.draw(ctx);
+        this.highScoreDisplay.draw(ctx);
+        this.multiplierPopup.draw(ctx);
+
+        // Draw score popups
+        this.drawScorePopups(ctx);
+
+        // Draw theme-specific overlay effects
+        this.drawThemeOverlay(ctx);
 
         ctx.restore();
     }
 
-    /**
-     * Draw score display
-     */
-    drawScore(ctx, gameState, theme) {
-        const x = this.padding;
-        const y = this.padding;
+    drawThemeBackground(ctx) {
+        const theme = this.theme;
 
-        ctx.textAlign = 'left';
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = CONFIG.colors.score;
-        ctx.fillStyle = CONFIG.colors.score;
-        ctx.fillText('SCORE', x, y);
+        // Retro CRT top bar
+        if (theme.layout.topBar && theme.layout.topBar.enabled) {
+            const barHeight = theme.layout.topBar.height;
 
-        ctx.font = `bold ${this.fontSize + 4}px ${this.fontFamily}`;
-        ctx.fillText(Math.floor(this.scoreAnimValue).toLocaleString(), x, y + 28);
-    }
+            ctx.fillStyle = theme.colors.panelBg;
+            ctx.fillRect(0, 0, this.width, barHeight);
 
-    /**
-     * Draw high score display
-     */
-    drawHighScore(ctx, gameState, theme) {
-        const x = CONFIG.screen.width / 2;
-        const y = this.padding;
+            ctx.strokeStyle = theme.colors.panelBorder;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, barHeight);
+            ctx.lineTo(this.width, barHeight);
+            ctx.stroke();
 
-        ctx.textAlign = 'center';
-        ctx.font = `${this.fontSize - 4}px ${this.fontFamily}`;
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = theme.secondary;
-        ctx.fillStyle = theme.secondary;
-        ctx.fillText('HIGH SCORE', x, y);
-
-        ctx.font = `bold ${this.fontSize}px ${this.fontFamily}`;
-        ctx.fillText(gameState.highScore.toLocaleString(), x, y + 22);
-    }
-
-    /**
-     * Draw wave display
-     */
-    drawWave(ctx, gameState, theme) {
-        const x = CONFIG.screen.width - this.padding;
-        const y = this.padding;
-
-        const flashAlpha = this.waveFlash > 0 ? 0.5 + Math.sin(this.waveFlash * 0.3) * 0.5 : 1;
-
-        ctx.textAlign = 'right';
-        ctx.font = `bold ${this.fontSize}px ${this.fontFamily}`;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = CONFIG.colors.wave;
-        ctx.fillStyle = CONFIG.colors.wave;
-        ctx.globalAlpha = flashAlpha;
-        ctx.fillText(`WAVE ${gameState.wave}`, x, y);
-        ctx.globalAlpha = 1;
-    }
-
-    /**
-     * Draw lives display
-     */
-    drawLives(ctx, gameState, theme) {
-        const x = this.padding;
-        const y = CONFIG.screen.height - this.padding - 30;
-
-        const flashAlpha = this.livesFlash > 0 ? 0.5 + Math.sin(this.livesFlash * 0.5) * 0.5 : 1;
-
-        ctx.textAlign = 'left';
-        ctx.font = `bold ${this.fontSize}px ${this.fontFamily}`;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = CONFIG.colors.lives;
-        ctx.fillStyle = CONFIG.colors.lives;
-        ctx.globalAlpha = flashAlpha;
-
-        // Draw life icons
-        let lifeX = x;
-        for (let i = 0; i < gameState.lives; i++) {
-            this.drawLifeIcon(ctx, lifeX + i * 25, y + 5);
+            if (theme.layout.topBar.showTitle) {
+                ctx.font = `bold 20px ${theme.fonts.title}`;
+                ctx.fillStyle = theme.colors.primary;
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = theme.effects.glowIntensity;
+                ctx.shadowColor = theme.colors.panelGlow;
+                ctx.fillText(theme.layout.topBar.title, this.width / 2, barHeight / 2 + 7);
+                ctx.shadowBlur = 0;
+            }
         }
-        ctx.globalAlpha = 1;
-    }
 
-    /**
-     * Draw a single life icon (triangle ship)
-     */
-    drawLifeIcon(ctx, x, y) {
-        ctx.beginPath();
-        ctx.moveTo(x, y - 8);
-        ctx.lineTo(x + 10, y + 8);
-        ctx.lineTo(x - 10, y + 8);
-        ctx.closePath();
-        ctx.fill();
-    }
-
-    /**
-     * Draw bombs display
-     */
-    drawBombs(ctx, gameState, theme) {
-        const x = CONFIG.screen.width - this.padding;
-        const y = CONFIG.screen.height - this.padding - 30;
-
-        const flashAlpha = this.bombsFlash > 0 ? 0.5 + Math.sin(this.bombsFlash * 0.5) * 0.5 : 1;
-
-        ctx.textAlign = 'right';
-        ctx.font = `bold ${this.fontSize}px ${this.fontFamily}`;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = CONFIG.colors.bombs;
-        ctx.fillStyle = CONFIG.colors.bombs;
-        ctx.globalAlpha = flashAlpha;
-
-        // Draw bomb icons
-        for (let i = 0; i < gameState.bombs; i++) {
-            this.drawBombIcon(ctx, x - i * 25, y + 5);
+        // Holographic corner brackets
+        if (theme.special && theme.special.cornerBrackets) {
+            this.drawCornerBrackets(ctx);
         }
-        ctx.globalAlpha = 1;
     }
 
-    /**
-     * Draw a single bomb icon
-     */
-    drawBombIcon(ctx, x, y) {
-        ctx.beginPath();
-        ctx.arc(x - 5, y, 8, 0, Math.PI * 2);
-        ctx.fill();
+    drawCornerBrackets(ctx) {
+        const size = 40;
+        const padding = 10;
+        const color = this.theme.colors.panelBorder;
 
-        // Fuse
-        ctx.beginPath();
-        ctx.moveTo(x, y - 6);
-        ctx.lineTo(x + 4, y - 10);
-        ctx.strokeStyle = CONFIG.colors.bombs;
+        ctx.strokeStyle = color;
         ctx.lineWidth = 2;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = color;
+
+        // Top-left
+        ctx.beginPath();
+        ctx.moveTo(padding, padding + size);
+        ctx.lineTo(padding, padding);
+        ctx.lineTo(padding + size, padding);
         ctx.stroke();
+
+        // Top-right
+        ctx.beginPath();
+        ctx.moveTo(this.width - padding - size, padding);
+        ctx.lineTo(this.width - padding, padding);
+        ctx.lineTo(this.width - padding, padding + size);
+        ctx.stroke();
+
+        // Bottom-left
+        ctx.beginPath();
+        ctx.moveTo(padding, this.height - padding - size);
+        ctx.lineTo(padding, this.height - padding);
+        ctx.lineTo(padding + size, this.height - padding);
+        ctx.stroke();
+
+        // Bottom-right
+        ctx.beginPath();
+        ctx.moveTo(this.width - padding - size, this.height - padding);
+        ctx.lineTo(this.width - padding, this.height - padding);
+        ctx.lineTo(this.width - padding, this.height - padding - size);
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
     }
 
-    /**
-     * Draw wave announcement with theme name
-     */
-    drawWaveAnnouncement(ctx, gameState, theme) {
-        const x = CONFIG.screen.width / 2;
-        const y = CONFIG.screen.height / 2 - 50;
+    drawScorePopups(ctx) {
+        for (const popup of this.scorePopups) {
+            const alpha = popup.life / popup.maxLife;
 
-        const alpha = Math.min(1, gameState.themeChangeTimer / 30);
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.font = `bold ${14 * popup.scale}px ${this.theme.fonts.score}`;
+            ctx.fillStyle = popup.color;
+            ctx.textAlign = 'center';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = popup.color;
+
+            const text = popup.amount > 0 ? `+${popup.amount}` : `${popup.amount}`;
+            ctx.fillText(text, popup.x, popup.y);
+
+            ctx.restore();
+        }
+    }
+
+    drawThemeOverlay(ctx) {
+        const theme = this.theme;
+
+        // Scanlines
+        if (theme.effects.scanlines) {
+            ctx.fillStyle = `rgba(0, 0, 0, ${theme.effects.scanlineAlpha || 0.05})`;
+            const spacing = theme.effects.scanlineSpacing || 2;
+
+            for (let y = 0; y < this.height; y += spacing * 2) {
+                ctx.fillRect(0, y, this.width, spacing);
+            }
+        }
+
+        // Phosphor glow (CRT)
+        if (theme.effects.phosphorGlow) {
+            const gradient = ctx.createRadialGradient(
+                this.width / 2, this.height / 2, 0,
+                this.width / 2, this.height / 2, Math.max(this.width, this.height) / 2
+            );
+            gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, this.width, this.height);
+        }
+    }
+
+    // Legacy methods for backwards compatibility
+    drawScore(ctx, gameState, theme) {
+        this.scoreDisplay.draw(ctx);
+    }
+
+    drawHighScore(ctx, gameState, theme) {
+        this.highScoreDisplay.draw(ctx);
+    }
+
+    drawWave(ctx, gameState, theme) {
+        this.waveDisplay.draw(ctx);
+    }
+
+    drawLives(ctx, gameState, theme) {
+        this.livesDisplay.draw(ctx);
+    }
+
+    drawBombs(ctx, gameState, theme) {
+        this.bombsDisplay.draw(ctx);
+    }
+
+    drawWaveAnnouncement(ctx, gameState, theme) {
+        // Wave announcement is now handled by WaveDisplay
+        const x = this.width / 2;
+        const y = this.height / 2 - 50;
+
+        const alpha = Math.min(1, (gameState.themeChangeTimer || 0) / 30);
         const scale = 1 + (1 - alpha) * 0.2;
 
         ctx.save();
@@ -274,55 +404,52 @@ export class HUD {
 
         // Wave number
         ctx.textAlign = 'center';
-        ctx.font = `bold 64px ${this.fontFamily}`;
+        ctx.font = `bold 64px ${this.theme.fonts.title}`;
         ctx.shadowBlur = 30;
-        ctx.shadowColor = theme.primary;
-        ctx.fillStyle = theme.primary;
+        ctx.shadowColor = this.theme.colors.wave;
+        ctx.fillStyle = this.theme.colors.wave;
         ctx.fillText(`WAVE ${gameState.wave}`, 0, 0);
 
         // Theme name
-        ctx.font = `bold 32px ${this.fontFamily}`;
-        ctx.shadowColor = theme.secondary;
-        ctx.fillStyle = theme.secondary;
-        ctx.fillText(theme.name, 0, 50);
+        const waveTheme = getCurrentTheme(gameState.wave);
+        if (waveTheme) {
+            ctx.font = `bold 32px ${this.theme.fonts.primary}`;
+            ctx.shadowColor = this.theme.colors.secondary;
+            ctx.fillStyle = this.theme.colors.secondary;
+            ctx.fillText(waveTheme.name, 0, 50);
+        }
 
         ctx.restore();
     }
 
-    /**
-     * Draw "Get Ready" text
-     */
     drawGetReady(ctx) {
-        const x = CONFIG.screen.width / 2;
-        const y = CONFIG.screen.height / 2;
+        const x = this.width / 2;
+        const y = this.height / 2;
 
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.font = `bold 48px ${this.fontFamily}`;
+        ctx.font = `bold 48px ${this.theme.fonts.title}`;
         ctx.shadowBlur = 20;
-        ctx.shadowColor = '#00ff00';
-        ctx.fillStyle = '#00ff00';
+        ctx.shadowColor = this.theme.colors.success;
+        ctx.fillStyle = this.theme.colors.success;
         ctx.fillText('GET READY!', x, y);
         ctx.restore();
     }
 
-    /**
-     * Draw boss warning
-     */
     drawBossWarning(ctx) {
-        const x = CONFIG.screen.width / 2;
+        const x = this.width / 2;
         const y = 100;
 
         ctx.save();
         ctx.textAlign = 'center';
-        ctx.font = `bold 36px ${this.fontFamily}`;
+        ctx.font = `bold 36px ${this.theme.fonts.title}`;
 
         // Flashing effect
         const flash = Math.sin(Date.now() * 0.01) > 0;
         ctx.shadowBlur = flash ? 30 : 15;
-        ctx.shadowColor = '#ff0000';
-        ctx.fillStyle = flash ? '#ff0000' : '#ff6600';
+        ctx.shadowColor = this.theme.colors.warning;
+        ctx.fillStyle = flash ? this.theme.colors.warning : '#ff6600';
         ctx.fillText('WARNING: BOSS APPROACHING', x, y);
         ctx.restore();
     }
