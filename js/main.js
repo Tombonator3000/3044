@@ -1,1545 +1,1151 @@
-/**
- * Geometry 3044 - Main Entry Point
- * ES6 Module version - BULLETPROOF Edition
- *
- * Priority: Playable game > Perfect features
- * All systems have fallbacks - game will ALWAYS start
- */
+// ============================================
+// GEOMETRY 3044 — MAIN GAME FILE
+// ============================================
 
-import { CONFIG, WAVE_THEMES, getCurrentTheme } from './config.js';
-import {
-    canvas, ctx, gameState, keys, config,
-    cachedUI, setCanvas, setCtx, initCachedUI,
-    setGameState, setParticleSystem, setBulletPool,
-    setEnemyBulletPool, setWaveManager, setSoundSystem,
-    setStarfield, setVhsGlitch, setWeaponManager,
-    gameStarting, setGameStarting, setKeys
-} from './globals.js';
-
-// Entity modules
+// === IMPORTS ===
+import { config, getCurrentTheme, updateConfig } from './config.js';
 import { Player } from './entities/Player.js';
 import { Enemy } from './entities/Enemy.js';
-import { Bullet } from './entities/Bullet.js';
-
-// System modules
-import { BulletPool, ParticleSystem, WaveManager, SoundSystem } from './systems/index.js';
-
-// Effect modules
-import { Starfield, VHSGlitchEffects, drawEnhancedCRT, Epic80sExplosion, RadicalSlang } from './effects/index.js';
-
-// Core engine modules
-import { GameState, InputHandler, CollisionSystem, GameLoop } from './core/index.js';
-
-// UI modules
-import {
-    MenuManager, MenuState, HUD, ComboDisplay, RadicalSlangUI,
-    OptionsMenu, HUD_THEMES, DEFAULT_THEME, getTheme, getAllThemes
-} from './ui/index.js';
-
-// Weapons modules
-import { WeaponManager } from './weapons/index.js';
-
-// Rendering modules
-import { drawThemedGrid, drawBackground } from './rendering/index.js';
-
-console.log('🎮 Geometry 3044 - BULLETPROOF Edition Loading...');
-
-// ============================================
-// FALLBACK CLASSES (used if real ones fail)
-// ============================================
-
-class FallbackPlayer {
-    constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.size = 20;
-        this.speed = 5;
-        this.isAlive = true;
-        this.invulnerable = false;
-        this.invulnerableTimer = 0;
-        this.shootCooldown = 0;
-        this.health = 100;
-        this.maxHealth = 100;
-    }
-
-    update(deltaTime, inputHandler, canvas, bulletPool) {
-        const keys = inputHandler?.keys || inputHandler?.getKeys?.() || {};
-
-        // Movement
-        if (keys['ArrowLeft'] || keys['KeyA']) this.x -= this.speed;
-        if (keys['ArrowRight'] || keys['KeyD']) this.x += this.speed;
-        if (keys['ArrowUp'] || keys['KeyW']) this.y -= this.speed;
-        if (keys['ArrowDown'] || keys['KeyS']) this.y += this.speed;
-
-        // Bounds
-        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
-        this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y));
-
-        // Shooting
-        if (this.shootCooldown > 0) this.shootCooldown -= deltaTime;
-        if ((keys['Space'] || keys['KeyZ']) && this.shootCooldown <= 0) {
-            this.shoot(bulletPool);
-            this.shootCooldown = 10;
-        }
-
-        // Invulnerability
-        if (this.invulnerableTimer > 0) {
-            this.invulnerableTimer -= deltaTime;
-            this.invulnerable = this.invulnerableTimer > 0;
-        }
-    }
-
-    shoot(bulletPool) {
-        if (bulletPool && bulletPool.spawn) {
-            bulletPool.spawn(this.x, this.y - this.size, 0, -12, true);
-        } else if (bulletPool && bulletPool.get) {
-            bulletPool.get(this.x, this.y - this.size, 0, -12, true);
-        }
-    }
-
-    draw(ctx) {
-        if (!this.isAlive) return;
-
-        // Flash when invulnerable
-        if (this.invulnerable && Math.floor(Date.now() / 100) % 2 === 0) return;
-
-        ctx.fillStyle = '#00ff00';
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#00ff00';
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y - this.size);
-        ctx.lineTo(this.x - this.size * 0.7, this.y + this.size);
-        ctx.lineTo(this.x + this.size * 0.7, this.y + this.size);
-        ctx.closePath();
-        ctx.fill();
-        ctx.shadowBlur = 0;
-    }
-
-    takeDamage(amount = 1) {
-        if (this.invulnerable) return false;
-        this.isAlive = false;
-        return true;
-    }
-
-    respawn(x, y) {
-        this.x = x;
-        this.y = y;
-        this.isAlive = true;
-        this.invulnerable = true;
-        this.invulnerableTimer = 180; // 3 seconds
-    }
-}
-
-class FallbackBulletPool {
-    constructor() {
-        this.bullets = [];
-        this.maxBullets = 100;
-    }
-
-    spawn(x, y, vx, vy, isPlayer = true, options = {}) {
-        if (this.bullets.length >= this.maxBullets) {
-            this.bullets.shift();
-        }
-
-        this.bullets.push({
-            x, y, vx, vy,
-            isPlayer,
-            active: true,
-            size: options.size || 5,
-            color: options.color || (isPlayer ? '#00ffff' : '#ff0066'),
-            damage: options.damage || 10
-        });
-    }
-
-    get(x, y, vx, vy, isPlayer, options) {
-        this.spawn(x, y, vx, vy, isPlayer, options);
-    }
-
-    update(canvas, deltaTime = 1) {
-        // Update bullets in place to preserve array reference
-        for (let i = this.bullets.length - 1; i >= 0; i--) {
-            const b = this.bullets[i];
-            if (!b.active) {
-                this.bullets.splice(i, 1);
-                continue;
-            }
-
-            b.x += b.vx * deltaTime;
-            b.y += b.vy * deltaTime;
-
-            if (b.x < -50 || b.x > canvas.width + 50 ||
-                b.y < -50 || b.y > canvas.height + 50) {
-                this.bullets.splice(i, 1);
-            }
-        }
-    }
-
-    draw(ctx) {
-        for (const b of this.bullets) {
-            if (!b.active) continue;
-
-            ctx.fillStyle = b.color;
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = b.color;
-            ctx.beginPath();
-            ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.shadowBlur = 0;
-    }
-
-    clear() {
-        // Clear array in place to preserve reference
-        this.bullets.length = 0;
-    }
-
-    getActiveBullets() {
-        return this.bullets.filter(b => b.active);
-    }
-
-    getPlayerBullets() {
-        return this.bullets.filter(b => b.active && b.isPlayer);
-    }
-
-    getEnemyBullets() {
-        return this.bullets.filter(b => b.active && !b.isPlayer);
-    }
-}
-
-class FallbackParticleSystem {
-    constructor() {
-        this.particles = [];
-        this.maxParticles = 200;
-    }
-
-    addParticle(options) {
-        if (this.particles.length >= this.maxParticles) {
-            this.particles.shift();
-        }
-
-        this.particles.push({
-            x: options.x || 0,
-            y: options.y || 0,
-            vx: options.vx || (Math.random() - 0.5) * 4,
-            vy: options.vy || (Math.random() - 0.5) * 4,
-            life: options.life || 30,
-            maxLife: options.life || 30,
-            size: options.size || 3,
-            color: options.color || '#ffffff'
-        });
-    }
-
-    createExplosion(x, y, color = '#ff6600', count = 15) {
-        for (let i = 0; i < count; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 2 + Math.random() * 6;
-            this.addParticle({
-                x, y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                life: 20 + Math.random() * 20,
-                size: 2 + Math.random() * 4,
-                color
-            });
-        }
-    }
-
-    update(deltaTime = 1) {
-        this.particles = this.particles.filter(p => {
-            p.x += p.vx * deltaTime;
-            p.y += p.vy * deltaTime;
-            p.vx *= 0.98;
-            p.vy *= 0.98;
-            p.life -= deltaTime;
-            return p.life > 0;
-        });
-    }
-
-    draw(ctx) {
-        for (const p of this.particles) {
-            const alpha = p.life / p.maxLife;
-            ctx.globalAlpha = alpha;
-            ctx.fillStyle = p.color;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-    }
-}
-
-class FallbackEnemy {
-    constructor(x, y, type = 'basic') {
-        this.x = x;
-        this.y = y;
-        this.type = type;
-        this.size = 20;
-        this.health = 30;
-        this.maxHealth = 30;
-        this.speed = 2;
-        this.active = true;
-        this.points = 100;
-        this.shootTimer = 60 + Math.random() * 60;
-    }
-
-    update(playerX, playerY, canvas, deltaTime = 1) {
-        this.y += this.speed * deltaTime;
-
-        if (this.x < playerX) this.x += 0.5 * deltaTime;
-        if (this.x > playerX) this.x -= 0.5 * deltaTime;
-
-        this.shootTimer -= deltaTime;
-        if (this.shootTimer <= 0) {
-            this.shootTimer = 90 + Math.random() * 60;
-        }
-
-        if (this.y > canvas.height + 50) {
-            this.active = false;
-        }
-    }
-
-    takeDamage(amount) {
-        this.health -= amount;
-        if (this.health <= 0) {
-            this.active = false;
-            return true;
-        }
-        return false;
-    }
-
-    draw(ctx) {
-        if (!this.active) return;
-
-        ctx.fillStyle = '#ff0066';
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#ff0066';
-
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y - this.size);
-        ctx.lineTo(this.x + this.size, this.y);
-        ctx.lineTo(this.x, this.y + this.size);
-        ctx.lineTo(this.x - this.size, this.y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.shadowBlur = 0;
-    }
-}
-
-class FallbackWaveManager {
-    constructor() {
-        this.wave = 1;
-        this.enemiesPerWave = 5;
-        this.spawnTimer = 0;
-        this.spawnDelay = 60;
-        this.enemiesSpawned = 0;
-        this.waveActive = false;
-        this.enemies = [];
-    }
-
-    startWave(waveNum) {
-        this.wave = waveNum;
-        this.enemiesPerWave = 5 + waveNum * 2;
-        this.enemiesSpawned = 0;
-        this.spawnTimer = 0;
-        this.waveActive = true;
-    }
-
-    update(canvas, deltaTime = 1) {
-        if (!this.waveActive) return;
-
-        this.spawnTimer -= deltaTime;
-
-        if (this.spawnTimer <= 0 && this.enemiesSpawned < this.enemiesPerWave) {
-            const x = 50 + Math.random() * (canvas.width - 100);
-            const enemy = new FallbackEnemy(x, -30);
-            this.enemies.push(enemy);
-            this.enemiesSpawned++;
-            this.spawnTimer = this.spawnDelay;
-        }
-
-        // Update enemies
-        for (const enemy of this.enemies) {
-            if (enemy.active) {
-                enemy.update(canvas.width / 2, canvas.height - 100, canvas, deltaTime);
-            }
-        }
-
-        // Remove inactive
-        this.enemies = this.enemies.filter(e => e.active);
-
-        // Check wave complete
-        if (this.enemiesSpawned >= this.enemiesPerWave && this.enemies.length === 0) {
-            this.waveActive = false;
-        }
-    }
-
-    isWaveComplete() {
-        return !this.waveActive;
-    }
-
-    getEnemies() {
-        return this.enemies;
-    }
-}
-
-class FallbackInputHandler {
-    constructor() {
-        this.keys = {};
-        this.init();
-    }
-
-    init() {
-        document.addEventListener('keydown', (e) => {
-            this.keys[e.key] = true;
-            this.keys[e.code] = true;
-
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
-                e.preventDefault();
-            }
-        });
-
-        document.addEventListener('keyup', (e) => {
-            this.keys[e.key] = false;
-            this.keys[e.code] = false;
-        });
-
-        console.log('✅ FallbackInputHandler initialized');
-    }
-
-    isKeyPressed(key) {
-        return this.keys[key] === true;
-    }
-
-    getKeys() {
-        return this.keys;
-    }
-
-    update() {}
-
-    isActionActive(action) {
-        const actionMap = {
-            moveUp: ['ArrowUp', 'KeyW'],
-            moveDown: ['ArrowDown', 'KeyS'],
-            moveLeft: ['ArrowLeft', 'KeyA'],
-            moveRight: ['ArrowRight', 'KeyD'],
-            fire: ['Space', 'KeyZ'],
-            bomb: ['KeyX'],
-            pause: ['Escape', 'KeyP']
-        };
-
-        const keys = actionMap[action] || [];
-        return keys.some(k => this.keys[k]);
-    }
-
-    isActionPressed(action) {
-        return this.isActionActive(action);
-    }
-
-    getMovement() {
-        let dx = 0, dy = 0;
-        if (this.isActionActive('moveLeft')) dx -= 1;
-        if (this.isActionActive('moveRight')) dx += 1;
-        if (this.isActionActive('moveUp')) dy -= 1;
-        if (this.isActionActive('moveDown')) dy += 1;
-        return { x: dx, y: dy };
-    }
-}
-
-class FallbackSoundSystem {
-    constructor() {
-        this.initialized = true;
-        console.log('✅ FallbackSoundSystem initialized (silent mode)');
-    }
-
-    init() { return Promise.resolve(); }
-    play() {}
-    playShoot() {}
-    playExplosion() {}
-    playPowerUp() {}
-    playHit() {}
-    playBomb() {}
-    playGameOver() {}
-    playMusic() {}
-    stopMusic() {}
-    pauseMusic() {}
-    resumeMusic() {}
-    loadMusic() { return Promise.resolve(); }
-}
-
-class FallbackStarfield {
-    constructor(canvas) {
-        this.stars = [];
-        this.width = canvas?.width || 800;
-        this.height = canvas?.height || 600;
-
-        for (let i = 0; i < 100; i++) {
-            this.stars.push({
-                x: Math.random() * this.width,
-                y: Math.random() * this.height,
-                speed: 0.5 + Math.random() * 2,
-                size: Math.random() * 2
-            });
-        }
-    }
-
-    update(deltaTime = 1) {
-        for (const star of this.stars) {
-            star.y += star.speed * deltaTime;
-            if (star.y > this.height) {
-                star.y = 0;
-                star.x = Math.random() * this.width;
-            }
-        }
-    }
-
-    draw(ctx) {
-        ctx.fillStyle = '#ffffff';
-        for (const star of this.stars) {
-            ctx.globalAlpha = 0.3 + star.speed * 0.2;
-            ctx.beginPath();
-            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-    }
-}
-
-class FallbackHUD {
-    constructor() {
-        this.currentThemeId = 'neoArcade';
-        this.width = 800;
-        this.height = 600;
-    }
-
-    getThemeId() {
-        return this.currentThemeId;
-    }
-
-    setTheme(themeId) {
-        this.currentThemeId = themeId;
-    }
-
-    resize(width, height) {
-        this.width = width;
-        this.height = height;
-    }
-
-    update(gameState, deltaTime) {}
-
-    draw(ctx, gameState) {
-        if (!gameState) return;
-
-        ctx.save();
-        ctx.font = 'bold 20px Courier New';
-        ctx.shadowBlur = 10;
-
-        // Score
-        ctx.fillStyle = '#00ffff';
-        ctx.shadowColor = '#00ffff';
-        ctx.textAlign = 'left';
-        ctx.fillText(`SCORE: ${(gameState.score || 0).toLocaleString()}`, 20, 30);
-
-        // Lives
-        ctx.fillStyle = '#ff0066';
-        ctx.shadowColor = '#ff0066';
-        ctx.fillText(`LIVES: ${gameState.lives || 0}`, 20, 55);
-
-        // Wave
-        ctx.fillStyle = '#ffff00';
-        ctx.shadowColor = '#ffff00';
-        ctx.textAlign = 'right';
-        ctx.fillText(`WAVE: ${gameState.wave || 1}`, this.width - 20, 30);
-
-        // Bombs
-        ctx.fillStyle = '#ff8800';
-        ctx.shadowColor = '#ff8800';
-        ctx.fillText(`BOMBS: ${gameState.bombs || 0}`, this.width - 20, 55);
-
-        ctx.shadowBlur = 0;
-        ctx.restore();
-    }
-}
-
-// ============================================
-// SAFE INITIALIZATION HELPER
-// ============================================
-
-function safeInit(name, initFn, fallbackFn) {
-    try {
-        const result = initFn();
-        console.log(`✅ ${name} initialized`);
-        return result;
-    } catch (error) {
-        console.warn(`⚠️ ${name} failed:`, error.message);
-        if (fallbackFn) {
-            const fallback = fallbackFn();
-            console.log(`   ↳ Using fallback for ${name}`);
-            return fallback;
-        }
-        return null;
-    }
-}
-
-// Game instances
-let canvasElement = null;
-let context = null;
-let menuManager = null;
-let soundSystem = null;
-let gameStateInstance = null;
-let inputHandler = null;
-let collisionSystem = null;
-let gameLoop = null;
-let starfield = null;
-let particleSystem = null;
+import { Boss } from './entities/Boss.js';
+import { PowerUp } from './entities/PowerUp.js';
+import { BulletPool } from './systems/BulletPool.js';
+import { WaveManager } from './systems/WaveManager.js';
+import { PowerUpManager } from './systems/PowerUpManager.js';
+import { ParticleSystem } from './systems/ParticleSystem.js';
+import { CollisionSystem } from './core/CollisionSystem.js';
+import { Starfield } from './effects/Starfield.js';
+import { RadicalSlang } from './effects/RadicalSlang.js';
+import { VHSEffect } from './effects/VHSEffect.js';
+import { SoundSystem } from './systems/SoundSystem.js';
+import { HUD } from './ui/HUD.js';
+import { drawThemedGrid, drawBackground } from './rendering/GridRenderer.js';
+
+// === GLOBAL STATE ===
+let canvas, ctx;
+let gameState = null;
+let gameLoopId = null;
+let lastTime = 0;
+
+// === SYSTEMS ===
+let player = null;
 let bulletPool = null;
 let enemyBulletPool = null;
+let particleSystem = null;
 let waveManager = null;
-let vhsGlitch = null;
+let collisionSystem = null;
+let starfield = null;
+let radicalSlang = null;
+let vhsEffect = null;
+let soundSystem = null;
 let hud = null;
-let optionsMenu = null;
-let weaponManager = null;
+let powerUpManager = null;
 
-/**
- * Initialize the game
- */
+// === INPUT ===
+let keys = {};
+let touchJoystick = { active: false, startX: 0, startY: 0, currentX: 0, currentY: 0 };
+let touchButtons = { fire: false, bomb: false };
+
+// === MENU STATE ===
+let credits = 3;
+let attractMode = false;
+let attractModeTimeout = null;
+let attractModeAI = null;
+const ATTRACT_MODE_DELAY = 15000; // 15 seconds
+
+// === PROMO TEXTS FOR ATTRACT MODE ===
+const promoTexts = [
+    "GEOMETRY 3044 — THE ULTIMATE ARCADE EXPERIENCE",
+    "35+ POWER-UPS • 7 COMBO EFFECTS • 5 EPIC BOSSES",
+    "PRESS START TO PLAY",
+    "INSERT COIN FOR CREDITS",
+    "RADICAL 80s ACTION • SYNTHWAVE SOUNDTRACK",
+    "CHAIN COMBOS FOR MASSIVE SCORES",
+    "CAN YOU REACH WAVE 30?",
+    "FEVER MODE • GOD MODE • INFINITY POWER"
+];
+let currentPromoIndex = 0;
+let promoTimer = 0;
+
+console.log('🎮 Geometry 3044 — Loading...');
+
+// ============================================
+// INITIALIZATION
+// ============================================
+
 function init() {
-    console.log('🚀 Initializing Geometry 3044 (Bulletproof)...');
+    console.log('🚀 Initializing Geometry 3044...');
 
-    // Get canvas element
-    canvasElement = document.getElementById('gameCanvas');
-    if (!canvasElement) {
-        console.error('❌ Canvas element not found!');
+    // Get canvas
+    canvas = document.getElementById('gameCanvas');
+    if (!canvas) {
+        console.error('❌ Canvas not found!');
         return;
     }
 
-    // Set canvas and context
-    setCanvas(canvasElement);
-    context = canvasElement.getContext('2d');
-    setCtx(context);
+    ctx = canvas.getContext('2d');
 
-    // Set canvas dimensions from config
-    canvasElement.width = CONFIG.screen.width;
-    canvasElement.height = CONFIG.screen.height;
+    // Set canvas size
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
-    // Initialize cached UI references
-    initCachedUI();
+    // Initialize input
+    initInput();
 
-    console.log('✅ Canvas initialized:', CONFIG.screen.width, 'x', CONFIG.screen.height);
+    // Initialize sound system (needs user interaction to fully activate)
+    soundSystem = new SoundSystem();
 
-    // Initialize sound system with fallback
-    soundSystem = safeInit('SoundSystem',
-        () => new SoundSystem(),
-        () => new FallbackSoundSystem()
-    );
-    setSoundSystem(soundSystem);
+    // Initialize starfield for menu
+    starfield = new Starfield(canvas.width, canvas.height);
 
-    // Initialize menu manager
-    menuManager = new MenuManager();
-    menuManager.init();
+    // Initialize VHS effect
+    vhsEffect = new VHSEffect();
 
-    // Set up start game callback
-    menuManager.onStartGame = () => {
-        startGame();
-    };
+    // Initialize HUD
+    hud = new HUD();
+    hud.resize(canvas.width, canvas.height);
 
-    // Initialize starfield for menu background
-    starfield = safeInit('Starfield',
-        () => new Starfield(),
-        () => new FallbackStarfield(canvasElement)
-    );
-    setStarfield(starfield);
+    // Update config
+    updateConfig(canvas.width, canvas.height);
 
-    // Draw menu background
-    drawMenuBackground();
+    // Setup menu
+    setupMenu();
 
-    // Set up keyboard listener for coin insert
-    document.addEventListener('keydown', handleGlobalKeyPress);
+    // Start menu animation
+    requestAnimationFrame(menuLoop);
 
-    // Update high score display
-    const savedHighScore = localStorage.getItem('geometry3044_highscore') || 0;
-    if (cachedUI.highScore) {
-        cachedUI.highScore.textContent = parseInt(savedHighScore).toLocaleString();
-    }
+    // Start attract mode timer
+    resetAttractModeTimeout();
 
-    console.log('🎮 Geometry 3044 - Ready!');
+    console.log('✅ Canvas initialized:', canvas.width, 'x', canvas.height);
+    console.log('🎮 Geometry 3044 — Ready!');
     console.log('💡 Press START GAME to play');
 }
 
-/**
- * Handle global key presses (works in menu)
- */
-function handleGlobalKeyPress(e) {
-    // Insert coin with 'C' key
-    if (e.key.toLowerCase() === 'c') {
-        if (menuManager && menuManager.getState() === MenuState.MAIN) {
-            menuManager.addCredit();
-            if (soundSystem && soundSystem.initialized) {
-                soundSystem.play('coin');
-            }
-            console.log('🪙 Coin inserted!');
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    updateConfig(canvas.width, canvas.height);
+
+    if (starfield) starfield.resize(canvas.width, canvas.height);
+    if (hud) hud.resize(canvas.width, canvas.height);
+}
+
+// ============================================
+// INPUT HANDLING
+// ============================================
+
+function initInput() {
+    // Keyboard
+    document.addEventListener('keydown', (e) => {
+        keys[e.key] = true;
+        keys[e.code] = true;
+
+        // Prevent default for game keys
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Escape'].includes(e.key)) {
+            e.preventDefault();
         }
-    }
+
+        // Exit attract mode on any key
+        if (attractMode) {
+            exitAttractMode();
+        }
+
+        // Reset attract mode timeout
+        resetAttractModeTimeout();
+
+        // Menu controls
+        if (e.key === 'c' || e.key === 'C') {
+            if (!gameState || !gameState.running) {
+                addCredit();
+            }
+        }
+
+        // Pause
+        if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && gameState?.running) {
+            togglePause();
+        }
+
+        // Bomb
+        if ((e.key === 'b' || e.key === 'B') && gameState?.running && !gameState.paused) {
+            useBomb();
+        }
+
+        // Music toggle
+        if (e.key === 'm' || e.key === 'M') {
+            if (soundSystem) {
+                soundSystem.toggleMusic();
+            }
+        }
+    });
+
+    document.addEventListener('keyup', (e) => {
+        keys[e.key] = false;
+        keys[e.code] = false;
+    });
+
+    // Touch controls
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+    // Mouse click to exit attract mode
+    canvas.addEventListener('click', () => {
+        if (attractMode) {
+            exitAttractMode();
+        }
+        resetAttractModeTimeout();
+    });
 }
 
-/**
- * Draw the menu background on canvas
- */
-function drawMenuBackground() {
-    if (!context || !canvasElement) return;
+function handleTouchStart(e) {
+    e.preventDefault();
+    resetAttractModeTimeout();
 
-    const theme = getCurrentTheme(1);
-
-    // Clear and draw gradient background
-    const gradient = context.createLinearGradient(0, 0, 0, canvasElement.height);
-    gradient.addColorStop(0, theme.bgStart);
-    gradient.addColorStop(1, theme.bgEnd);
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, canvasElement.width, canvasElement.height);
-
-    // Draw subtle grid
-    context.strokeStyle = `hsla(${theme.gridHue}, 100%, 50%, 0.1)`;
-    context.lineWidth = 1;
-
-    for (let x = 0; x < canvasElement.width; x += 50) {
-        context.beginPath();
-        context.moveTo(x, 0);
-        context.lineTo(x, canvasElement.height);
-        context.stroke();
-    }
-
-    for (let y = 0; y < canvasElement.height; y += 50) {
-        context.beginPath();
-        context.moveTo(0, y);
-        context.lineTo(canvasElement.width, y);
-        context.stroke();
-    }
-
-    // Draw starfield if available
-    if (starfield) {
-        starfield.draw(context);
-    }
-}
-
-/**
- * Start the game — BULLETPROOF VERSION
- */
-function startGame() {
-    console.log('');
-    console.log('🎮 ========== STARTING GEOMETRY 3044 (BULLETPROOF) ==========');
-    console.log('');
-
-    // Guard against multiple startGame calls
-    if (gameStarting) {
-        console.log('🎮 [!] startGame already in progress, ignoring');
+    if (attractMode) {
+        exitAttractMode();
         return;
     }
-    setGameStarting(true);
 
-    try {
-        // ==================
-        // STEP 1: Sound System
-        // ==================
-        console.log('Step 1: Checking sound system...');
-        if (soundSystem && !soundSystem.initialized) {
-            try {
-                soundSystem.init();
-            } catch (e) {
-                console.warn('⚠️ Sound init failed:', e.message);
-            }
-        }
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
 
-        if (soundSystem) {
-            try {
-                soundSystem.play('menuSelect');
-            } catch (e) {
-                // Ignore sound errors
-            }
-        }
-
-        // ==================
-        // STEP 2: Credits
-        // ==================
-        console.log('Step 2: Checking credits...');
-        if (!menuManager.useCredit()) {
-            console.log('❌ No credits available!');
-            setGameStarting(false);
-            return;
-        }
-        console.log('✅ Credit used successfully');
-
-        // ==================
-        // STEP 3: Game State
-        // ==================
-        console.log('Step 3: Creating GameState...');
-        gameStateInstance = safeInit('GameState',
-            () => new GameState(),
-            () => ({
-                score: 0,
-                lives: 3,
-                bombs: 3,
-                wave: 1,
-                combo: 0,
-                comboTimer: 0,
-                multiplier: 1,
-                highScore: parseInt(localStorage.getItem('geometry3044_highscore')) || 0,
-                gameRunning: false,
-                paused: false,
-                playerInvulnerable: false,
-                invulnerabilityTimer: 0,
-                player: null,
-                enemies: [],
-                activePowerUps: [],
-                addScore: function(points) { this.score += points * this.multiplier; },
-                incrementCombo: function() {
-                    this.combo++;
-                    this.comboTimer = 120;
-                    this.multiplier = 1 + Math.floor(this.combo / 5);
-                }
-            })
-        );
-        setGameState(gameStateInstance);
-
-        // ==================
-        // STEP 4: Player
-        // ==================
-        console.log('Step 4: Creating Player...');
-        const playerX = canvasElement.width / 2;
-        const playerY = canvasElement.height - (CONFIG.player?.startYOffset || 100);
-
-        const player = safeInit('Player',
-            () => new Player(playerX, playerY),
-            () => new FallbackPlayer(playerX, playerY)
-        );
-        gameStateInstance.player = player;
-
-        // ==================
-        // STEP 5: Core Systems
-        // ==================
-        console.log('Step 5: Initializing core systems...');
-        console.log('');
-
-        // Particle System
-        particleSystem = safeInit('ParticleSystem',
-            () => new ParticleSystem(),
-            () => new FallbackParticleSystem()
-        );
-        setParticleSystem(particleSystem);
-
-        // Bullet Pool (player)
-        bulletPool = safeInit('BulletPool',
-            () => new BulletPool(CONFIG.bullets?.poolSize || 100),
-            () => new FallbackBulletPool()
-        );
-        setBulletPool(bulletPool);
-
-        // Bullet Pool (enemies)
-        enemyBulletPool = safeInit('EnemyBulletPool',
-            () => new BulletPool(CONFIG.bullets?.poolSize || 100),
-            () => new FallbackBulletPool()
-        );
-        setEnemyBulletPool(enemyBulletPool);
-
-        // CRITICAL: Connect bullet arrays to gameState
-        // GameLoop reads from gameState.bullets, but Player spawns to bulletPool.bullets
-        // This ensures they reference the SAME array!
-        if (bulletPool && bulletPool.bullets) {
-            gameStateInstance.bullets = bulletPool.bullets;
-            console.log('✅ Player bullets connected to gameState');
-        }
-        if (enemyBulletPool && enemyBulletPool.bullets) {
-            gameStateInstance.enemyBullets = enemyBulletPool.bullets;
-            console.log('✅ Enemy bullets connected to gameState');
-        }
-
-        // Input Handler
-        inputHandler = safeInit('InputHandler',
-            () => new InputHandler(canvasElement),
-            () => new FallbackInputHandler()
-        );
-
-        // CRITICAL: Connect InputHandler keys to global keys
-        // This allows Player.js to read input via the global keys object
-        if (inputHandler && inputHandler.keys) {
-            setKeys(inputHandler.keys);
-            console.log('✅ InputHandler keys connected to global keys');
-        }
-
-        // Collision System
-        collisionSystem = safeInit('CollisionSystem',
-            () => new CollisionSystem({
-                gameState: gameStateInstance,
-                particleSystem: particleSystem,
-                soundSystem: soundSystem,
-                onEnemyDestroyed: (enemy, bullet) => {
-                    gameStateInstance.addScore(enemy.points || 100);
-                    gameStateInstance.incrementCombo();
-                },
-                onPlayerHit: () => {
-                    if (!gameStateInstance.playerInvulnerable) {
-                        playerDeath();
-                    }
-                }
-            }),
-            () => null // Manual collision check in fallback mode
-        );
-
-        // Wave Manager
-        waveManager = safeInit('WaveManager',
-            () => new WaveManager({
-                gameState: gameStateInstance,
-                canvas: canvasElement,
-                onWaveComplete: (waveNum) => {
-                    console.log(`🌊 Wave ${waveNum} complete!`);
-                    if (soundSystem) {
-                        try { soundSystem.play('waveComplete'); } catch (e) {}
-                    }
-                }
-            }),
-            () => new FallbackWaveManager()
-        );
-        setWaveManager(waveManager);
-
-        // CRITICAL: Connect WaveManager enemies array to gameState
-        // This ensures spawned enemies are rendered by GameLoop
-        if (waveManager && waveManager.setEnemiesArray) {
-            waveManager.setEnemiesArray(gameStateInstance.enemies);
-            console.log('✅ WaveManager enemies array connected to gameState');
-        }
-
-        // VHS Glitch Effect
-        vhsGlitch = safeInit('VHSGlitch',
-            () => new VHSGlitchEffects(),
-            () => null
-        );
-        setVhsGlitch(vhsGlitch);
-
-        // HUD
-        hud = safeInit('HUD',
-            () => {
-                const h = new HUD();
-                h.resize(canvasElement.width, canvasElement.height);
-                return h;
-            },
-            () => new FallbackHUD()
-        );
-
-        // Options Menu — with safe HUD access
-        optionsMenu = safeInit('OptionsMenu',
-            () => {
-                if (!hud || typeof hud.getThemeId !== 'function') {
-                    throw new Error('HUD not available or missing getThemeId');
-                }
-                return new OptionsMenu(hud, () => {
-                    gameStateInstance.paused = false;
-                });
-            },
-            () => null
-        );
-
-        // Weapon Manager
-        weaponManager = safeInit('WeaponManager',
-            () => new WeaponManager({
-                gameState: gameStateInstance,
-                bulletPool: bulletPool,
-                particleSystem: particleSystem,
-                soundSystem: soundSystem
-            }),
-            () => null
-        );
-        setWeaponManager(weaponManager);
-
-        console.log('');
-
-        // ==================
-        // STEP 6: Game Loop
-        // ==================
-        console.log('Step 6: Creating GameLoop...');
-        gameLoop = safeInit('GameLoop',
-            () => new GameLoop({
-                canvas: canvasElement,
-                ctx: context,
-                gameState: gameStateInstance,
-                inputHandler: inputHandler,
-                collisionSystem: collisionSystem,
-                particleSystem: particleSystem,
-                bulletPool: bulletPool,
-                waveManager: waveManager,
-                soundSystem: soundSystem,
-                starfield: starfield,
-                vhsGlitch: vhsGlitch,
-                hud: hud,
-                optionsMenu: optionsMenu,
-                weaponManager: weaponManager,
-                renderCRT: (ctx) => drawEnhancedCRT(ctx, canvasElement.width, canvasElement.height)
-            }),
-            () => null // Use fallback game loop
-        );
-
-        // ==================
-        // STEP 7: Start Game
-        // ==================
-        console.log('Step 7: Starting game...');
-        gameStateInstance.gameRunning = true;
-
-        // Switch to game UI
-        menuManager.showGameUI();
-
-        // Start game loop
-        if (gameLoop && gameLoop.start) {
-            gameLoop.start();
-            console.log('✅ GameLoop started');
+    // Left half = joystick
+    if (x < canvas.width / 2) {
+        touchJoystick.active = true;
+        touchJoystick.startX = x;
+        touchJoystick.startY = y;
+        touchJoystick.currentX = x;
+        touchJoystick.currentY = y;
+    } else {
+        // Right half - top = bomb, bottom = fire
+        if (y < canvas.height / 2) {
+            touchButtons.bomb = true;
+            if (gameState?.running) useBomb();
         } else {
-            console.log('⚠️ Using fallback game loop');
-            requestAnimationFrame(fallbackGameLoop);
+            touchButtons.fire = true;
         }
-
-        // Load and play game music
-        loadAndPlayMusic('game');
-
-        console.log('');
-        console.log('🎮 ========== GAME STARTED SUCCESSFULLY! ==========');
-        console.log('');
-
-    } catch (error) {
-        console.error('🎮 [CRITICAL ERROR] Game failed to start:', error);
-        console.error('Stack trace:', error.stack);
-        setGameStarting(false);
-
-        // Try to show error to user
-        try {
-            alert('Game failed to start: ' + error.message + '\nPlease refresh the page.');
-        } catch (e) {}
     }
 }
 
-/**
- * Fallback game loop — used if GameLoop class fails
- */
-let lastTime = 0;
-function fallbackGameLoop(currentTime) {
-    if (!gameStateInstance || !gameStateInstance.gameRunning) {
-        console.log('Fallback game loop stopped');
+function handleTouchMove(e) {
+    e.preventDefault();
+
+    if (touchJoystick.active && e.touches[0]) {
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        touchJoystick.currentX = touch.clientX - rect.left;
+        touchJoystick.currentY = touch.clientY - rect.top;
+    }
+}
+
+function handleTouchEnd(e) {
+    e.preventDefault();
+    touchJoystick.active = false;
+    touchButtons.fire = false;
+    touchButtons.bomb = false;
+}
+
+// ============================================
+// MENU SYSTEM
+// ============================================
+
+function setupMenu() {
+    // Update credits display
+    updateCreditsDisplay();
+
+    // Setup start button (check both possible IDs)
+    const startButton = document.getElementById('startButton') || document.getElementById('startGameBtn');
+    if (startButton) {
+        startButton.addEventListener('click', () => {
+            resetAttractModeTimeout();
+            window.startGame();
+        });
+    }
+
+    // Load high score (check both possible IDs)
+    const highScore = localStorage.getItem('geometry3044_highScore') || 0;
+    const highScoreEl = document.getElementById('menuHighScore') || document.getElementById('highScoreDisplay');
+    if (highScoreEl) {
+        highScoreEl.textContent = parseInt(highScore).toLocaleString();
+    }
+}
+
+function updateCreditsDisplay() {
+    const creditsEl = document.getElementById('creditsCount');
+    if (creditsEl) {
+        creditsEl.textContent = credits;
+    }
+}
+
+function addCredit() {
+    credits++;
+    updateCreditsDisplay();
+
+    if (soundSystem) {
+        soundSystem.playCoin();
+    }
+
+    console.log('💰 Credit inserted! Total:', credits);
+
+    // Flash insert coin text
+    const insertCoinEl = document.getElementById('insertCoinText');
+    if (insertCoinEl) {
+        insertCoinEl.style.color = '#00ff00';
+        setTimeout(() => {
+            insertCoinEl.style.color = '#ffff00';
+        }, 200);
+    }
+}
+
+window.addCredit = addCredit;
+
+// ============================================
+// ATTRACT MODE
+// ============================================
+
+function resetAttractModeTimeout() {
+    if (attractModeTimeout) {
+        clearTimeout(attractModeTimeout);
+    }
+
+    attractModeTimeout = setTimeout(() => {
+        if (!gameState || !gameState.running) {
+            startAttractMode();
+        }
+    }, ATTRACT_MODE_DELAY);
+}
+
+function startAttractMode() {
+    if (attractMode) return;
+
+    console.log('🎬 Starting Attract Mode');
+    attractMode = true;
+    currentPromoIndex = 0;
+    promoTimer = 0;
+
+    // Initialize attract mode game
+    initGame(true);
+
+    // Create AI controller
+    attractModeAI = {
+        targetX: canvas.width / 2,
+        targetY: canvas.height - 100,
+        shootTimer: 0,
+        moveTimer: 0
+    };
+}
+
+function exitAttractMode() {
+    if (!attractMode) return;
+
+    console.log('🎬 Exiting Attract Mode');
+    attractMode = false;
+    attractModeAI = null;
+
+    // Stop game
+    if (gameLoopId) {
+        cancelAnimationFrame(gameLoopId);
+        gameLoopId = null;
+    }
+
+    gameState = null;
+
+    // Show menu
+    const menuScreen = document.getElementById('menuScreen');
+    if (menuScreen) menuScreen.style.display = 'flex';
+
+    // Start menu loop
+    requestAnimationFrame(menuLoop);
+
+    resetAttractModeTimeout();
+}
+
+function updateAttractModeAI() {
+    if (!attractModeAI || !player) return;
+
+    // Find nearest enemy
+    let nearestEnemy = null;
+    let nearestDist = Infinity;
+
+    for (const enemy of gameState.enemies) {
+        if (!enemy.active) continue;
+        const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+        if (dist < nearestDist) {
+            nearestDist = dist;
+            nearestEnemy = enemy;
+        }
+    }
+
+    // Move toward enemy centroid or dodge bullets
+    if (nearestEnemy) {
+        attractModeAI.targetX = nearestEnemy.x;
+        attractModeAI.targetY = Math.min(nearestEnemy.y + 100, canvas.height - 100);
+    }
+
+    // Dodge enemy bullets
+    const enemyBullets = enemyBulletPool?.getActiveBullets() || [];
+    for (const bullet of enemyBullets) {
+        const dist = Math.hypot(bullet.x - player.x, bullet.y - player.y);
+        if (dist < 100 && bullet.y > player.y - 50) {
+            // Dodge!
+            attractModeAI.targetX = player.x + (bullet.x > player.x ? -100 : 100);
+        }
+    }
+
+    // Simulate input
+    const dx = attractModeAI.targetX - player.x;
+    const dy = attractModeAI.targetY - player.y;
+
+    keys['ArrowLeft'] = dx < -20;
+    keys['ArrowRight'] = dx > 20;
+    keys['ArrowUp'] = dy < -20;
+    keys['ArrowDown'] = dy > 20;
+
+    // Auto-shoot
+    attractModeAI.shootTimer++;
+    keys[' '] = attractModeAI.shootTimer % 10 < 5;
+
+    // Update promo text
+    promoTimer++;
+    if (promoTimer > 120) {
+        promoTimer = 0;
+        currentPromoIndex = (currentPromoIndex + 1) % promoTexts.length;
+    }
+}
+
+// ============================================
+// GAME START
+// ============================================
+
+window.startGame = function() {
+    console.log('🎮 Starting game...');
+
+    // Check credits
+    if (credits <= 0) {
+        console.log('❌ No credits available!');
+
+        const insertCoinEl = document.getElementById('insertCoinText');
+        if (insertCoinEl) {
+            insertCoinEl.style.color = '#ff0000';
+            insertCoinEl.style.animation = 'blink 0.2s ease-in-out 6';
+            setTimeout(() => {
+                insertCoinEl.style.color = '#ffff00';
+                insertCoinEl.style.animation = 'blink 1s ease-in-out infinite';
+            }, 1200);
+        }
         return;
     }
 
+    credits--;
+    updateCreditsDisplay();
+
+    // Exit attract mode if active
+    if (attractMode) {
+        attractMode = false;
+        attractModeAI = null;
+    }
+
+    // Hide menu, show game
+    const menuScreen = document.getElementById('menuScreen');
+    const gameUI = document.getElementById('gameUI');
+
+    if (menuScreen) menuScreen.style.display = 'none';
+    if (gameUI) gameUI.style.display = 'block';
+
+    // Initialize game
+    initGame(false);
+
+    // Start game loop
+    lastTime = performance.now();
+    gameLoopId = requestAnimationFrame(gameLoop);
+
+    // Play music
+    if (soundSystem) {
+        soundSystem.init();
+        soundSystem.playMusic('game');
+    }
+
+    // VHS glitch on start
+    if (vhsEffect) {
+        vhsEffect.triggerGlitch(1.5, 30);
+    }
+
+    console.log('🎮 Game started!');
+};
+
+function initGame(isAttractMode = false) {
+    // Clear previous state
+    if (gameLoopId) {
+        cancelAnimationFrame(gameLoopId);
+    }
+
+    // Initialize pools
+    bulletPool = new BulletPool(200);
+    enemyBulletPool = new BulletPool(300);
+    particleSystem = new ParticleSystem(500);
+
+    // Initialize systems
+    waveManager = new WaveManager();
+    collisionSystem = new CollisionSystem();
+    radicalSlang = new RadicalSlang();
+
+    // Reset starfield
+    if (starfield) {
+        starfield.resize(canvas.width, canvas.height);
+    } else {
+        starfield = new Starfield(canvas.width, canvas.height);
+    }
+
+    // Create player
+    player = new Player(canvas.width / 2, canvas.height - 100);
+
+    // Initialize power-up manager
+    powerUpManager = new PowerUpManager(player);
+
+    // Game state
+    gameState = {
+        running: true,
+        paused: false,
+        gameOver: false,
+        score: 0,
+        lives: 3,
+        bombs: 3,
+        wave: 1,
+        combo: 0,
+        maxCombo: 0,
+        comboTimer: 0,
+        comboTimeout: 180,
+        enemies: [],
+        powerUps: [],
+        boss: null,
+        player: player,
+        powerUpManager: powerUpManager,
+        radicalSlang: radicalSlang,
+        screenShake: { x: 0, y: 0, intensity: 0, duration: 0 },
+        highScore: parseInt(localStorage.getItem('geometry3044_highScore')) || 0,
+        isAttractMode: isAttractMode
+    };
+
+    // Start wave 1
+    waveManager.startWave(1);
+
+    // Reset keys
+    keys = {};
+}
+
+// ============================================
+// GAME LOOP
+// ============================================
+
+function gameLoop(currentTime) {
+    // Calculate delta time
     const deltaTime = Math.min((currentTime - lastTime) / 16.67, 3);
     lastTime = currentTime;
 
-    requestAnimationFrame(fallbackGameLoop);
+    // Continue loop
+    gameLoopId = requestAnimationFrame(gameLoop);
+
+    // Check game state
+    if (!gameState || !gameState.running) {
+        return;
+    }
+
+    // Update VHS effect
+    if (vhsEffect) vhsEffect.update();
 
     // Paused?
-    if (gameStateInstance.paused) {
+    if (gameState.paused) {
+        render();
         drawPauseScreen();
         return;
     }
 
-    // Update
-    try {
-        fallbackUpdate(deltaTime);
-    } catch (e) {
-        console.error('Fallback update error:', e);
+    // Game over?
+    if (gameState.gameOver) {
+        render();
+        drawGameOverScreen();
+        return;
     }
 
+    // Attract mode AI
+    if (attractMode && attractModeAI) {
+        updateAttractModeAI();
+    }
+
+    // Update
+    update(deltaTime);
+
     // Render
-    try {
-        fallbackRender();
-    } catch (e) {
-        console.error('Fallback render error:', e);
+    render();
+
+    // VHS effect overlay
+    if (vhsEffect) {
+        vhsEffect.apply(ctx, canvas);
+    }
+
+    // Attract mode overlay
+    if (attractMode) {
+        drawAttractModeOverlay();
     }
 }
 
-function fallbackUpdate(deltaTime) {
-    // Handle pause
-    if (inputHandler) {
-        if (inputHandler.isActionPressed?.('pause') ||
-            inputHandler.keys?.['Escape'] ||
-            inputHandler.keys?.['KeyP']) {
-            if (!window._pauseHeld) {
-                gameStateInstance.paused = !gameStateInstance.paused;
-                window._pauseHeld = true;
-            }
-        } else {
-            window._pauseHeld = false;
-        }
-    }
+// ============================================
+// UPDATE
+// ============================================
 
-    if (gameStateInstance.paused) return;
-
+function update(deltaTime) {
     // Update starfield
-    if (starfield?.update) starfield.update(deltaTime);
+    if (starfield) starfield.update(deltaTime);
 
     // Update player
-    if (gameStateInstance.player?.update) {
-        gameStateInstance.player.update(deltaTime, inputHandler, canvasElement, bulletPool);
+    if (player && player.isAlive) {
+        player.update(keys, canvas, bulletPool, gameState, touchJoystick, touchButtons, particleSystem, soundSystem);
     }
 
     // Update bullets
-    if (bulletPool?.update) bulletPool.update(canvasElement, deltaTime);
-    if (enemyBulletPool?.update) enemyBulletPool.update(canvasElement, deltaTime);
+    if (bulletPool) bulletPool.update(canvas, gameState);
+    if (enemyBulletPool) enemyBulletPool.update(canvas, gameState);
 
-    // Update wave manager (spawns enemies)
-    if (waveManager?.update) {
-        waveManager.update(canvasElement, deltaTime);
+    // Update enemies
+    for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+        const enemy = gameState.enemies[i];
+        if (!enemy.active) {
+            gameState.enemies.splice(i, 1);
+            continue;
+        }
+        enemy.update(player?.x || canvas.width / 2, player?.y || canvas.height - 100,
+                    canvas, enemyBulletPool, gameState, particleSystem);
+    }
+
+    // Update boss
+    if (gameState.boss) {
+        gameState.boss.update(player?.x || canvas.width / 2, player?.y || canvas.height - 100,
+                             enemyBulletPool, gameState, particleSystem);
+
+        if (!gameState.boss.active) {
+            // Boss defeated!
+            gameState.score += gameState.boss.points || 5000;
+
+            if (particleSystem) {
+                particleSystem.addBossExplosion(gameState.boss.x, gameState.boss.y);
+            }
+
+            if (soundSystem) {
+                soundSystem.playExplosion();
+            }
+
+            gameState.boss = null;
+        }
+    }
+
+    // Update wave manager
+    if (waveManager && !gameState.boss) {
+        waveManager.update(gameState.enemies, canvas, gameState);
+
+        // Check for wave complete
+        if (waveManager.isWaveComplete()) {
+            gameState.wave++;
+
+            // Update starfield theme
+            if (starfield) starfield.updateTheme(gameState.wave);
+
+            // Boss wave?
+            if (waveManager.isBossWave() || gameState.wave % 5 === 0) {
+                spawnBoss();
+            } else {
+                waveManager.startWave(gameState.wave);
+            }
+        }
+    }
+
+    // Update power-ups
+    for (let i = gameState.powerUps.length - 1; i >= 0; i--) {
+        const powerUp = gameState.powerUps[i];
+        if (!powerUp.active) {
+            gameState.powerUps.splice(i, 1);
+            continue;
+        }
+        powerUp.update(canvas);
     }
 
     // Update particles
-    if (particleSystem?.update) particleSystem.update(deltaTime);
+    if (particleSystem) particleSystem.update(deltaTime);
 
-    // Collision detection (fallback)
-    fallbackCollisionCheck();
+    // Update radical slang
+    if (radicalSlang) radicalSlang.update();
 
-    // Combo decay
-    if (gameStateInstance.comboTimer > 0) {
-        gameStateInstance.comboTimer -= deltaTime;
-        if (gameStateInstance.comboTimer <= 0) {
-            gameStateInstance.combo = 0;
-            gameStateInstance.multiplier = 1;
+    // Update power-up manager
+    if (powerUpManager) powerUpManager.update();
+
+    // Collision detection
+    if (collisionSystem) {
+        collisionSystem.checkCollisions(gameState, bulletPool, enemyBulletPool, particleSystem, soundSystem);
+    }
+
+    // Update combo
+    if (gameState.comboTimer > 0) {
+        gameState.comboTimer--;
+        if (gameState.comboTimer <= 0) {
+            gameState.combo = 0;
+            if (radicalSlang) radicalSlang.resetCombo();
         }
+    }
+
+    // Update screen shake
+    if (gameState.screenShake.duration > 0) {
+        gameState.screenShake.duration--;
+        gameState.screenShake.x = (Math.random() - 0.5) * gameState.screenShake.intensity;
+        gameState.screenShake.y = (Math.random() - 0.5) * gameState.screenShake.intensity;
+        gameState.screenShake.intensity *= 0.95;
+    } else {
+        gameState.screenShake.x = 0;
+        gameState.screenShake.y = 0;
     }
 
     // Check player death
-    if (gameStateInstance.player && !gameStateInstance.player.isAlive) {
-        playerDeath();
-    }
-
-    // Check wave complete
-    if (waveManager?.isWaveComplete?.()) {
-        gameStateInstance.wave++;
-        if (waveManager.startWave) {
-            waveManager.startWave(gameStateInstance.wave);
-        }
+    if (player && !player.isAlive && !gameState.gameOver) {
+        handlePlayerDeath();
     }
 
     // Update HUD
-    if (hud?.update) {
-        hud.update(gameStateInstance, deltaTime);
+    if (hud) hud.update(gameState, deltaTime);
+
+    // Extra life at 100000 points
+    const extraLifeThreshold = 100000;
+    const currentExtraLives = Math.floor(gameState.score / extraLifeThreshold);
+    const previousExtraLives = Math.floor((gameState.score - 100) / extraLifeThreshold);
+
+    if (currentExtraLives > previousExtraLives && gameState.score > 0) {
+        gameState.lives++;
+        if (particleSystem) {
+            particleSystem.addPowerUpCollect(canvas.width / 2, canvas.height / 2, '#ff6666');
+        }
+        if (soundSystem) soundSystem.playPowerUp(3);
     }
 }
 
-function fallbackCollisionCheck() {
-    const player = gameStateInstance.player;
-    if (!player || !player.isAlive) return;
+// ============================================
+// RENDER
+// ============================================
 
-    // Get enemies
-    const enemies = waveManager?.enemies || waveManager?.getEnemies?.() || gameStateInstance.enemies || [];
-
-    // Get bullets
-    const playerBullets = bulletPool?.getPlayerBullets?.() ||
-                          bulletPool?.getActiveBullets?.()?.filter(b => b.isPlayer) || [];
-    const enemyBullets = enemyBulletPool?.getActiveBullets?.() ||
-                         enemyBulletPool?.getEnemyBullets?.() || [];
-
-    // Player bullets vs enemies
-    for (const bullet of playerBullets) {
-        if (!bullet.active) continue;
-
-        for (const enemy of enemies) {
-            if (!enemy.active) continue;
-
-            const dist = Math.hypot(bullet.x - enemy.x, bullet.y - enemy.y);
-            if (dist < (bullet.size || 5) + (enemy.size || 20)) {
-                bullet.active = false;
-                const killed = enemy.takeDamage?.(bullet.damage || 10);
-
-                if (killed || !enemy.active) {
-                    gameStateInstance.addScore(enemy.points || 100);
-                    gameStateInstance.incrementCombo();
-
-                    if (particleSystem?.createExplosion) {
-                        particleSystem.createExplosion(enemy.x, enemy.y, '#ff6600', 15);
-                    }
-                }
-                break;
-            }
-        }
-    }
-
-    // Enemy bullets vs player
-    if (!player.invulnerable) {
-        for (const bullet of enemyBullets) {
-            if (!bullet.active) continue;
-
-            const dist = Math.hypot(bullet.x - player.x, bullet.y - player.y);
-            if (dist < (bullet.size || 5) + (player.size || 20) * 0.5) {
-                bullet.active = false;
-                player.takeDamage?.(1);
-                break;
-            }
-        }
-    }
-
-    // Enemies vs player collision
-    if (!player.invulnerable) {
-        for (const enemy of enemies) {
-            if (!enemy.active) continue;
-
-            const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
-            if (dist < (enemy.size || 20) + (player.size || 20) * 0.5) {
-                enemy.active = false;
-                player.takeDamage?.(1);
-
-                if (particleSystem?.createExplosion) {
-                    particleSystem.createExplosion(enemy.x, enemy.y, '#ff00ff', 25);
-                }
-                break;
-            }
-        }
-    }
-}
-
-function fallbackRender() {
+function render() {
     // Clear
-    context.fillStyle = '#0a0015';
-    context.fillRect(0, 0, canvasElement.width, canvasElement.height);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+
+    // Apply screen shake
+    ctx.translate(gameState.screenShake.x, gameState.screenShake.y);
+
+    // Background
+    drawBackground(ctx, canvas, gameState.wave);
+
+    // Starfield
+    if (starfield) starfield.draw(ctx);
+
+    // Grid
+    drawThemedGrid(ctx, canvas, gameState.wave);
+
+    // Particles (behind entities)
+    if (particleSystem) particleSystem.draw(ctx);
+
+    // Power-ups
+    for (const powerUp of gameState.powerUps) {
+        if (powerUp.draw) powerUp.draw(ctx);
+    }
+
+    // Enemy bullets
+    if (enemyBulletPool) enemyBulletPool.draw(ctx);
+
+    // Enemies
+    for (const enemy of gameState.enemies) {
+        if (enemy.draw) enemy.draw(ctx);
+    }
+
+    // Boss
+    if (gameState.boss) {
+        gameState.boss.draw(ctx);
+    }
+
+    // Player bullets
+    if (bulletPool) bulletPool.draw(ctx);
+
+    // Player
+    if (player && player.isAlive) {
+        if (!player.invulnerable || Math.floor(Date.now() / 100) % 2) {
+            player.draw(ctx);
+        }
+    }
+
+    // Radical slang
+    if (radicalSlang) radicalSlang.draw(ctx, canvas.width, canvas.height);
+
+    // Wave text
+    if (waveManager) waveManager.drawWaveText(ctx, canvas);
+
+    ctx.restore();
+
+    // HUD (not affected by screen shake)
+    if (hud) hud.draw(ctx, gameState);
+
+    // Power-up manager UI
+    if (powerUpManager) powerUpManager.drawUI(ctx);
+}
+
+// ============================================
+// MENU LOOP
+// ============================================
+
+function menuLoop() {
+    if (gameState?.running) return;
+    if (attractMode) return;
+
+    // Clear
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Draw starfield
-    if (starfield?.draw) starfield.draw(context);
-
-    // Draw grid
-    drawGrid();
-
-    // Draw particles
-    if (particleSystem?.draw) particleSystem.draw(context);
-
-    // Draw bullets
-    if (bulletPool?.draw) bulletPool.draw(context);
-    if (enemyBulletPool?.draw) enemyBulletPool.draw(context);
-
-    // Draw enemies
-    const enemies = waveManager?.enemies || waveManager?.getEnemies?.() || gameStateInstance.enemies || [];
-    for (const enemy of enemies) {
-        if (enemy.draw) enemy.draw(context);
+    if (starfield) {
+        starfield.update(1);
+        starfield.draw(ctx);
     }
 
-    // Draw player
-    if (gameStateInstance.player?.draw) {
-        gameStateInstance.player.draw(context);
+    // Draw grid (subtle)
+    drawThemedGrid(ctx, canvas, 1);
+
+    // VHS effect
+    if (vhsEffect) vhsEffect.apply(ctx, canvas);
+
+    requestAnimationFrame(menuLoop);
+}
+
+// ============================================
+// BOSS SPAWNING
+// ============================================
+
+function spawnBoss() {
+    console.log(`🔥 Spawning boss for wave ${gameState.wave}`);
+
+    gameState.boss = new Boss(gameState.wave, canvas);
+
+    if (soundSystem) {
+        soundSystem.playBossAppear();
     }
 
-    // Draw HUD
-    if (hud?.draw) {
-        hud.draw(context, gameStateInstance);
+    if (vhsEffect) {
+        vhsEffect.triggerGlitch(2, 60);
+    }
+
+    // Screen shake
+    gameState.screenShake.intensity = 10;
+    gameState.screenShake.duration = 60;
+}
+
+// ============================================
+// BOMB
+// ============================================
+
+function useBomb() {
+    if (!gameState || gameState.bombs <= 0 || gameState.paused || gameState.gameOver) return;
+
+    gameState.bombs--;
+
+    console.log('💣 BOMB USED!');
+
+    // Sound
+    if (soundSystem) soundSystem.playBomb();
+
+    // Screen shake
+    gameState.screenShake.intensity = 20;
+    gameState.screenShake.duration = 45;
+
+    // VHS glitch
+    if (vhsEffect) vhsEffect.triggerGlitch(2, 30);
+
+    // Clear enemy bullets
+    if (enemyBulletPool) enemyBulletPool.clear();
+
+    // Damage all enemies
+    for (const enemy of gameState.enemies) {
+        if (enemy.active) {
+            enemy.takeDamage(50);
+            if (particleSystem) {
+                particleSystem.addExplosion(enemy.x, enemy.y, enemy.color || '#ff6600', 15);
+            }
+        }
+    }
+
+    // Damage boss
+    if (gameState.boss && gameState.boss.active) {
+        gameState.boss.takeDamage(20);
+    }
+
+    // Radial explosion from player
+    if (player && particleSystem) {
+        for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 16) {
+            particleSystem.addParticle({
+                x: player.x,
+                y: player.y,
+                vx: Math.cos(angle) * 15,
+                vy: Math.sin(angle) * 15,
+                life: 30,
+                size: 8,
+                color: '#ffff00',
+                glow: true
+            });
+        }
+    }
+
+    // Brief invulnerability
+    if (player) {
+        player.invulnerable = true;
+        player.invulnerableTimer = 60;
     }
 }
 
-function drawGrid() {
-    context.strokeStyle = 'rgba(0, 255, 255, 0.1)';
-    context.lineWidth = 1;
+// ============================================
+// PAUSE
+// ============================================
 
-    const spacing = 50;
+function togglePause() {
+    if (!gameState || gameState.gameOver) return;
 
-    for (let x = 0; x < canvasElement.width; x += spacing) {
-        context.beginPath();
-        context.moveTo(x, 0);
-        context.lineTo(x, canvasElement.height);
-        context.stroke();
-    }
+    gameState.paused = !gameState.paused;
 
-    for (let y = 0; y < canvasElement.height; y += spacing) {
-        context.beginPath();
-        context.moveTo(0, y);
-        context.lineTo(canvasElement.width, y);
-        context.stroke();
+    if (gameState.paused) {
+        if (soundSystem) soundSystem.pauseMusic();
+    } else {
+        if (soundSystem) soundSystem.resumeMusic();
     }
 }
 
 function drawPauseScreen() {
-    fallbackRender();
+    // Darken
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    context.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    context.fillRect(0, 0, canvasElement.width, canvasElement.height);
+    // Pause text
+    ctx.save();
+    ctx.font = 'bold 64px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#00ffff';
+    ctx.shadowBlur = 30;
+    ctx.shadowColor = '#00ffff';
+    ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2 - 20);
 
-    context.fillStyle = '#00ffff';
-    context.font = 'bold 48px Courier New';
-    context.textAlign = 'center';
-    context.shadowBlur = 20;
-    context.shadowColor = '#00ffff';
-    context.fillText('PAUSED', canvasElement.width / 2, canvasElement.height / 2);
-
-    context.font = '20px Courier New';
-    context.fillStyle = '#ffffff';
-    context.shadowBlur = 0;
-    context.fillText('Press P or ESC to continue', canvasElement.width / 2, canvasElement.height / 2 + 50);
+    ctx.font = '24px "Courier New", monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowBlur = 0;
+    ctx.fillText('Press P or ESC to continue', canvas.width / 2, canvas.height / 2 + 40);
+    ctx.restore();
 }
 
-/**
- * Handle player death
- */
-function playerDeath() {
-    if (!gameStateInstance) return;
+// ============================================
+// PLAYER DEATH & GAME OVER
+// ============================================
 
-    gameStateInstance.lives--;
-    gameStateInstance.playerInvulnerable = true;
-    gameStateInstance.invulnerabilityTimer = 180;
+function handlePlayerDeath() {
+    gameState.lives--;
 
-    if (soundSystem) {
-        try { soundSystem.play('playerDeath'); } catch (e) {}
+    // Reset combo
+    gameState.combo = 0;
+    if (radicalSlang) radicalSlang.resetCombo();
+
+    // Explosion
+    if (particleSystem && player) {
+        particleSystem.addExplosion(player.x, player.y, '#00ff00', 30);
     }
 
-    // Create explosion effect
-    if (particleSystem && gameStateInstance.player) {
-        particleSystem.createExplosion(
-            gameStateInstance.player.x,
-            gameStateInstance.player.y,
-            '#00ff00',
-            30
-        );
-    }
+    // Sound
+    if (soundSystem) soundSystem.playExplosion();
 
-    // Check for game over
-    if (gameStateInstance.lives <= 0) {
-        gameOver();
-    } else {
-        // Respawn player
-        if (gameStateInstance.player?.respawn) {
-            gameStateInstance.player.respawn(
-                canvasElement.width / 2,
-                canvasElement.height - (CONFIG.player?.startYOffset || 100)
-            );
-        } else {
-            gameStateInstance.player.x = canvasElement.width / 2;
-            gameStateInstance.player.y = canvasElement.height - (CONFIG.player?.startYOffset || 100);
-            gameStateInstance.player.isAlive = true;
-            gameStateInstance.player.invulnerable = true;
-            gameStateInstance.player.invulnerableTimer = 180;
-        }
-    }
-}
+    // Screen shake
+    gameState.screenShake.intensity = 15;
+    gameState.screenShake.duration = 30;
 
-/**
- * Game over
- */
-function gameOver() {
-    console.log('💀 Game Over!');
+    // VHS glitch
+    if (vhsEffect) vhsEffect.triggerGlitch(2, 45);
 
-    if (gameLoop) {
-        gameLoop.stop();
-    }
+    if (gameState.lives <= 0) {
+        // Game over
+        gameState.gameOver = true;
 
-    if (gameStateInstance) {
-        gameStateInstance.gameRunning = false;
-
-        // Update high score
-        if (gameStateInstance.score > gameStateInstance.highScore) {
-            gameStateInstance.highScore = gameStateInstance.score;
-            localStorage.setItem('geometry3044_highscore', gameStateInstance.score);
-        }
-
-        // Update final score display
-        const finalScoreDisplay = document.getElementById('finalScoreDisplay');
-        const finalWaveDisplay = document.getElementById('finalWaveDisplay');
-        const finalComboDisplay = document.getElementById('finalComboDisplay');
-
-        if (finalScoreDisplay) finalScoreDisplay.textContent = gameStateInstance.score.toLocaleString();
-        if (finalWaveDisplay) finalWaveDisplay.textContent = gameStateInstance.wave;
-        if (finalComboDisplay) finalComboDisplay.textContent = gameStateInstance.maxCombo || 0;
-    }
-
-    if (soundSystem) {
-        try {
-            soundSystem.play('explosionLarge');
+        if (soundSystem) {
             soundSystem.stopMusic();
-        } catch (e) {}
-    }
+            soundSystem.playGameOver();
+        }
 
-    // Show game over screen
-    menuManager.showGameOver(gameStateInstance ? gameStateInstance.score : 0);
-
-    // Reset game starting guard so player can start a new game
-    setGameStarting(false);
-
-    // Set up play again button
-    const playAgainBtn = document.getElementById('playAgainBtn');
-    if (playAgainBtn) {
-        playAgainBtn.onclick = () => {
-            menuManager.showMainMenu();
-            drawMenuBackground();
-            loadAndPlayMusic('menu');
-        };
-    }
-
-    const mainMenuBtn = document.getElementById('mainMenuBtn');
-    if (mainMenuBtn) {
-        mainMenuBtn.onclick = () => {
-            menuManager.showMainMenu();
-            drawMenuBackground();
-            loadAndPlayMusic('menu');
-        };
+        // Save high score
+        if (gameState.score > gameState.highScore) {
+            gameState.highScore = gameState.score;
+            localStorage.setItem('geometry3044_highScore', gameState.highScore);
+        }
+    } else {
+        // Respawn
+        if (player) {
+            player.respawn(canvas);
+        }
     }
 }
 
-/**
- * Load and play music
- */
-async function loadAndPlayMusic(type) {
-    if (!soundSystem) return;
+function drawGameOverScreen() {
+    // Darken
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Initialize sound system if needed
-    if (!soundSystem.initialized) {
-        try {
-            await soundSystem.init();
-        } catch (e) {
-            console.warn('Sound system init failed:', e);
-            return;
-        }
+    ctx.save();
+    ctx.textAlign = 'center';
+
+    // Game Over
+    ctx.font = 'bold 72px "Courier New", monospace';
+    ctx.fillStyle = '#ff0000';
+    ctx.shadowBlur = 30;
+    ctx.shadowColor = '#ff0000';
+    ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 60);
+
+    // Score
+    ctx.font = 'bold 36px "Courier New", monospace';
+    ctx.fillStyle = '#00ffff';
+    ctx.shadowColor = '#00ffff';
+    ctx.fillText(`SCORE: ${gameState.score.toLocaleString()}`, canvas.width / 2, canvas.height / 2 + 10);
+
+    // Wave
+    ctx.font = '24px "Courier New", monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(`REACHED WAVE ${gameState.wave}`, canvas.width / 2, canvas.height / 2 + 50);
+
+    // Max combo
+    ctx.fillText(`MAX COMBO: ${gameState.maxCombo}x`, canvas.width / 2, canvas.height / 2 + 80);
+
+    // High score
+    if (gameState.score >= gameState.highScore) {
+        ctx.font = 'bold 28px "Courier New", monospace';
+        ctx.fillStyle = '#ffd700';
+        ctx.shadowColor = '#ffd700';
+        ctx.fillText('★ NEW HIGH SCORE! ★', canvas.width / 2, canvas.height / 2 + 130);
     }
 
-    try {
-        const url = type === 'menu'
-            ? CONFIG.audio?.urls?.menuMusic
-            : CONFIG.audio?.urls?.gameMusic;
+    // Continue prompt
+    ctx.font = '20px "Courier New", monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowBlur = 0;
 
-        if (url) {
-            await soundSystem.loadMusic(type, url);
-            soundSystem.playMusic(type, true);
-        }
-    } catch (error) {
-        console.warn(`Could not load ${type} music:`, error);
+    if (credits > 0) {
+        ctx.fillText(`Press SPACE to continue (${credits} credits)`, canvas.width / 2, canvas.height / 2 + 180);
+    } else {
+        ctx.fillText('Press C to insert coin, SPACE to return to menu', canvas.width / 2, canvas.height / 2 + 180);
+    }
 
-        // Try fallback
-        try {
-            const fallbackUrl = type === 'menu'
-                ? CONFIG.audio?.urls?.fallbackMenuMusic
-                : CONFIG.audio?.urls?.fallbackGameMusic;
+    ctx.restore();
 
-            if (fallbackUrl) {
-                await soundSystem.loadMusic(type, fallbackUrl);
-                soundSystem.playMusic(type, true);
+    // Handle continue
+    if (keys[' '] || keys['Space']) {
+        keys[' '] = false;
+        keys['Space'] = false;
+
+        if (credits > 0) {
+            // Continue game
+            credits--;
+            updateCreditsDisplay();
+
+            gameState.lives = 3;
+            gameState.gameOver = false;
+
+            if (player) {
+                player.respawn(canvas);
             }
-        } catch (fallbackError) {
-            console.warn(`Fallback music also failed:`, fallbackError);
+
+            if (enemyBulletPool) enemyBulletPool.clear();
+
+            if (soundSystem) soundSystem.playMusic('game');
+        } else {
+            // Return to menu
+            returnToMenu();
         }
     }
 }
 
-// Make startGame available globally for the button
-window.startGame = startGame;
+function returnToMenu() {
+    // Stop game
+    if (gameLoopId) {
+        cancelAnimationFrame(gameLoopId);
+        gameLoopId = null;
+    }
 
-// Initialize when DOM is ready
+    gameState = null;
+    player = null;
+
+    // Show menu
+    const menuScreen = document.getElementById('menuScreen');
+    const gameUI = document.getElementById('gameUI');
+
+    if (menuScreen) menuScreen.style.display = 'flex';
+    if (gameUI) gameUI.style.display = 'none';
+
+    // Update high score display
+    const highScore = localStorage.getItem('geometry3044_highScore') || 0;
+    const highScoreEl = document.getElementById('menuHighScore') || document.getElementById('highScoreDisplay');
+    if (highScoreEl) {
+        highScoreEl.textContent = parseInt(highScore).toLocaleString();
+    }
+
+    // Start menu loop
+    requestAnimationFrame(menuLoop);
+
+    resetAttractModeTimeout();
+}
+
+// ============================================
+// ATTRACT MODE OVERLAY
+// ============================================
+
+function drawAttractModeOverlay() {
+    ctx.save();
+
+    // Demo mode indicator
+    ctx.font = 'bold 20px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff00ff';
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#ff00ff';
+    ctx.fillText('★ DEMO MODE ★', canvas.width / 2, 40);
+
+    // Promo text
+    ctx.font = 'bold 28px "Courier New", monospace';
+    ctx.fillStyle = '#00ffff';
+    ctx.shadowColor = '#00ffff';
+    ctx.fillText(promoTexts[currentPromoIndex], canvas.width / 2, canvas.height - 60);
+
+    // Press any key
+    const blink = Math.sin(Date.now() * 0.005) > 0;
+    if (blink) {
+        ctx.font = '18px "Courier New", monospace';
+        ctx.fillStyle = '#ffff00';
+        ctx.shadowColor = '#ffff00';
+        ctx.fillText('PRESS ANY KEY TO START', canvas.width / 2, canvas.height - 25);
+    }
+
+    ctx.restore();
+}
+
+// ============================================
+// EXPOSE GLOBALS
+// ============================================
+
+window.gameState = gameState;
+window.startGame = window.startGame;
+
+// ============================================
+// START
+// ============================================
+
+// Wait for DOM
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
     init();
 }
-
-// Diagnostic function
-window.diagnoseGame = function() {
-    console.log('');
-    console.log('='.repeat(50));
-    console.log('=== GAME DIAGNOSTICS (BULLETPROOF) ===');
-    console.log('='.repeat(50));
-    console.log('');
-
-    // Canvas
-    const canvasEl = document.getElementById('gameCanvas');
-    console.log('📺 CANVAS:');
-    console.log('  - Element found:', canvasEl ? '✅' : '❌');
-    if (canvasEl) {
-        console.log('  - Width:', canvasEl.width);
-        console.log('  - Height:', canvasEl.height);
-        console.log('  - Display style:', getComputedStyle(canvasEl).display);
-    }
-
-    // Systems status
-    console.log('');
-    console.log('📊 SYSTEMS STATUS:');
-    console.log('  - menuManager:', menuManager ? '✅' : '❌');
-    console.log('  - soundSystem:', soundSystem ? '✅' : '❌', soundSystem?.constructor?.name);
-    console.log('  - gameStateInstance:', gameStateInstance ? '✅' : '❌');
-    console.log('  - inputHandler:', inputHandler ? '✅' : '❌', inputHandler?.constructor?.name);
-    console.log('  - particleSystem:', particleSystem ? '✅' : '❌', particleSystem?.constructor?.name);
-    console.log('  - bulletPool:', bulletPool ? '✅' : '❌', bulletPool?.constructor?.name);
-    console.log('  - waveManager:', waveManager ? '✅' : '❌', waveManager?.constructor?.name);
-    console.log('  - hud:', hud ? '✅' : '❌', hud?.constructor?.name);
-    console.log('  - gameLoop:', gameLoop ? '✅' : '❌');
-
-    console.log('');
-    console.log('='.repeat(50));
-    console.log('=== END DIAGNOSTICS ===');
-    console.log('='.repeat(50));
-    console.log('');
-
-    return {
-        canvas: !!canvasEl,
-        menuManager: !!menuManager,
-        soundSystem: !!soundSystem,
-        gameState: !!gameStateInstance,
-        inputHandler: !!inputHandler,
-        ready: !!canvasEl && !!menuManager
-    };
-};
-
-// Quick test function
-window.testCanvas = function() {
-    const canvasEl = document.getElementById('gameCanvas');
-    if (!canvasEl) {
-        console.error('Canvas not found!');
-        return;
-    }
-
-    const ctx = canvasEl.getContext('2d');
-
-    // Hide menu, show canvas
-    const menu = document.getElementById('menuScreen');
-    if (menu) menu.style.display = 'none';
-
-    // Draw test pattern
-    ctx.fillStyle = 'red';
-    ctx.fillRect(0, 0, canvasEl.width, canvasEl.height);
-
-    ctx.fillStyle = 'white';
-    ctx.font = '48px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('CANVAS TEST OK!', canvasEl.width/2, canvasEl.height/2);
-
-    console.log('✅ Test canvas drawn - you should see a red screen with white text');
-};
-
-// Export for debugging
-window.DEBUG = {
-    CONFIG,
-    WAVE_THEMES,
-    getCurrentTheme,
-    // Core systems
-    getMenuManager: () => menuManager,
-    getSoundSystem: () => soundSystem,
-    getGameState: () => gameStateInstance,
-    getGameLoop: () => gameLoop,
-    getInputHandler: () => inputHandler,
-    getHUD: () => hud,
-    // Classes
-    Player,
-    Enemy,
-    Bullet,
-    BulletPool,
-    ParticleSystem,
-    WaveManager,
-    SoundSystem,
-    Starfield,
-    VHSGlitchEffects,
-    GameState,
-    InputHandler,
-    CollisionSystem,
-    GameLoop,
-    MenuManager,
-    MenuState,
-    HUD,
-    OptionsMenu,
-    WeaponManager,
-    // Fallback classes
-    FallbackPlayer,
-    FallbackBulletPool,
-    FallbackParticleSystem,
-    FallbackInputHandler,
-    FallbackSoundSystem,
-    FallbackStarfield,
-    FallbackHUD,
-    FallbackWaveManager,
-    // HUD Themes
-    HUD_THEMES,
-    getTheme,
-    getAllThemes,
-    // Diagnostic functions
-    diagnose: window.diagnoseGame,
-    testCanvas: window.testCanvas
-};
