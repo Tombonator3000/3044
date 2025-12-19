@@ -78,6 +78,27 @@ class Particle {
             case 'score':
                 this.drawScore(ctx, this.size);
                 break;
+            case 'shockwave':
+                this.drawShockwave(ctx, currentSize);
+                break;
+            case 'pixel':
+                this.drawPixel(ctx, currentSize);
+                break;
+            case 'ring':
+                this.drawRing(ctx, currentSize);
+                break;
+            case 'lightning':
+                this.drawLightning(ctx, currentSize);
+                break;
+            case 'fire':
+                this.drawFire(ctx, currentSize);
+                break;
+            case 'smoke':
+                this.drawSmoke(ctx, currentSize);
+                break;
+            case 'star':
+                this.drawStar(ctx, currentSize);
+                break;
             default:
                 this.drawDefault(ctx, currentSize);
         }
@@ -164,6 +185,91 @@ class Particle {
         ctx.shadowBlur = 5;
         ctx.shadowColor = this.color;
         ctx.fillRect(-size / 2, -size / 2, size, size);
+    }
+
+    drawShockwave(ctx, size) {
+        const alpha = this.life / this.maxLife;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 4 * alpha;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = this.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, size * (1 - alpha + 0.2), 0, Math.PI * 2);
+        ctx.stroke();
+    }
+
+    drawPixel(ctx, size) {
+        const pixelSize = Math.max(2, size);
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = this.color;
+        // Draw as perfect square for 8-bit look
+        ctx.fillRect(-pixelSize / 2, -pixelSize / 2, pixelSize, pixelSize);
+    }
+
+    drawRing(ctx, size) {
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = this.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, size, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+
+    drawLightning(ctx, size) {
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = this.color;
+        ctx.beginPath();
+        ctx.moveTo(-size, -size);
+        ctx.lineTo(0, 0);
+        ctx.lineTo(-size * 0.3, size * 0.3);
+        ctx.lineTo(size, size);
+        ctx.stroke();
+    }
+
+    drawFire(ctx, size) {
+        // Fire gradient from yellow to red to transparent
+        const gradient = ctx.createRadialGradient(0, size * 0.3, 0, 0, 0, size);
+        gradient.addColorStop(0, '#ffff00');
+        gradient.addColorStop(0.3, this.color);
+        gradient.addColorStop(0.7, '#ff0000');
+        gradient.addColorStop(1, 'transparent');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    drawSmoke(ctx, size) {
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+        gradient.addColorStop(0, this.color);
+        gradient.addColorStop(1, 'transparent');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    drawStar(ctx, size) {
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = this.color;
+
+        // 4-pointed star
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+            const angle = (Math.PI * 2 * i) / 8 - Math.PI / 2;
+            const radius = i % 2 === 0 ? size : size * 0.4;
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
     }
 }
 
@@ -724,5 +830,319 @@ export class ParticleSystem {
 
     getCount() {
         return this.getActiveCount();
+    }
+
+    // ============================================
+    // ENHANCED EXPLOSION EFFECTS
+    // ============================================
+
+    /**
+     * Epic 8-bit style pixel explosion
+     */
+    pixelExplosion(x, y, color = '#ff00ff', count = 30) {
+        const colors = [color, '#ffffff', '#00ffff', '#ffff00'];
+
+        // Pixel particles
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+            const speed = 3 + Math.random() * 8;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                size: 4 + Math.random() * 4,
+                life: 50 + Math.random() * 30,
+                friction: 0.96,
+                gravity: 0.08,
+                type: 'pixel',
+                rotationSpeed: (Math.random() - 0.5) * 0.2
+            });
+        }
+
+        // Shockwave
+        this.addShockwave(x, y, color, 80);
+    }
+
+    /**
+     * Add expanding shockwave ring
+     */
+    addShockwave(x, y, color = '#ffffff', maxSize = 100) {
+        const particle = this.getParticle();
+        particle.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: color,
+            size: maxSize,
+            life: 25,
+            friction: 1,
+            type: 'shockwave'
+        });
+    }
+
+    /**
+     * Neon synthwave explosion
+     */
+    synthwaveExplosion(x, y) {
+        const colors = ['#ff00ff', '#00ffff', '#ffff00', '#ff0080'];
+
+        // Multi-colored burst
+        for (let ring = 0; ring < 3; ring++) {
+            const count = 16 - ring * 4;
+            for (let i = 0; i < count; i++) {
+                const angle = (Math.PI * 2 * i) / count;
+                const speed = (8 - ring * 2) + Math.random() * 4;
+                const particle = this.getParticle();
+                particle.reset(x, y, {
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    color: colors[ring % colors.length],
+                    size: 5 - ring,
+                    life: 60 - ring * 10,
+                    friction: 0.95,
+                    type: 'star'
+                });
+            }
+        }
+
+        // Central flash
+        const flash = this.getParticle();
+        flash.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#ffffff',
+            size: 50,
+            life: 15,
+            friction: 1,
+            type: 'glow'
+        });
+
+        // Shockwaves
+        this.addShockwave(x, y, '#ff00ff', 120);
+    }
+
+    /**
+     * Fire and smoke explosion
+     */
+    fireExplosion(x, y, size = 1) {
+        const count = Math.floor(25 * size);
+
+        // Fire particles
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = (4 + Math.random() * 6) * size;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 2,
+                color: Math.random() > 0.5 ? '#ff6600' : '#ff0000',
+                size: (5 + Math.random() * 5) * size,
+                life: 40 + Math.random() * 30,
+                friction: 0.97,
+                gravity: -0.05, // Fire rises
+                type: 'fire'
+            });
+        }
+
+        // Smoke particles
+        for (let i = 0; i < count / 2; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = (2 + Math.random() * 3) * size;
+            const particle = this.getParticle();
+            particle.reset(x + (Math.random() - 0.5) * 20, y + (Math.random() - 0.5) * 20, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 1,
+                color: '#444444',
+                size: (8 + Math.random() * 8) * size,
+                life: 60 + Math.random() * 40,
+                friction: 0.98,
+                gravity: -0.02,
+                type: 'smoke'
+            });
+        }
+
+        // Central glow
+        const glow = this.getParticle();
+        glow.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#ffff00',
+            size: 40 * size,
+            life: 20,
+            friction: 1,
+            type: 'glow'
+        });
+    }
+
+    /**
+     * Electric/lightning explosion
+     */
+    electricExplosion(x, y, color = '#00ffff') {
+        // Lightning bolts
+        for (let i = 0; i < 12; i++) {
+            const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.3;
+            const speed = 6 + Math.random() * 6;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: color,
+                size: 8 + Math.random() * 6,
+                life: 20 + Math.random() * 15,
+                friction: 0.92,
+                type: 'lightning',
+                rotation: angle
+            });
+        }
+
+        // Electric sparks
+        for (let i = 0; i < 20; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 4 + Math.random() * 8;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: i % 2 === 0 ? color : '#ffffff',
+                size: 2 + Math.random() * 3,
+                life: 25 + Math.random() * 20,
+                friction: 0.94,
+                type: 'spark'
+            });
+        }
+
+        // Electric rings
+        for (let i = 0; i < 3; i++) {
+            const ring = this.getParticle();
+            ring.reset(x, y, {
+                vx: 0,
+                vy: 0,
+                color: color,
+                size: 30 + i * 20,
+                life: 15 - i * 3,
+                friction: 1,
+                type: 'ring'
+            });
+        }
+    }
+
+    /**
+     * VHS glitch explosion effect
+     */
+    glitchExplosion(x, y) {
+        const colors = ['#ff0000', '#00ff00', '#0000ff'];
+
+        // RGB split effect
+        for (let c = 0; c < 3; c++) {
+            const offset = (c - 1) * 5;
+            for (let i = 0; i < 10; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 3 + Math.random() * 5;
+                const particle = this.getParticle();
+                particle.reset(x + offset, y, {
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    color: colors[c],
+                    size: 6 + Math.random() * 4,
+                    life: 30 + Math.random() * 20,
+                    friction: 0.96,
+                    type: 'pixel'
+                });
+            }
+        }
+
+        // Scanline particles
+        for (let i = 0; i < 8; i++) {
+            const particle = this.getParticle();
+            particle.reset(x, y - 30 + i * 8, {
+                vx: (Math.random() - 0.5) * 10,
+                vy: 0,
+                color: '#ffffff',
+                size: 2,
+                life: 15 + Math.random() * 10,
+                friction: 0.9,
+                type: 'spark'
+            });
+        }
+    }
+
+    /**
+     * Mega combo explosion - for big combos
+     */
+    megaComboExplosion(x, y, comboLevel = 1) {
+        const intensity = Math.min(comboLevel, 5);
+        const colors = ['#ff0080', '#00ffff', '#ffff00', '#ff00ff', '#00ff00'];
+
+        // Expanding star bursts
+        for (let ring = 0; ring < intensity; ring++) {
+            const count = 8 + ring * 4;
+            for (let i = 0; i < count; i++) {
+                const angle = (Math.PI * 2 * i) / count + ring * 0.1;
+                const speed = (5 + ring * 2) + Math.random() * 3;
+                const particle = this.getParticle();
+                particle.reset(x, y, {
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    color: colors[ring % colors.length],
+                    size: 6 - ring * 0.5,
+                    life: 50 + Math.random() * 20,
+                    friction: 0.96,
+                    type: 'star'
+                });
+            }
+        }
+
+        // Multiple shockwaves
+        for (let i = 0; i < intensity; i++) {
+            setTimeout(() => {
+                this.addShockwave(x, y, colors[i % colors.length], 100 + i * 30);
+            }, i * 50);
+        }
+
+        // Central supernova
+        const nova = this.getParticle();
+        nova.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#ffffff',
+            size: 60 + intensity * 10,
+            life: 25,
+            friction: 1,
+            type: 'glow'
+        });
+    }
+
+    /**
+     * Death explosion with screen shake worthy intensity
+     */
+    epicDeathExplosion(x, y, color = '#ff0000') {
+        // Multiple explosion waves
+        for (let wave = 0; wave < 3; wave++) {
+            const delay = wave * 80;
+            setTimeout(() => {
+                this.fireExplosion(x + (Math.random() - 0.5) * 40, y + (Math.random() - 0.5) * 40, 0.8);
+            }, delay);
+        }
+
+        // Main explosion
+        this.synthwaveExplosion(x, y);
+
+        // Extra debris
+        for (let i = 0; i < 15; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 5 + Math.random() * 10;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: color,
+                size: 8 + Math.random() * 8,
+                life: 80 + Math.random() * 40,
+                friction: 0.98,
+                gravity: 0.1,
+                type: 'debris',
+                rotationSpeed: (Math.random() - 0.5) * 0.3
+            });
+        }
     }
 }

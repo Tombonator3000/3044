@@ -19,8 +19,12 @@ export class WaveManager {
         this.showingWaveText = false;
         this.waveTextTimer = 0;
 
-        // Enemy type distribution per wave
-        this.enemyTypes = ['triangle', 'square', 'pentagon', 'divebomber', 'sinewave'];
+        // Enemy type distribution per wave (includes new 8-bit enemies)
+        this.enemyTypes = [
+            'triangle', 'square', 'pentagon', 'divebomber', 'sinewave',
+            'pixelskull', 'ghostbyte', 'laserdisc', 'vhstracker',
+            'arcadeboss', 'synthwave', 'pixelinvader'
+        ];
 
         // Boss waves
         this.bossWaves = [5, 10, 15, 20, 25, 30];
@@ -72,11 +76,50 @@ export class WaveManager {
         // Sinewave elites from wave 8
         if (wave >= 8) availableTypes.push('sinewave');
 
+        // ============================================
+        // NEW 8-BIT INSPIRED ENEMIES
+        // ============================================
+
+        // Pixel Invaders from wave 3 (classic retro enemy)
+        if (wave >= 3) availableTypes.push('pixelinvader');
+
+        // Ghost Byte from wave 5 (floaty ghost)
+        if (wave >= 5) availableTypes.push('ghostbyte');
+
+        // Laser Disc from wave 7 (spinning disc)
+        if (wave >= 7) availableTypes.push('laserdisc');
+
+        // Synthwave enemy from wave 9 (pulsing neon)
+        if (wave >= 9) availableTypes.push('synthwave');
+
+        // Pixel Skull from wave 10 (phasing skull)
+        if (wave >= 10) availableTypes.push('pixelskull');
+
+        // VHS Tracker from wave 12 (glitchy teleporter)
+        if (wave >= 12) availableTypes.push('vhstracker');
+
+        // Arcade Boss from wave 15 (mini-boss type)
+        if (wave >= 15) availableTypes.push('arcadeboss');
+
         // Weight towards harder enemies in later waves
         if (wave >= 10) {
             // Double chance for harder enemies
             if (wave >= 8) availableTypes.push('sinewave');
             if (wave >= 6) availableTypes.push('divebomber');
+            availableTypes.push('synthwave');
+        }
+
+        if (wave >= 15) {
+            // Triple chance for 8-bit enemies in late game
+            availableTypes.push('pixelskull');
+            availableTypes.push('vhstracker');
+            availableTypes.push('laserdisc');
+        }
+
+        if (wave >= 20) {
+            // More arcade bosses in very late game
+            availableTypes.push('arcadeboss');
+            availableTypes.push('pixelskull');
         }
 
         // Pick random from available
@@ -98,6 +141,57 @@ export class WaveManager {
                 // Sinewave enemies start from sides
                 x = Math.random() > 0.5 ? -30 : canvas.width + 30;
                 y = 50 + Math.random() * 100;
+                break;
+
+            // ============================================
+            // NEW 8-BIT ENEMY SPAWN POSITIONS
+            // ============================================
+
+            case 'pixelskull':
+                // Skulls phase in from anywhere at top
+                x = padding + Math.random() * (canvas.width - padding * 2);
+                y = -40;
+                break;
+
+            case 'ghostbyte':
+                // Ghosts float in from sides
+                x = Math.random() > 0.5 ? -30 : canvas.width + 30;
+                y = 30 + Math.random() * 150;
+                break;
+
+            case 'laserdisc':
+                // Discs orbit in from corners
+                if (Math.random() > 0.5) {
+                    x = Math.random() > 0.5 ? -30 : canvas.width + 30;
+                    y = 50 + Math.random() * 100;
+                } else {
+                    x = padding + Math.random() * (canvas.width - padding * 2);
+                    y = -30;
+                }
+                break;
+
+            case 'vhstracker':
+                // VHS trackers glitch in from random top positions
+                x = padding + Math.random() * (canvas.width - padding * 2);
+                y = -40 - Math.random() * 30;
+                break;
+
+            case 'arcadeboss':
+                // Arcade cabinets descend from center-top
+                x = canvas.width * 0.3 + Math.random() * (canvas.width * 0.4);
+                y = -60;
+                break;
+
+            case 'synthwave':
+                // Synthwave enemies pulse in from center-top with spread
+                x = canvas.width * 0.2 + Math.random() * (canvas.width * 0.6);
+                y = -35;
+                break;
+
+            case 'pixelinvader':
+                // Classic invaders line up at top like the original game
+                x = padding + Math.random() * (canvas.width - padding * 2);
+                y = -30;
                 break;
 
             default:
