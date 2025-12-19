@@ -45,13 +45,23 @@ export class MenuManager {
      * Initialize menu manager and bind UI events
      */
     init() {
+        console.log('🎮 MenuManager.init() called');
+
         // Bind start button
         if (cachedUI.startGameBtn) {
+            console.log('  - Start button found, binding click event');
             cachedUI.startGameBtn.addEventListener('click', () => {
+                console.log('🔘 START GAME button clicked!');
+                console.log('  - onStartGame callback:', this.onStartGame ? '✅ set' : '❌ not set');
                 if (this.onStartGame) {
+                    console.log('  - Calling onStartGame()...');
                     this.onStartGame();
+                } else {
+                    console.error('  - ERROR: onStartGame callback not set!');
                 }
             });
+        } else {
+            console.error('❌ Start button NOT found in cachedUI!');
         }
 
         // Bind play again button
@@ -262,10 +272,14 @@ export class MenuManager {
      * @returns {boolean} True if credit was used successfully
      */
     useCredit() {
+        console.log('🪙 useCredit() called');
+        console.log('  - Current credits:', credits);
         if (credits > 0) {
             this.updateCredits(credits - 1);
+            console.log('  - Credit used! New credits:', credits - 1);
             return true;
         }
+        console.log('  - No credits available!');
         return false;
     }
 

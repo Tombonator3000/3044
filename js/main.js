@@ -175,132 +175,181 @@ function drawMenuBackground() {
  * Start the game
  */
 function startGame() {
-    console.log('🎮 Starting game...');
+    console.log('🎮 [1] startGame() called');
 
-    // Initialize sound system if not already done
-    if (soundSystem && !soundSystem.initialized) {
-        soundSystem.init();
-    }
+    try {
+        // Initialize sound system if not already done
+        console.log('🎮 [2] Checking sound system...');
+        if (soundSystem && !soundSystem.initialized) {
+            soundSystem.init();
+        }
 
-    // Play menu select sound
-    if (soundSystem) {
-        soundSystem.play('menuSelect');
-    }
+        // Play menu select sound
+        if (soundSystem) {
+            soundSystem.play('menuSelect');
+        }
 
-    // Check credits
-    if (!menuManager.useCredit()) {
-        console.log('❌ No credits available!');
-        return;
-    }
+        // Check credits
+        console.log('🎮 [3] Checking credits...');
+        console.log('  - menuManager:', menuManager ? '✅' : '❌');
+        if (!menuManager.useCredit()) {
+            console.log('❌ No credits available!');
+            return;
+        }
+        console.log('🎮 [4] Credit used successfully');
 
-    // Create game state
-    gameStateInstance = new GameState();
-    setGameState(gameStateInstance);
+        // Create game state
+        console.log('🎮 [5] Creating GameState...');
+        gameStateInstance = new GameState();
+        setGameState(gameStateInstance);
+        console.log('  - gameState created:', gameStateInstance ? '✅' : '❌');
 
-    // Create player
-    const player = new Player(
-        canvasElement.width / 2,
-        canvasElement.height - CONFIG.player.startYOffset
-    );
-    gameStateInstance.player = player;
+        // Create player
+        console.log('🎮 [6] Creating Player...');
+        console.log('  - canvas width:', canvasElement?.width);
+        console.log('  - canvas height:', canvasElement?.height);
+        console.log('  - startYOffset:', CONFIG.player.startYOffset);
+        const player = new Player(
+            canvasElement.width / 2,
+            canvasElement.height - CONFIG.player.startYOffset
+        );
+        gameStateInstance.player = player;
+        console.log('  - player created:', player ? '✅' : '❌');
+        console.log('  - player position:', player?.x, player?.y);
 
-    // Initialize systems
-    particleSystem = new ParticleSystem();
-    setParticleSystem(particleSystem);
+        // Initialize systems
+        console.log('🎮 [7] Initializing systems...');
 
-    bulletPool = new BulletPool(CONFIG.bullets.poolSize);
-    setBulletPool(bulletPool);
+        particleSystem = new ParticleSystem();
+        setParticleSystem(particleSystem);
+        console.log('  - ParticleSystem:', particleSystem ? '✅' : '❌');
 
-    enemyBulletPool = new BulletPool(CONFIG.bullets.poolSize);
-    setEnemyBulletPool(enemyBulletPool);
+        bulletPool = new BulletPool(CONFIG.bullets.poolSize);
+        setBulletPool(bulletPool);
+        console.log('  - BulletPool:', bulletPool ? '✅' : '❌');
 
-    // Initialize input handler
-    inputHandler = new InputHandler();
-    inputHandler.init();
+        enemyBulletPool = new BulletPool(CONFIG.bullets.poolSize);
+        setEnemyBulletPool(enemyBulletPool);
+        console.log('  - EnemyBulletPool:', enemyBulletPool ? '✅' : '❌');
 
-    // Initialize collision system
-    collisionSystem = new CollisionSystem({
-        gameState: gameStateInstance,
-        particleSystem: particleSystem,
-        soundSystem: soundSystem,
-        onEnemyDestroyed: (enemy, bullet) => {
-            gameStateInstance.addScore(enemy.points || 100);
-            gameStateInstance.incrementCombo();
-        },
-        onPlayerHit: () => {
-            if (!gameStateInstance.playerInvulnerable) {
-                playerDeath();
+        // Initialize input handler
+        console.log('🎮 [8] Initializing InputHandler...');
+        inputHandler = new InputHandler();
+        inputHandler.init();
+        console.log('  - InputHandler:', inputHandler ? '✅' : '❌');
+
+        // Initialize collision system
+        console.log('🎮 [9] Initializing CollisionSystem...');
+        collisionSystem = new CollisionSystem({
+            gameState: gameStateInstance,
+            particleSystem: particleSystem,
+            soundSystem: soundSystem,
+            onEnemyDestroyed: (enemy, bullet) => {
+                gameStateInstance.addScore(enemy.points || 100);
+                gameStateInstance.incrementCombo();
+            },
+            onPlayerHit: () => {
+                if (!gameStateInstance.playerInvulnerable) {
+                    playerDeath();
+                }
             }
-        }
-    });
+        });
+        console.log('  - CollisionSystem:', collisionSystem ? '✅' : '❌');
 
-    // Initialize wave manager
-    waveManager = new WaveManager({
-        gameState: gameStateInstance,
-        canvas: canvasElement,
-        onWaveComplete: (waveNum) => {
-            console.log(`🌊 Wave ${waveNum} complete!`);
-            if (soundSystem) soundSystem.play('waveComplete');
-        }
-    });
-    setWaveManager(waveManager);
+        // Initialize wave manager
+        console.log('🎮 [10] Initializing WaveManager...');
+        waveManager = new WaveManager({
+            gameState: gameStateInstance,
+            canvas: canvasElement,
+            onWaveComplete: (waveNum) => {
+                console.log(`🌊 Wave ${waveNum} complete!`);
+                if (soundSystem) soundSystem.play('waveComplete');
+            }
+        });
+        setWaveManager(waveManager);
+        console.log('  - WaveManager:', waveManager ? '✅' : '❌');
 
-    // Initialize VHS glitch effect
-    vhsGlitch = new VHSGlitchEffects();
-    setVhsGlitch(vhsGlitch);
+        // Initialize VHS glitch effect
+        console.log('🎮 [11] Initializing VHSGlitch...');
+        vhsGlitch = new VHSGlitchEffects();
+        setVhsGlitch(vhsGlitch);
+        console.log('  - VHSGlitch:', vhsGlitch ? '✅' : '❌');
 
-    // Initialize HUD
-    hud = new HUD(getTheme(DEFAULT_THEME));
+        // Initialize HUD
+        console.log('🎮 [12] Initializing HUD...');
+        hud = new HUD(getTheme(DEFAULT_THEME));
+        console.log('  - HUD:', hud ? '✅' : '❌');
 
-    // Initialize options menu
-    optionsMenu = new OptionsMenu({
-        currentTheme: DEFAULT_THEME,
-        onThemeChange: (themeName) => {
-            hud.setTheme(getTheme(themeName));
-        }
-    });
+        // Initialize options menu
+        console.log('🎮 [13] Initializing OptionsMenu...');
+        optionsMenu = new OptionsMenu({
+            currentTheme: DEFAULT_THEME,
+            onThemeChange: (themeName) => {
+                hud.setTheme(getTheme(themeName));
+            }
+        });
+        console.log('  - OptionsMenu:', optionsMenu ? '✅' : '❌');
 
-    // Initialize weapon manager
-    weaponManager = new WeaponManager({
-        gameState: gameStateInstance,
-        bulletPool: bulletPool,
-        particleSystem: particleSystem,
-        soundSystem: soundSystem
-    });
-    setWeaponManager(weaponManager);
+        // Initialize weapon manager
+        console.log('🎮 [14] Initializing WeaponManager...');
+        weaponManager = new WeaponManager({
+            gameState: gameStateInstance,
+            bulletPool: bulletPool,
+            particleSystem: particleSystem,
+            soundSystem: soundSystem
+        });
+        setWeaponManager(weaponManager);
+        console.log('  - WeaponManager:', weaponManager ? '✅' : '❌');
 
-    // Create game loop
-    gameLoop = new GameLoop({
-        canvas: canvasElement,
-        ctx: context,
-        gameState: gameStateInstance,
-        inputHandler: inputHandler,
-        collisionSystem: collisionSystem,
-        particleSystem: particleSystem,
-        bulletPool: bulletPool,
-        waveManager: waveManager,
-        soundSystem: soundSystem,
-        starfield: starfield,
-        vhsGlitch: vhsGlitch,
-        hud: hud,
-        optionsMenu: optionsMenu,
-        weaponManager: weaponManager,
-        renderCRT: (ctx) => drawEnhancedCRT(ctx, canvasElement.width, canvasElement.height)
-    });
+        // Create game loop
+        console.log('🎮 [15] Creating GameLoop...');
+        gameLoop = new GameLoop({
+            canvas: canvasElement,
+            ctx: context,
+            gameState: gameStateInstance,
+            inputHandler: inputHandler,
+            collisionSystem: collisionSystem,
+            particleSystem: particleSystem,
+            bulletPool: bulletPool,
+            waveManager: waveManager,
+            soundSystem: soundSystem,
+            starfield: starfield,
+            vhsGlitch: vhsGlitch,
+            hud: hud,
+            optionsMenu: optionsMenu,
+            weaponManager: weaponManager,
+            renderCRT: (ctx) => drawEnhancedCRT(ctx, canvasElement.width, canvasElement.height)
+        });
+        console.log('  - GameLoop:', gameLoop ? '✅' : '❌');
 
-    // Set game as running
-    gameStateInstance.gameRunning = true;
+        // Set game as running
+        console.log('🎮 [16] Setting game as running...');
+        gameStateInstance.gameRunning = true;
 
-    // Switch to game UI
-    menuManager.showGameUI();
+        // Switch to game UI
+        console.log('🎮 [17] Switching to game UI...');
+        menuManager.showGameUI();
 
-    // Start the game loop
-    gameLoop.start();
+        // Start the game loop
+        console.log('🎮 [18] Starting game loop...');
+        gameLoop.start();
 
-    // Load and play game music
-    loadAndPlayMusic('game');
+        // Load and play game music
+        console.log('🎮 [19] Loading music...');
+        loadAndPlayMusic('game');
 
-    console.log('🎮 Game started!');
+        console.log('🎮 [20] ✅ Game started successfully!');
+        console.log('='.repeat(50));
+        console.log('DEBUG INFO:');
+        console.log('  - gameState.gameRunning:', gameStateInstance.gameRunning);
+        console.log('  - gameLoop.isRunning():', gameLoop.isRunning());
+        console.log('  - player exists:', !!gameStateInstance.player);
+        console.log('='.repeat(50));
+
+    } catch (error) {
+        console.error('🎮 [ERROR] Game failed to start:', error);
+        console.error('Stack trace:', error.stack);
+    }
 }
 
 /**
@@ -444,6 +493,148 @@ if (document.readyState === 'loading') {
     init();
 }
 
+// Diagnostic function
+window.diagnoseGame = function() {
+    console.log('');
+    console.log('='.repeat(50));
+    console.log('=== GAME DIAGNOSTICS ===');
+    console.log('='.repeat(50));
+    console.log('');
+
+    // Canvas
+    const canvasEl = document.getElementById('gameCanvas');
+    console.log('📺 CANVAS:');
+    console.log('  - Element found:', canvasEl ? '✅' : '❌');
+    if (canvasEl) {
+        console.log('  - Width:', canvasEl.width);
+        console.log('  - Height:', canvasEl.height);
+        console.log('  - Display style:', getComputedStyle(canvasEl).display);
+        console.log('  - Visibility:', getComputedStyle(canvasEl).visibility);
+    }
+
+    // Menu
+    const menu = document.getElementById('menuScreen');
+    console.log('');
+    console.log('📋 MENU SCREEN:');
+    console.log('  - Element found:', menu ? '✅' : '❌');
+    if (menu) {
+        console.log('  - Display:', menu.style.display || getComputedStyle(menu).display);
+    }
+
+    // Game UI
+    const gameUI = document.getElementById('gameUI');
+    console.log('');
+    console.log('🎮 GAME UI:');
+    console.log('  - Element found:', gameUI ? '✅' : '❌');
+    if (gameUI) {
+        console.log('  - Display:', gameUI.style.display || getComputedStyle(gameUI).display);
+    }
+
+    // Start button
+    const startBtn = document.getElementById('startGameBtn');
+    console.log('');
+    console.log('🔘 START BUTTON:');
+    console.log('  - Element found:', startBtn ? '✅' : '❌');
+    if (startBtn) {
+        console.log('  - Disabled:', startBtn.disabled);
+        console.log('  - Text:', startBtn.textContent);
+    }
+
+    // Global functions
+    console.log('');
+    console.log('🔧 GLOBAL FUNCTIONS:');
+    console.log('  - window.startGame:', typeof window.startGame);
+    console.log('  - window.diagnoseGame:', typeof window.diagnoseGame);
+
+    // Credits info
+    console.log('');
+    console.log('💰 CREDITS & MENU:');
+    console.log('  - menuManager:', menuManager ? '✅' : '❌');
+    if (menuManager) {
+        console.log('  - Current state:', menuManager.getState());
+    }
+    // Check credits display
+    const creditsDisplay = document.getElementById('creditsCount');
+    if (creditsDisplay) {
+        console.log('  - Credits shown:', creditsDisplay.textContent);
+    }
+
+    // Local variables
+    console.log('');
+    console.log('📊 LOCAL STATE:');
+    console.log('  - canvasElement:', canvasElement ? '✅' : '❌');
+    console.log('  - context:', context ? '✅' : '❌');
+    console.log('  - menuManager:', menuManager ? '✅' : '❌');
+    console.log('  - soundSystem:', soundSystem ? '✅' : '❌');
+    console.log('  - gameStateInstance:', gameStateInstance ? '✅' : '❌');
+    console.log('  - gameLoop:', gameLoop ? '✅' : '❌');
+    console.log('  - starfield:', starfield ? '✅' : '❌');
+
+    // Classes
+    console.log('');
+    console.log('📦 CLASSES AVAILABLE:');
+    console.log('  - Player:', typeof Player);
+    console.log('  - Enemy:', typeof Enemy);
+    console.log('  - Bullet:', typeof Bullet);
+    console.log('  - BulletPool:', typeof BulletPool);
+    console.log('  - ParticleSystem:', typeof ParticleSystem);
+    console.log('  - WaveManager:', typeof WaveManager);
+    console.log('  - GameState:', typeof GameState);
+    console.log('  - GameLoop:', typeof GameLoop);
+    console.log('  - InputHandler:', typeof InputHandler);
+    console.log('  - CollisionSystem:', typeof CollisionSystem);
+    console.log('  - HUD:', typeof HUD);
+    console.log('  - MenuManager:', typeof MenuManager);
+
+    // Check for errors in cachedUI
+    console.log('');
+    console.log('🔗 CACHED UI ELEMENTS:');
+    Object.entries(cachedUI).forEach(([key, value]) => {
+        console.log(`  - ${key}:`, value ? '✅' : '❌');
+    });
+
+    console.log('');
+    console.log('='.repeat(50));
+    console.log('=== END DIAGNOSTICS ===');
+    console.log('='.repeat(50));
+    console.log('');
+
+    return {
+        canvas: !!canvasEl,
+        menu: !!menu,
+        gameUI: !!gameUI,
+        startBtn: !!startBtn,
+        menuManager: !!menuManager,
+        ready: !!canvasEl && !!menu && !!startBtn && !!menuManager
+    };
+};
+
+// Quick test function - draws red screen to verify canvas works
+window.testCanvas = function() {
+    const canvasEl = document.getElementById('gameCanvas');
+    if (!canvasEl) {
+        console.error('Canvas not found!');
+        return;
+    }
+
+    const ctx = canvasEl.getContext('2d');
+
+    // Hide menu, show canvas
+    const menu = document.getElementById('menuScreen');
+    if (menu) menu.style.display = 'none';
+
+    // Draw test pattern
+    ctx.fillStyle = 'red';
+    ctx.fillRect(0, 0, canvasEl.width, canvasEl.height);
+
+    ctx.fillStyle = 'white';
+    ctx.font = '48px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('CANVAS TEST OK!', canvasEl.width/2, canvasEl.height/2);
+
+    console.log('✅ Test canvas drawn - you should see a red screen with white text');
+};
+
 // Export for debugging
 window.DEBUG = {
     CONFIG,
@@ -476,5 +667,8 @@ window.DEBUG = {
     // HUD Themes
     HUD_THEMES,
     getTheme,
-    getAllThemes
+    getAllThemes,
+    // Diagnostic functions
+    diagnose: window.diagnoseGame,
+    testCanvas: window.testCanvas
 };
