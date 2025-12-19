@@ -21,22 +21,30 @@
             <div class="synthwave-sun"></div>
             <div class="synthwave-mountains"></div>
 
-            <h1 class="logo">Geometry <span class="year">3044</span></h1>
-            <div class="menu-buttons">
-                <button class="btn" id="startGameBtn">Start Game</button>
-            </div>
+            <!-- Menu Content Container - Organized vertically -->
+            <div class="menu-content">
+                <h1 class="logo">Geometry <span class="year">3044</span></h1>
 
-            <div id="creditsDisplay">
-                CREDITS: <span id="creditsCount">3</span>
-            </div>
+                <div class="menu-buttons">
+                    <button class="btn" id="startGameBtn">Start Game</button>
+                </div>
 
-            <div id="insertCoinText">
-                INSERT COIN
-            </div>
+                <div id="creditsDisplay">
+                    CREDITS: <span id="creditsCount">3</span>
+                </div>
 
-            <div class="controls">
-                WASD/Arrows: Move | Space: Shoot | B: Bomb | P: Pause<br>
-                <span>C: INSERT COIN</span>
+                <div class="controls">
+                    WASD/Arrows: Move | Space: Shoot | B: Bomb | P: Pause<br>
+                    <span class="coin-hint">C: INSERT COIN</span>
+                </div>
+
+                <div id="menuHighScore">
+                    HIGH SCORE: <span id="highScoreDisplay">0</span>
+                </div>
+
+                <div id="insertCoinText">
+                    INSERT COIN
+                </div>
             </div>
         </div>
 
@@ -109,7 +117,7 @@
             </div>
         </div>
 
-        <div id="highScore">High Score: <span id="highScoreDisplay">0</span></div>
+        <div id="gameHighScore">High Score: <span id="gameHighScoreDisplay">0</span></div>
         <div id="pauseOverlay">PAUSED</div>
 
         <div id="mobileControls">
