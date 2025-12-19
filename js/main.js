@@ -23,6 +23,9 @@ import { Starfield, VHSGlitchEffects, drawEnhancedCRT, Epic80sExplosion, Radical
 // Phase 5: Core engine modules
 import { GameState, InputHandler, CollisionSystem, GameLoop } from './core/index.js';
 
+// Phase 6: UI modules
+import { MenuManager, MenuState, HUD, ComboDisplay, RadicalSlangUI } from './ui/index.js';
+
 // Temporary: Log that modules are loading
 console.log('🎮 Geometry 3044 - Module System Loading...');
 console.log('📦 CONFIG loaded:', CONFIG.screen);
@@ -31,6 +34,7 @@ console.log('🚀 Entity modules loaded: Player, Enemy, Bullet');
 console.log('⚙️ System modules loaded: BulletPool, ParticleSystem, WaveManager, SoundSystem');
 console.log('✨ Effect modules loaded: Starfield, VHSGlitchEffects, CRTEffect, Epic80sExplosion, RadicalSlang');
 console.log('🎯 Core modules loaded: GameState, InputHandler, CollisionSystem, GameLoop');
+console.log('🖥️ UI modules loaded: MenuManager, HUD, ComboDisplay, RadicalSlangUI');
 
 /**
  * Initialize the game
@@ -74,6 +78,7 @@ function init() {
     console.log('✅ Phase 3 Complete: System modules (BulletPool, ParticleSystem, WaveManager, SoundSystem)');
     console.log('✅ Phase 4 Complete: Effect modules (Starfield, VHSGlitch, CRT, Explosions)');
     console.log('✅ Phase 5 Complete: Core engine (GameState, InputHandler, CollisionSystem, GameLoop)');
+    console.log('✅ Phase 6 Complete: UI modules (MenuManager, HUD, ComboDisplay, RadicalSlang)');
     console.log('📝 Next: Wire up complete game with all modules');
 }
 
@@ -159,15 +164,21 @@ function drawTestPattern(ctx, canvas) {
     ctx.fillStyle = '#ffff00';
     ctx.fillText('✓ GameState.js', canvas.width / 2 - 120, canvas.height / 2 + 245);
     ctx.fillText('✓ InputHandler.js', canvas.width / 2 + 100, canvas.height / 2 + 245);
-    ctx.fillText('✓ CollisionSystem.js', canvas.width / 2 - 120, canvas.height / 2 + 270);
-    ctx.fillText('✓ GameLoop.js', canvas.width / 2 + 100, canvas.height / 2 + 270);
+
+    // UI modules status (Phase 6)
+    ctx.shadowColor = '#ff6600';
+    ctx.fillStyle = '#ff6600';
+    ctx.fillText('✓ MenuManager.js', canvas.width / 2 - 120, canvas.height / 2 + 270);
+    ctx.fillText('✓ HUD.js', canvas.width / 2 + 100, canvas.height / 2 + 270);
+    ctx.fillText('✓ ComboDisplay.js', canvas.width / 2 - 120, canvas.height / 2 + 295);
+    ctx.fillText('✓ RadicalSlang.js', canvas.width / 2 + 100, canvas.height / 2 + 295);
 
     ctx.shadowBlur = 0;
 
     // Info box
     ctx.font = '14px "Courier New", monospace';
     ctx.fillStyle = '#666666';
-    ctx.fillText('Phase 5 Complete - Core Engine Ready', canvas.width / 2, canvas.height - 50);
+    ctx.fillText('Phase 6 Complete - UI System Ready', canvas.width / 2, canvas.height - 50);
 }
 
 // Initialize when DOM is ready
@@ -201,5 +212,11 @@ window.DEBUG = {
     GameState,
     InputHandler,
     CollisionSystem,
-    GameLoop
+    GameLoop,
+    // UI classes (Phase 6)
+    MenuManager,
+    MenuState,
+    HUD,
+    ComboDisplay,
+    RadicalSlangUI
 };
