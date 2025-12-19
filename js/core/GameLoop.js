@@ -24,6 +24,7 @@ export class GameLoop {
         this.soundSystem = options.soundSystem || null;
         this.starfield = options.starfield || null;
         this.vhsGlitch = options.vhsGlitch || null;
+        this.weaponManager = options.weaponManager || null;
 
         // Render functions (can be customized)
         this.renderCRT = options.renderCRT || null;
@@ -279,6 +280,17 @@ export class GameLoop {
             this.vhsGlitch.update();
         }
 
+        // Update weapon manager
+        if (this.weaponManager && gs.player) {
+            const keys = this.inputHandler ? this.inputHandler.getKeys() : {};
+            const timeEffects = this.weaponManager.update(gs.player, gs.enemies, keys);
+
+            // Apply time effects from weapons like Time Fracture
+            if (timeEffects && timeEffects.playerSpeedMult !== 1) {
+                // Could modify player speed here if needed
+            }
+        }
+
         // Update game state effects
         gs.updateCombo();
         gs.updateEffects();
@@ -338,6 +350,11 @@ export class GameLoop {
                     explosion.draw(ctx);
                 }
             }
+        }
+
+        // Render weapon effects
+        if (this.weaponManager && gs && gs.player) {
+            this.weaponManager.draw(ctx, gs.player);
         }
 
         // Render UI

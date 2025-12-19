@@ -58,6 +58,7 @@ export let ufoManager = null;
 export let formationManager = null;
 export let bonusRound = null;
 export let vhsGlitch = null;
+export let weaponManager = null;
 
 // Game control state
 export let credits = CONFIG.game.credits;
@@ -102,6 +103,7 @@ export function setUfoManager(um) { ufoManager = um; }
 export function setFormationManager(fm) { formationManager = fm; }
 export function setBonusRound(br) { bonusRound = br; }
 export function setVhsGlitch(vg) { vhsGlitch = vg; }
+export function setWeaponManager(wm) { weaponManager = wm; }
 export function setCredits(c) { credits = c; }
 export function setContinueTimer(t) { continueTimer = t; }
 export function setShowingContinueScreen(s) { showingContinueScreen = s; }

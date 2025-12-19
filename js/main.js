@@ -26,6 +26,9 @@ import { GameState, InputHandler, CollisionSystem, GameLoop } from './core/index
 // Phase 6: UI modules
 import { MenuManager, MenuState, HUD, ComboDisplay, RadicalSlangUI } from './ui/index.js';
 
+// Phase 7: Weapons modules
+import { WeaponManager } from './weapons/index.js';
+
 // Temporary: Log that modules are loading
 console.log('🎮 Geometry 3044 - Module System Loading...');
 console.log('📦 CONFIG loaded:', CONFIG.screen);
@@ -35,6 +38,7 @@ console.log('⚙️ System modules loaded: BulletPool, ParticleSystem, WaveManag
 console.log('✨ Effect modules loaded: Starfield, VHSGlitchEffects, CRTEffect, Epic80sExplosion, RadicalSlang');
 console.log('🎯 Core modules loaded: GameState, InputHandler, CollisionSystem, GameLoop');
 console.log('🖥️ UI modules loaded: MenuManager, HUD, ComboDisplay, RadicalSlangUI');
+console.log('🔫 Weapons modules loaded: WeaponManager');
 
 /**
  * Initialize the game
@@ -79,6 +83,7 @@ function init() {
     console.log('✅ Phase 4 Complete: Effect modules (Starfield, VHSGlitch, CRT, Explosions)');
     console.log('✅ Phase 5 Complete: Core engine (GameState, InputHandler, CollisionSystem, GameLoop)');
     console.log('✅ Phase 6 Complete: UI modules (MenuManager, HUD, ComboDisplay, RadicalSlang)');
+    console.log('✅ Phase 7 Complete: Weapons modules (WeaponManager, 10 weapon systems)');
     console.log('📝 Next: Wire up complete game with all modules');
 }
 
@@ -218,5 +223,7 @@ window.DEBUG = {
     MenuState,
     HUD,
     ComboDisplay,
-    RadicalSlangUI
+    RadicalSlangUI,
+    // Weapons (Phase 7)
+    WeaponManager
 };
