@@ -178,40 +178,106 @@ export class Railgun {
     draw(ctx, player) {
         if (!player) return;
 
+        const time = Date.now() * 0.01;
         ctx.save();
 
         // Draw charge effect
         if (this.charging) {
             const progress = this.chargeProgress / RAILGUN.chargeTime;
 
-            // Charging ring
+            // Outer energy field
+            ctx.strokeStyle = `rgba(136, 0, 255, ${progress * 0.2})`;
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = '#8800ff';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, 40 - progress * 15, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Energy spiral effect
+            for (let i = 0; i < 3; i++) {
+                const spiralAngle = time * 5 + (i * Math.PI * 2 / 3);
+                const spiralRadius = (30 - progress * 20) * (1 - progress * 0.3);
+
+                ctx.strokeStyle = `rgba(170, 50, 255, ${progress * 0.6})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, spiralRadius, spiralAngle, spiralAngle + Math.PI * 0.5);
+                ctx.stroke();
+            }
+
+            // Charging ring - main
             ctx.strokeStyle = `rgba(136, 0, 255, ${progress})`;
-            ctx.lineWidth = 3;
-            ctx.shadowBlur = 20;
+            ctx.lineWidth = 4;
+            ctx.shadowBlur = 25;
             ctx.shadowColor = '#8800ff';
 
             ctx.beginPath();
             ctx.arc(player.x, player.y, 25 - progress * 10, 0, Math.PI * 2 * progress);
             ctx.stroke();
 
-            // Charge particles
+            // Inner charging ring
+            ctx.strokeStyle = `rgba(200, 100, 255, ${progress * 0.8})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, 15 - progress * 5, Math.PI * 2 * progress, Math.PI * 2);
+            ctx.stroke();
+
+            // Charge particles with trails
             for (const p of this.chargeParticles) {
-                ctx.fillStyle = '#8800ff';
-                ctx.globalAlpha = p.life / 30;
+                const particleAlpha = p.life / 30;
+
+                // Particle trail
+                const trailGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3);
+                trailGrad.addColorStop(0, `rgba(170, 100, 255, ${particleAlpha})`);
+                trailGrad.addColorStop(0.5, `rgba(136, 0, 255, ${particleAlpha * 0.5})`);
+                trailGrad.addColorStop(1, 'rgba(136, 0, 255, 0)');
+
+                ctx.fillStyle = trailGrad;
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Particle core
+                ctx.fillStyle = `rgba(255, 200, 255, ${particleAlpha})`;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#aa66ff';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * 0.6, 0, Math.PI * 2);
                 ctx.fill();
             }
-            ctx.globalAlpha = 1;
 
-            // Ready indicator
+            // Energy buildup indicator line pointing up
+            if (progress > 0.3) {
+                const lineAlpha = (progress - 0.3) / 0.7;
+                ctx.strokeStyle = `rgba(136, 0, 255, ${lineAlpha * 0.5})`;
+                ctx.lineWidth = 3 + progress * 5;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#8800ff';
+                ctx.beginPath();
+                ctx.moveTo(player.x, player.y);
+                ctx.lineTo(player.x, player.y - 50 * progress);
+                ctx.stroke();
+            }
+
+            // Ready indicator with pulsing
             if (progress >= 1) {
-                ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.02) * 0.5;
+                const readyPulse = 0.5 + Math.sin(time * 4) * 0.5;
+                ctx.globalAlpha = readyPulse;
                 ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 14px Courier New';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#8800ff';
+                ctx.font = 'bold 16px Courier New';
                 ctx.textAlign = 'center';
-                ctx.fillText('READY', player.x, player.y - 40);
+                ctx.fillText('▲ READY ▲', player.x, player.y - 45);
                 ctx.globalAlpha = 1;
+
+                // Pulsing ready ring
+                ctx.strokeStyle = `rgba(255, 255, 255, ${readyPulse * 0.5})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, 20 + readyPulse * 5, 0, Math.PI * 2);
+                ctx.stroke();
             }
         }
 
@@ -220,10 +286,10 @@ export class Railgun {
             const alpha = trail.life / trail.maxLife;
             const width = trail.width * alpha;
 
-            // Outer glow
-            ctx.strokeStyle = `rgba(136, 0, 255, ${alpha * 0.3})`;
-            ctx.lineWidth = width * 3;
-            ctx.shadowBlur = 50;
+            // Background energy field
+            ctx.strokeStyle = `rgba(100, 0, 200, ${alpha * 0.1})`;
+            ctx.lineWidth = width * 6;
+            ctx.shadowBlur = 60;
             ctx.shadowColor = '#8800ff';
             ctx.lineCap = 'round';
 
@@ -232,21 +298,76 @@ export class Railgun {
             ctx.lineTo(trail.x2, trail.y2);
             ctx.stroke();
 
+            // Outer plasma glow
+            ctx.strokeStyle = `rgba(136, 0, 255, ${alpha * 0.3})`;
+            ctx.lineWidth = width * 4;
+            ctx.shadowBlur = 50;
+            ctx.stroke();
+
+            // Secondary glow
+            ctx.strokeStyle = `rgba(170, 50, 255, ${alpha * 0.5})`;
+            ctx.lineWidth = width * 2.5;
+            ctx.shadowBlur = 35;
+            ctx.stroke();
+
             // Main beam
             ctx.strokeStyle = `rgba(136, 0, 255, ${alpha})`;
-            ctx.lineWidth = width;
+            ctx.lineWidth = width * 1.5;
+            ctx.shadowBlur = 25;
             ctx.stroke();
 
-            // White core
+            // Inner glow
+            ctx.strokeStyle = `rgba(200, 150, 255, ${alpha})`;
+            ctx.lineWidth = width;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#cc99ff';
+            ctx.stroke();
+
+            // White hot core
             ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
-            ctx.lineWidth = width * 0.3;
+            ctx.lineWidth = width * 0.4;
+            ctx.shadowBlur = 10;
             ctx.shadowColor = '#ffffff';
             ctx.stroke();
+
+            // Energy crackles along the beam
+            if (alpha > 0.5) {
+                const crackleCount = 6;
+                for (let i = 0; i < crackleCount; i++) {
+                    const t = (i + Math.random() * 0.5) / crackleCount;
+                    const crackleY = trail.y1 + (trail.y2 - trail.y1) * t;
+                    const crackleX = trail.x1 + (Math.random() - 0.5) * width * 2;
+
+                    ctx.strokeStyle = `rgba(200, 150, 255, ${alpha * 0.6})`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(crackleX, crackleY);
+                    ctx.lineTo(crackleX + (Math.random() - 0.5) * 30, crackleY + (Math.random() - 0.5) * 20);
+                    ctx.stroke();
+                }
+            }
+
+            // Impact rings at start
+            if (alpha > 0.7) {
+                const ringProgress = 1 - (alpha - 0.7) / 0.3;
+                ctx.strokeStyle = `rgba(255, 255, 255, ${(1 - ringProgress) * 0.5})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(trail.x1, trail.y1, 10 + ringProgress * 30, 0, Math.PI * 2);
+                ctx.stroke();
+            }
         }
 
-        // Flash effect
+        // Enhanced flash effect
         if (this.flashTimer > 0) {
-            ctx.fillStyle = `rgba(255, 255, 255, ${this.flashTimer / 10})`;
+            const flashAlpha = this.flashTimer / 8;
+
+            // Purple tint first
+            ctx.fillStyle = `rgba(136, 0, 255, ${flashAlpha * 0.3})`;
+            ctx.fillRect(0, 0, config.width || 800, config.height || 600);
+
+            // White flash
+            ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.8})`;
             ctx.fillRect(0, 0, config.width || 800, config.height || 600);
         }
 

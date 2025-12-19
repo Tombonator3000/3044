@@ -158,12 +158,13 @@ export class ChainLightning {
             if (!arc.active || arc.points.length < 2) continue;
 
             const alpha = arc.life / arc.maxLife;
+            const time = Date.now() * 0.01;
 
-            // Outer glow
-            ctx.strokeStyle = `rgba(0, 255, 255, ${alpha * 0.5})`;
-            ctx.lineWidth = 6;
-            ctx.shadowBlur = 25;
-            ctx.shadowColor = CHAIN_LIGHTNING.color;
+            // Electric field background glow
+            ctx.strokeStyle = `rgba(0, 150, 255, ${alpha * 0.15})`;
+            ctx.lineWidth = 25;
+            ctx.shadowBlur = 40;
+            ctx.shadowColor = '#0088ff';
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
 
@@ -174,12 +175,100 @@ export class ChainLightning {
             }
             ctx.stroke();
 
-            // Inner bright core
+            // Main outer glow - animated pulsing
+            const pulseIntensity = 0.5 + Math.sin(time * 3) * 0.2;
+            ctx.strokeStyle = `rgba(0, 255, 255, ${alpha * pulseIntensity})`;
+            ctx.lineWidth = 8 + Math.sin(time * 5) * 2;
+            ctx.shadowBlur = 35;
+            ctx.shadowColor = CHAIN_LIGHTNING.color;
+            ctx.stroke();
+
+            // Secondary electric layer
+            ctx.strokeStyle = `rgba(100, 200, 255, ${alpha * 0.7})`;
+            ctx.lineWidth = 4;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#66ccff';
+            ctx.stroke();
+
+            // Inner bright core - white hot center
             ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
             ctx.lineWidth = 2;
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = 15;
             ctx.shadowColor = '#ffffff';
             ctx.stroke();
+
+            // Draw branching mini-arcs at random points
+            if (alpha > 0.3) {
+                for (let i = 1; i < arc.points.length - 1; i++) {
+                    if (Math.random() < 0.4) {
+                        const p = arc.points[i];
+                        const branchAngle = Math.random() * Math.PI * 2;
+                        const branchLen = 15 + Math.random() * 25;
+
+                        ctx.strokeStyle = `rgba(0, 255, 255, ${alpha * 0.6})`;
+                        ctx.lineWidth = 1.5;
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = '#00ffff';
+
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        // Zigzag branch
+                        const midX = p.x + Math.cos(branchAngle) * branchLen * 0.5 + (Math.random() - 0.5) * 10;
+                        const midY = p.y + Math.sin(branchAngle) * branchLen * 0.5 + (Math.random() - 0.5) * 10;
+                        ctx.lineTo(midX, midY);
+                        ctx.lineTo(p.x + Math.cos(branchAngle) * branchLen, p.y + Math.sin(branchAngle) * branchLen);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Draw energy nodes at each point
+            for (let i = 0; i < arc.points.length; i++) {
+                const p = arc.points[i];
+                const nodeSize = i === 0 || i === arc.points.length - 1 ? 8 : 4;
+                const nodeAlpha = alpha * (0.6 + Math.sin(time * 4 + i) * 0.4);
+
+                // Node outer glow
+                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, nodeSize * 2);
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${nodeAlpha})`);
+                gradient.addColorStop(0.3, `rgba(0, 255, 255, ${nodeAlpha * 0.8})`);
+                gradient.addColorStop(1, 'rgba(0, 255, 255, 0)');
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, nodeSize * 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Node core
+                ctx.fillStyle = `rgba(255, 255, 255, ${nodeAlpha})`;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, nodeSize * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Electric arc particles along the path
+            if (alpha > 0.5) {
+                for (let i = 0; i < arc.points.length - 1; i++) {
+                    const p1 = arc.points[i];
+                    const p2 = arc.points[i + 1];
+                    const particleCount = 2;
+
+                    for (let j = 0; j < particleCount; j++) {
+                        const t = Math.random();
+                        const px = p1.x + (p2.x - p1.x) * t + (Math.random() - 0.5) * 8;
+                        const py = p1.y + (p2.y - p1.y) * t + (Math.random() - 0.5) * 8;
+
+                        ctx.fillStyle = `rgba(200, 255, 255, ${alpha * Math.random()})`;
+                        ctx.shadowBlur = 8;
+                        ctx.shadowColor = '#00ffff';
+                        ctx.beginPath();
+                        ctx.arc(px, py, 1 + Math.random() * 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
         }
 
         ctx.restore();

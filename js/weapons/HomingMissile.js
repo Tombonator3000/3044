@@ -209,21 +209,59 @@ export class HomingMissileSystem {
     draw(ctx) {
         if (this.missiles.length === 0) return;
 
+        const time = Date.now() * 0.01;
         ctx.save();
 
         for (const missile of this.missiles) {
-            // Draw trail
+            // Draw smoke trail particles
             if (missile.trail.length > 1) {
+                // Smoke background
+                for (let i = 0; i < missile.trail.length; i++) {
+                    const t = missile.trail[i];
+                    const alpha = (t.life / 15) * 0.3;
+                    const size = 4 + (1 - t.life / 15) * 6;
+
+                    ctx.fillStyle = `rgba(100, 100, 100, ${alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(t.x + (Math.random() - 0.5) * 4, t.y + (Math.random() - 0.5) * 4, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Fire trail gradient
+                for (let i = 1; i < missile.trail.length; i++) {
+                    const t = missile.trail[i];
+                    const prevT = missile.trail[i - 1];
+                    const alpha = t.life / 15;
+
+                    // Create gradient from orange to yellow
+                    const trailGrad = ctx.createLinearGradient(prevT.x, prevT.y, t.x, t.y);
+                    trailGrad.addColorStop(0, `rgba(255, 200, 50, ${alpha * 0.8})`);
+                    trailGrad.addColorStop(1, `rgba(255, 100, 0, ${alpha * 0.6})`);
+
+                    ctx.strokeStyle = trailGrad;
+                    ctx.lineWidth = 4 * alpha;
+                    ctx.lineCap = 'round';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#ff6600';
+
+                    ctx.beginPath();
+                    ctx.moveTo(prevT.x, prevT.y);
+                    ctx.lineTo(t.x, t.y);
+                    ctx.stroke();
+                }
+
+                // Inner bright trail
                 ctx.strokeStyle = HOMING_MISSILE.trailColor;
-                ctx.lineWidth = 3;
-                ctx.lineCap = 'round';
+                ctx.lineWidth = 2;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#ffaa00';
 
                 ctx.beginPath();
                 ctx.moveTo(missile.trail[0].x, missile.trail[0].y);
 
                 for (let i = 1; i < missile.trail.length; i++) {
                     const alpha = missile.trail[i].life / 15;
-                    ctx.globalAlpha = alpha * 0.6;
+                    ctx.globalAlpha = alpha;
                     ctx.lineTo(missile.trail[i].x, missile.trail[i].y);
                 }
                 ctx.stroke();
@@ -235,9 +273,29 @@ export class HomingMissileSystem {
             ctx.translate(missile.x, missile.y);
             ctx.rotate(missile.angle);
 
-            // Missile shape
+            // Missile glow aura
+            const auraGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 20);
+            auraGrad.addColorStop(0, 'rgba(255, 100, 0, 0.3)');
+            auraGrad.addColorStop(1, 'rgba(255, 68, 0, 0)');
+            ctx.fillStyle = auraGrad;
+            ctx.beginPath();
+            ctx.arc(0, 0, 20, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Missile body shadow
+            ctx.fillStyle = '#aa2200';
+            ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.moveTo(14, 0);
+            ctx.lineTo(-6, -6);
+            ctx.lineTo(-3, 0);
+            ctx.lineTo(-6, 6);
+            ctx.closePath();
+            ctx.fill();
+
+            // Missile main body
             ctx.fillStyle = HOMING_MISSILE.color;
-            ctx.shadowBlur = 15;
+            ctx.shadowBlur = 20;
             ctx.shadowColor = HOMING_MISSILE.color;
 
             ctx.beginPath();
@@ -248,14 +306,96 @@ export class HomingMissileSystem {
             ctx.closePath();
             ctx.fill();
 
-            // Thruster glow
-            ctx.fillStyle = '#ffff00';
-            ctx.shadowColor = '#ffaa00';
+            // Metallic highlight
+            ctx.fillStyle = 'rgba(255, 150, 100, 0.6)';
             ctx.beginPath();
-            ctx.arc(-6, 0, 3 + Math.random() * 2, 0, Math.PI * 2);
+            ctx.moveTo(10, -1);
+            ctx.lineTo(2, -3);
+            ctx.lineTo(-2, -1);
+            ctx.closePath();
             ctx.fill();
 
+            // Nose tip
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 5;
+            ctx.shadowColor = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(10, 0, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Thruster flame - multi-layered
+            const flameFlicker = Math.random();
+            const flameLen = 8 + flameFlicker * 6;
+
+            // Outer flame
+            const outerFlameGrad = ctx.createRadialGradient(-6, 0, 0, -6 - flameLen, 0, flameLen);
+            outerFlameGrad.addColorStop(0, 'rgba(255, 200, 50, 0.9)');
+            outerFlameGrad.addColorStop(0.4, 'rgba(255, 100, 0, 0.7)');
+            outerFlameGrad.addColorStop(1, 'rgba(255, 50, 0, 0)');
+
+            ctx.fillStyle = outerFlameGrad;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ff6600';
+            ctx.beginPath();
+            ctx.moveTo(-6, -4);
+            ctx.quadraticCurveTo(-6 - flameLen * 0.7, 0, -6, 4);
+            ctx.quadraticCurveTo(-6 - flameLen, 0, -6, -4);
+            ctx.fill();
+
+            // Inner bright flame
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ffff00';
+            ctx.beginPath();
+            ctx.arc(-6, 0, 3 + flameFlicker * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Flame particles
+            for (let i = 0; i < 3; i++) {
+                const px = -8 - Math.random() * 10;
+                const py = (Math.random() - 0.5) * 6;
+                const pSize = 1 + Math.random() * 2;
+
+                ctx.fillStyle = `rgba(255, ${150 + Math.random() * 100}, 0, ${0.5 + Math.random() * 0.5})`;
+                ctx.beginPath();
+                ctx.arc(px, py, pSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
             ctx.restore();
+
+            // Draw targeting indicator if has target
+            if (missile.target && missile.target.active) {
+                const targetDist = Math.hypot(missile.target.x - missile.x, missile.target.y - missile.y);
+                const lockStrength = Math.max(0, 1 - targetDist / 300);
+
+                if (lockStrength > 0) {
+                    // Targeting line
+                    ctx.strokeStyle = `rgba(255, 100, 0, ${lockStrength * 0.3})`;
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(missile.x, missile.y);
+                    ctx.lineTo(missile.target.x, missile.target.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Target lock indicator
+                    ctx.strokeStyle = `rgba(255, 68, 0, ${lockStrength * 0.5})`;
+                    ctx.lineWidth = 1;
+                    const indicatorSize = 15;
+                    ctx.beginPath();
+                    ctx.moveTo(missile.target.x - indicatorSize, missile.target.y);
+                    ctx.lineTo(missile.target.x - indicatorSize + 5, missile.target.y);
+                    ctx.moveTo(missile.target.x + indicatorSize, missile.target.y);
+                    ctx.lineTo(missile.target.x + indicatorSize - 5, missile.target.y);
+                    ctx.moveTo(missile.target.x, missile.target.y - indicatorSize);
+                    ctx.lineTo(missile.target.x, missile.target.y - indicatorSize + 5);
+                    ctx.moveTo(missile.target.x, missile.target.y + indicatorSize);
+                    ctx.lineTo(missile.target.x, missile.target.y + indicatorSize - 5);
+                    ctx.stroke();
+                }
+            }
         }
 
         ctx.restore();
