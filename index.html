@@ -27,6 +27,7 @@
 
                 <div class="menu-buttons">
                     <button class="btn" id="startGameBtn">Start Game</button>
+                    <button class="btn btn-secondary" id="optionsBtn">Options</button>
                 </div>
 
                 <div id="creditsDisplay">
@@ -103,6 +104,64 @@
             </div>
             <div class="continue-hint">
                 Press C to Insert Coin
+            </div>
+        </div>
+
+        <!-- OPTIONS SCREEN -->
+        <div id="optionsScreen">
+            <div class="options-container">
+                <h2 class="options-title">OPTIONS</h2>
+
+                <div class="options-section">
+                    <h3 class="section-title">AUDIO</h3>
+                    <div class="option-row">
+                        <span class="option-label">SOUND FX</span>
+                        <button class="toggle-btn active" id="soundToggle">ON</button>
+                    </div>
+                    <div class="option-row">
+                        <span class="option-label">MUSIC</span>
+                        <button class="toggle-btn active" id="musicToggle">ON</button>
+                    </div>
+                </div>
+
+                <div class="options-section">
+                    <h3 class="section-title">VISUALS</h3>
+                    <div class="option-row">
+                        <span class="option-label">VHS EFFECT</span>
+                        <button class="toggle-btn active" id="vhsToggle">ON</button>
+                    </div>
+                    <div class="option-row">
+                        <span class="option-label">SCANLINES</span>
+                        <button class="toggle-btn active" id="scanlinesToggle">ON</button>
+                    </div>
+                    <div class="option-row">
+                        <span class="option-label">SCREEN SHAKE</span>
+                        <button class="toggle-btn active" id="screenShakeToggle">ON</button>
+                    </div>
+                    <div class="option-row">
+                        <span class="option-label">PARTICLES</span>
+                        <div class="multi-toggle">
+                            <button class="particle-btn" data-value="low">LOW</button>
+                            <button class="particle-btn" data-value="medium">MED</button>
+                            <button class="particle-btn active" data-value="high">HIGH</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="options-section">
+                    <h3 class="section-title">GAMEPLAY</h3>
+                    <div class="option-row">
+                        <span class="option-label">DIFFICULTY</span>
+                        <div class="multi-toggle difficulty-toggle">
+                            <button class="difficulty-btn" data-value="easy">EASY</button>
+                            <button class="difficulty-btn active" data-value="normal">NORMAL</button>
+                            <button class="difficulty-btn" data-value="hard">HARD</button>
+                            <button class="difficulty-btn" data-value="extreme">EXTREME</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn" id="optionsBackBtn">BACK</button>
             </div>
         </div>
 

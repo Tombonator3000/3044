@@ -16,7 +16,50 @@ export const MenuState = {
     GAME_OVER: 'gameover',
     HIGH_SCORE_ENTRY: 'highscore_entry',
     HIGH_SCORE_LIST: 'highscore_list',
-    CONTINUE: 'continue'
+    CONTINUE: 'continue',
+    OPTIONS: 'options'
+};
+
+// Game settings with defaults
+export const GameSettings = {
+    soundEnabled: true,
+    musicEnabled: true,
+    vhsEffect: true,
+    scanlines: true,
+    screenShake: true,
+    particleIntensity: 'high', // low, medium, high
+    difficulty: 'normal', // easy, normal, hard, extreme
+
+    // Load from localStorage
+    load() {
+        try {
+            const saved = localStorage.getItem('geometry3044_settings');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                Object.assign(this, parsed);
+            }
+        } catch (e) {
+            console.warn('Failed to load settings:', e);
+        }
+    },
+
+    // Save to localStorage
+    save() {
+        try {
+            const toSave = {
+                soundEnabled: this.soundEnabled,
+                musicEnabled: this.musicEnabled,
+                vhsEffect: this.vhsEffect,
+                scanlines: this.scanlines,
+                screenShake: this.screenShake,
+                particleIntensity: this.particleIntensity,
+                difficulty: this.difficulty
+            };
+            localStorage.setItem('geometry3044_settings', JSON.stringify(toSave));
+        } catch (e) {
+            console.warn('Failed to save settings:', e);
+        }
+    }
 };
 
 /**
@@ -46,6 +89,9 @@ export class MenuManager {
      */
     init() {
         console.log('🎮 MenuManager.init() called');
+
+        // Load saved settings
+        GameSettings.load();
 
         // Bind start button (with guard against multiple clicks)
         if (cachedUI.startGameBtn) {
@@ -88,6 +134,9 @@ export class MenuManager {
                 }
             });
         }
+
+        // Initialize options menu bindings
+        this.initOptionsBindings();
 
         // Initialize insert coin blink
         this.startInsertCoinBlink();
@@ -135,6 +184,9 @@ export class MenuManager {
         const pauseOverlay = document.getElementById('pauseOverlay');
         if (pauseOverlay) pauseOverlay.style.display = 'none';
 
+        const optionsScreen = document.getElementById('optionsScreen');
+        if (optionsScreen) optionsScreen.style.display = 'none';
+
         // Show appropriate screen
         switch (this.currentState) {
             case MenuState.MAIN:
@@ -160,6 +212,9 @@ export class MenuManager {
                 break;
             case MenuState.CONTINUE:
                 if (cachedUI.continueScreen) cachedUI.continueScreen.style.display = 'flex';
+                break;
+            case MenuState.OPTIONS:
+                if (optionsScreen) optionsScreen.style.display = 'flex';
                 break;
         }
     }
@@ -350,5 +405,134 @@ export class MenuManager {
      */
     isPaused() {
         return this.currentState === MenuState.PAUSED;
+    }
+
+    /**
+     * Show options menu
+     */
+    showOptions() {
+        this.transitionTo(MenuState.OPTIONS);
+        this.updateOptionsUI();
+    }
+
+    /**
+     * Close options menu and return to main menu
+     */
+    closeOptions() {
+        GameSettings.save();
+        this.transitionTo(MenuState.MAIN);
+    }
+
+    /**
+     * Update options UI to reflect current settings
+     */
+    updateOptionsUI() {
+        // Update toggle states
+        this.updateToggle('soundToggle', GameSettings.soundEnabled);
+        this.updateToggle('musicToggle', GameSettings.musicEnabled);
+        this.updateToggle('vhsToggle', GameSettings.vhsEffect);
+        this.updateToggle('scanlinesToggle', GameSettings.scanlines);
+        this.updateToggle('screenShakeToggle', GameSettings.screenShake);
+
+        // Update particle intensity selector
+        const particleButtons = document.querySelectorAll('.particle-btn');
+        particleButtons.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.value === GameSettings.particleIntensity) {
+                btn.classList.add('active');
+            }
+        });
+
+        // Update difficulty selector
+        const diffButtons = document.querySelectorAll('.difficulty-btn');
+        diffButtons.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.value === GameSettings.difficulty) {
+                btn.classList.add('active');
+            }
+        });
+    }
+
+    /**
+     * Update a toggle button's visual state
+     */
+    updateToggle(toggleId, isEnabled) {
+        const toggle = document.getElementById(toggleId);
+        if (toggle) {
+            toggle.classList.toggle('active', isEnabled);
+            toggle.textContent = isEnabled ? 'ON' : 'OFF';
+        }
+    }
+
+    /**
+     * Toggle a setting
+     */
+    toggleSetting(setting) {
+        GameSettings[setting] = !GameSettings[setting];
+        this.updateOptionsUI();
+        GameSettings.save();
+    }
+
+    /**
+     * Set particle intensity
+     */
+    setParticleIntensity(value) {
+        GameSettings.particleIntensity = value;
+        this.updateOptionsUI();
+        GameSettings.save();
+    }
+
+    /**
+     * Set difficulty
+     */
+    setDifficulty(value) {
+        GameSettings.difficulty = value;
+        this.updateOptionsUI();
+        GameSettings.save();
+    }
+
+    /**
+     * Initialize options menu bindings
+     */
+    initOptionsBindings() {
+        // Options button in main menu
+        const optionsBtn = document.getElementById('optionsBtn');
+        if (optionsBtn) {
+            optionsBtn.addEventListener('click', () => this.showOptions());
+        }
+
+        // Back button in options
+        const backBtn = document.getElementById('optionsBackBtn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => this.closeOptions());
+        }
+
+        // Toggle buttons
+        const toggleBindings = [
+            { id: 'soundToggle', setting: 'soundEnabled' },
+            { id: 'musicToggle', setting: 'musicEnabled' },
+            { id: 'vhsToggle', setting: 'vhsEffect' },
+            { id: 'scanlinesToggle', setting: 'scanlines' },
+            { id: 'screenShakeToggle', setting: 'screenShake' }
+        ];
+
+        toggleBindings.forEach(({ id, setting }) => {
+            const toggle = document.getElementById(id);
+            if (toggle) {
+                toggle.addEventListener('click', () => this.toggleSetting(setting));
+            }
+        });
+
+        // Particle intensity buttons
+        const particleButtons = document.querySelectorAll('.particle-btn');
+        particleButtons.forEach(btn => {
+            btn.addEventListener('click', () => this.setParticleIntensity(btn.dataset.value));
+        });
+
+        // Difficulty buttons
+        const diffButtons = document.querySelectorAll('.difficulty-btn');
+        diffButtons.forEach(btn => {
+            btn.addEventListener('click', () => this.setDifficulty(btn.dataset.value));
+        });
     }
 }
