@@ -287,16 +287,14 @@ function startGame() {
 
         // Initialize HUD
         console.log('🎮 [12] Initializing HUD...');
-        hud = new HUD(getTheme(DEFAULT_THEME));
+        hud = new HUD();
+        hud.resize(canvasElement.width, canvasElement.height);
         console.log('  - HUD:', hud ? '✅' : '❌');
 
         // Initialize options menu
         console.log('🎮 [13] Initializing OptionsMenu...');
-        optionsMenu = new OptionsMenu({
-            currentTheme: DEFAULT_THEME,
-            onThemeChange: (themeName) => {
-                hud.setTheme(getTheme(themeName));
-            }
+        optionsMenu = new OptionsMenu(hud, () => {
+            gameStateInstance.paused = false;
         });
         console.log('  - OptionsMenu:', optionsMenu ? '✅' : '❌');
 
