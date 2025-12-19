@@ -498,6 +498,39 @@ export class Player {
     die() {
         this.isAlive = false;
         this.respawnTimer = this.respawnDelay;
+
+        // Weapon loss on death - lose 1-2 weapon levels
+        const levelsLost = Math.floor(Math.random() * 2) + 1;  // 1 or 2
+        this.weaponLevel = Math.max(1, this.weaponLevel - levelsLost);
+
+        // Lose some special weapon upgrades on death
+        if (this.hasLaser && Math.random() < 0.5) {
+            this.laserPower = Math.max(1, this.laserPower - 1);
+            if (this.laserPower <= 1) this.hasLaser = false;
+        }
+        if (this.hasSpread && Math.random() < 0.5) {
+            this.spreadCount = Math.max(3, this.spreadCount - 2);
+            if (this.spreadCount <= 3) this.hasSpread = false;
+        }
+        if (this.hasHoming && Math.random() < 0.5) {
+            this.homingStrength = Math.max(0, this.homingStrength - 0.02);
+            if (this.homingStrength <= 0) this.hasHoming = false;
+        }
+        if (this.hasPierce && Math.random() < 0.5) {
+            this.pierceCount = Math.max(0, this.pierceCount - 1);
+            if (this.pierceCount <= 0) this.hasPierce = false;
+        }
+        if (this.hasBounce && Math.random() < 0.5) {
+            this.bounceCount = Math.max(0, this.bounceCount - 1);
+            if (this.bounceCount <= 0) this.hasBounce = false;
+        }
+        if (this.hasChain && Math.random() < 0.5) {
+            this.chainRange = Math.max(0, this.chainRange - 30);
+            if (this.chainRange <= 0) this.hasChain = false;
+        }
+
+        // Reset magnet range on death
+        this.magnetRange = Math.max(0, this.magnetRange - 100);
     }
 
     draw(ctx) {
