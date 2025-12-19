@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geometry 3044 - Retro Arcade Shooter</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- Menu Screen -->
+        <div id="menuScreen">
+            <h1 class="logo">Geometry <span class="year">3044</span></h1>
+            <div class="menu-buttons">
+                <button class="btn" id="startGameBtn">Start Game</button>
+            </div>
+            
+            <div id="creditsDisplay">
+                CREDITS: <span id="creditsCount">3</span>
+            </div>
+            
+            <div id="insertCoinText">INSERT COIN</div>
+            
+            <div class="controls">
+                WASD/Arrows: Move | Space: Shoot | Q: Auto-fire | B: Bomb | M: Music | P: Pause<br>
+                <span style="color: #ffff00; font-weight: bold;">C: INSERT COIN</span>
+            </div>
+        </div>
+        
+        <!-- Game UI -->
+        <div id="gameUI">
+            <div class="ui-row">
+                <div class="ui-element score">Score: <span id="scoreDisplay">0</span></div>
+                <div class="ui-element wave">Wave: <span id="waveDisplay">1</span></div>
+            </div>
+            <div class="ui-row">
+                <div class="ui-element lives">Lives: <span id="livesDisplay">3</span></div>
+                <div class="ui-element bombs">Bombs: <span id="bombsDisplay">3</span></div>
+            </div>
+        </div>
+        
+        <!-- Continue Screen -->
+        <div id="continueScreen">
+            <div class="continue-title">CONTINUE?</div>
+            <div class="continue-score">
+                Final Score: <span id="continueScoreDisplay">0</span>
+            </div>
+            <div class="continue-timer">
+                <span id="continueTimerDisplay">10</span>
+            </div>
+            <div class="continue-instruction">INSERT COIN TO CONTINUE</div>
+            <div class="continue-hint">Press C to Insert Coin</div>
+        </div>
+        
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen">
+            <h2 class="game-over-title">GAME OVER MAN, GAME OVER!</h2>
+            <div class="final-score">Final Score: <span id="finalScoreDisplay">0</span></div>
+            <div class="final-wave">Wave Reached: <span id="finalWaveDisplay">1</span></div>
+            <div class="final-combo">Max Combo: <span id="finalComboDisplay">0</span></div>
+            <button class="btn" id="playAgainBtn">Play Again</button>
+            <button class="btn" id="mainMenuBtn">Main Menu</button>
+        </div>
+        
+        <!-- High Score Entry -->
+        <div id="highScoreEntryScreen">
+            <div class="high-score-title">🏆 NEW HIGH SCORE! 🏆</div>
+            <div class="new-high-score">Score: <span id="newHighScoreValue">0</span></div>
+            <div class="enter-initials">Enter Your Initials</div>
+            <div class="initial-input">
+                <input type="text" class="initial-letter" id="initial1" maxlength="1">
+                <input type="text" class="initial-letter" id="initial2" maxlength="1">
+                <input type="text" class="initial-letter" id="initial3" maxlength="1">
+            </div>
+            <button class="btn" id="submitScoreBtn">Submit Score</button>
+        </div>
+        
+        <!-- High Score List -->
+        <div id="highScoreListScreen">
+            <div class="high-score-title">🏆 HIGH SCORES 🏆</div>
+            <div class="high-score-list" id="highScoreList"></div>
+            <button class="btn" id="closeHighScoresBtn">Continue</button>
+        </div>
+        
+        <div id="highScore">High Score: <span id="highScoreDisplay">0</span></div>
+        <div id="pauseOverlay">PAUSED</div>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
