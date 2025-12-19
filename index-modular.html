@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geometry 3044 - Enhanced Arcade Edition</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="menuScreen">
+            <!-- ENHANCED MENU EFFECTS -->
+            <div class="menu-particle-system" id="menuParticleSystem"></div>
+            <div class="cyber-grid-overlay"></div>
+            <div class="holographic-interference"></div>
+            <div class="menu-scanlines"></div>
+
+            <!-- Synthwave decorative elements -->
+            <div class="synthwave-sun"></div>
+            <div class="synthwave-mountains"></div>
+
+            <h1 class="logo">Geometry <span class="year">3044</span></h1>
+            <div class="menu-buttons">
+                <button class="btn" id="startGameBtn">Start Game</button>
+            </div>
+
+            <div id="creditsDisplay">
+                CREDITS: <span id="creditsCount">3</span>
+            </div>
+
+            <div id="insertCoinText">
+                INSERT COIN
+            </div>
+
+            <div class="controls">
+                WASD/Arrows: Move | Space: Shoot | B: Bomb | P: Pause<br>
+                <span>C: INSERT COIN</span>
+            </div>
+        </div>
+
+        <div id="gameOverScreen">
+            <h2 class="game-over-title">GAME OVER MAN, GAME OVER!</h2>
+            <div class="final-score-display">
+                Final Score: <span id="finalScoreDisplay">0</span>
+            </div>
+            <div class="final-wave-display">
+                Wave Reached: <span id="finalWaveDisplay">1</span>
+            </div>
+            <div class="final-combo-display">
+                Max Combo: <span id="finalComboDisplay">0</span>
+            </div>
+            <button class="btn" id="playAgainBtn">Play Again</button>
+            <button class="btn" id="mainMenuBtn" style="margin-top: 20px;">Main Menu</button>
+        </div>
+
+        <div id="highScoreEntryScreen">
+            <div class="high-score-title">🏆 NEW HIGH SCORE! 🏆</div>
+            <div class="new-high-score-value">
+                Score: <span id="newHighScoreValue">0</span>
+            </div>
+            <div class="enter-initials-prompt">
+                Enter Your Initials
+            </div>
+            <div class="initial-input">
+                <input type="text" class="initial-letter" id="initial1" maxlength="1">
+                <input type="text" class="initial-letter" id="initial2" maxlength="1">
+                <input type="text" class="initial-letter" id="initial3" maxlength="1">
+            </div>
+            <button class="btn" id="submitScoreBtn" style="margin-top: 30px;">Submit Score</button>
+            <div class="submit-hint">
+                Press ENTER to submit or ESC to skip
+            </div>
+        </div>
+
+        <div id="highScoreListScreen">
+            <div class="high-score-title">🏆 HIGH SCORES 🏆</div>
+            <div class="high-score-list" id="highScoreList">
+                <!-- High scores will be populated here -->
+            </div>
+            <button class="btn" id="closeHighScoresBtn">Continue</button>
+        </div>
+
+        <div id="continueScreen">
+            <div class="continue-title">CONTINUE?</div>
+            <div class="continue-score-display">
+                Final Score: <span id="continueScoreDisplay">0</span>
+            </div>
+            <div class="continue-timer">
+                <span id="continueTimerDisplay">10</span>
+            </div>
+            <div class="continue-instruction">
+                INSERT COIN TO CONTINUE
+            </div>
+            <div class="continue-hint">
+                Press C to Insert Coin
+            </div>
+        </div>
+
+        <div id="gameUI">
+            <div class="ui-row">
+                <div class="ui-element score">Score: <span id="scoreDisplay">0</span></div>
+                <div class="ui-element wave">Wave: <span id="waveDisplay">1</span></div>
+            </div>
+            <div class="ui-row">
+                <div class="ui-element lives">Lives: <span id="livesDisplay">3</span></div>
+                <div class="ui-element bombs">Bombs: <span id="bombsDisplay">3</span></div>
+            </div>
+        </div>
+
+        <div id="highScore">High Score: <span id="highScoreDisplay">0</span></div>
+        <div id="pauseOverlay">PAUSED</div>
+
+        <div id="mobileControls">
+            <div id="touchJoystick" class="touch-button">MOVE</div>
+            <div id="touchFire" class="touch-button">FIRE</div>
+            <div id="touchBomb" class="touch-button">BOMB</div>
+        </div>
+    </div>
+
+    <!-- ES6 Module entry point -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
