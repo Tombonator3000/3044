@@ -4,6 +4,224 @@
 
 ---
 
+# FASE 2: CORE SYSTEMS — FULLFØRT ✅
+
+## Oversikt
+Implementert kritiske systemer som manglet fra originalen:
+- Starfield med 5 lag, nebulae, og parallax
+- RadicalSlang for combo-tekst ("RADICAL!", "TUBULAR!", etc.)
+- WaveManager for enemy spawning
+- BulletPool med komplett spawn() metode og spesialeffekter
+- GridRenderer for themed grid med perspektiv
+
+## Endringer
+
+### 1. js/effects/Starfield.js - ERSTATTET
+- Fjernet avhengighet av globals.js
+- Constructor tar nå `(width, height)` parametere
+- Initialiserer 5 lag med stjerner (195 totalt):
+  - Lag 1: 60 fjerne, små stjerner (speed 0.1-0.3)
+  - Lag 2: 50 fjerne stjerner (speed 0.3-0.6)
+  - Lag 3: 40 mellomstjerner (speed 0.6-1.0)
+  - Lag 4: 30 nære stjerner (speed 1.0-1.5)
+  - Lag 5: 15 veldig nære, lyse stjerner (speed 1.5-2.5)
+- 4 hovednebulaer med pulseffekt
+- 6 fjerne nebulaer i bakgrunnen
+- Støtter temaoppdatering via `updateTheme(wave)`
+- Støtter resize via `resize(width, height)`
+
+### 2. js/effects/RadicalSlang.js - NY FIL
+- Komplett 80s combo tekst-system
+- 13 combo-terskelnivaer:
+  - 5: "RADICAL!"
+  - 10: "TUBULAR!"
+  - 15: "GNARLY!"
+  - 20: "BODACIOUS!"
+  - 30: "WICKED!"
+  - 40: "AWESOME!"
+  - 50: "RIGHTEOUS!"
+  - 75: "GROOVY!"
+  - 100: "FAR OUT!"
+  - 150: "TOTALLY TUBULAR!"
+  - 200: "MEGA RADICAL!"
+  - 300: "SUPREMELY BODACIOUS!"
+  - 500: "★ LEGENDARY ★"
+- Animert tekst med:
+  - Pop-in skalering
+  - Fade-out
+  - Rotasjon
+  - Gradient-fylt tekst
+  - Glow-effekt
+  - Combo-nummer under teksten
+
+### 3. js/systems/WaveManager.js - ERSTATTET
+- Fjernet avhengighet av globals.js og CONFIG
+- Simplifisert constructor uten options
+- `startWave(waveNum)` starter ny wave
+- `calculateEnemiesPerWave(wave)` = base(5) + wave*3 + bonus(hver 5. wave)
+- `getEnemyTypeForWave(wave)` bestemmer tilgjengelige enemy-typer:
+  - Wave 1+: triangle
+  - Wave 2+: square
+  - Wave 4+: pentagon
+  - Wave 6+: divebomber
+  - Wave 8+: sinewave
+  - Wave 10+: Dobbel sjanse for vanskelige fiender
+- `getSpawnPosition(canvas, enemyType)` gir riktig spawn-posisjon per type
+- `update(enemies, canvas, gameState)` håndterer spawning og wave-fullføring
+- `drawWaveText(ctx, canvas)` tegner "WAVE X" med tema-farger
+- Spawn i par fra wave 5+ (30% sjanse)
+- Boss waves: 5, 10, 15, 20, 25, 30
+
+### 4. js/systems/BulletPool.js - ERSTATTET
+- Fjernet avhengighet av globals.js og CONFIG
+- Pre-allokerer 200 kuler ved oppstart
+- `createBullet()` returnerer bullet-objekt med alle egenskaper:
+  - Posisjon (x, y, vx, vy)
+  - Visual (size, color, trail)
+  - Damage og lifetime
+  - Spesialeffekter (pierce, bounce, homing, chain, explosive, quantum)
+- `spawn(x, y, vx, vy, isPlayer, options)` hovedmetode
+- `get()` alias for bakoverkompatibilitet
+- `update(canvas, gameState)` oppdaterer:
+  - Trail-posisjon
+  - Homing-bevegelse mot nærmeste fiende
+  - Bounce av vegger
+  - Levetid og deaktivering
+- `draw(ctx)` tegner:
+  - Trail med gradient
+  - Glow-effekt
+  - Quantum-kuler med multiple ghost-bullets
+  - Hvit kjerne for normale kuler
+- `onBulletHit(bullet, target, gameState, particleSystem)` håndterer:
+  - Pierce: Går gjennom fiender (80% damage per hit)
+  - Chain: Hopper til neste fiende (70% damage per hop)
+  - Explosive: Gjør splash damage i radius
+
+### 5. js/rendering/GridRenderer.js - NY FIL
+- `drawThemedGrid(ctx, canvas, wave)`:
+  - Pulserende grid basert på wave-tema
+  - Perspektiv-effekt på vertikale linjer
+  - Depth-fade på horisontale linjer
+  - Horizon-gradient nederst
+  - Automatisk fargeskift over tid
+- `drawBackground(ctx, canvas, wave)`:
+  - Tema-basert gradient bakgrunn
+  - Smooth overgang fra tema til svart
+
+### 6. js/rendering/index.js - NY FIL
+- Eksporterer `drawThemedGrid` og `drawBackground`
+
+### 7. js/effects/index.js - OPPDATERT
+- Endret RadicalSlang eksport fra Explosions.js til RadicalSlang.js
+
+### 8. js/config.js - OPPDATERT
+- Lagt til CONFIG alias for bakoverkompatibilitet med main.js
+- Lagt til WAVE_THEMES alias
+
+### 9. js/main.js - OPPDATERT
+- Lagt til import for rendering-moduler:
+  ```javascript
+  import { drawThemedGrid, drawBackground } from './rendering/index.js';
+  ```
+
+---
+
+## Filstruktur etter Fase 2
+
+```
+js/
+├── config.js              <- OPPDATERT (CONFIG alias)
+├── entities/
+│   ├── Player.js          <- FASE 1
+│   └── Enemy.js           <- FASE 1
+├── effects/
+│   ├── Starfield.js       <- FASE 2 ✅ ERSTATTET
+│   ├── RadicalSlang.js    <- FASE 2 ✅ NY
+│   ├── index.js           <- FASE 2 ✅ OPPDATERT
+│   └── ...
+├── systems/
+│   ├── WaveManager.js     <- FASE 2 ✅ ERSTATTET
+│   ├── BulletPool.js      <- FASE 2 ✅ ERSTATTET
+│   └── ...
+├── rendering/             <- FASE 2 ✅ NY MAPPE
+│   ├── GridRenderer.js    <- FASE 2 ✅ NY
+│   └── index.js           <- FASE 2 ✅ NY
+└── main.js                <- FASE 2 ✅ OPPDATERT
+```
+
+---
+
+## Testing Fase 2
+
+For å teste at Fase 2 fungerer:
+
+1. Sjekk at imports fungerer:
+```javascript
+import { Starfield } from './effects/Starfield.js';
+import { RadicalSlang } from './effects/RadicalSlang.js';
+import { WaveManager } from './systems/WaveManager.js';
+import { BulletPool } from './systems/BulletPool.js';
+import { drawThemedGrid, drawBackground } from './rendering/GridRenderer.js';
+```
+
+2. Sjekk at Starfield kan opprettes:
+```javascript
+const starfield = new Starfield(800, 600);
+starfield.update();
+starfield.draw(ctx);
+```
+
+3. Sjekk at RadicalSlang kan opprettes:
+```javascript
+const slang = new RadicalSlang();
+slang.checkCombo(10);  // Skal vise "TUBULAR!"
+slang.update();
+slang.draw(ctx, 800, 600);
+```
+
+4. Sjekk at WaveManager kan opprettes:
+```javascript
+const waveManager = new WaveManager();
+waveManager.startWave(1);
+waveManager.update(enemies, canvas, gameState);
+```
+
+5. Sjekk at BulletPool kan opprettes:
+```javascript
+const bulletPool = new BulletPool(200);
+bulletPool.spawn(400, 500, 0, -12, true, { color: '#00ffff' });
+bulletPool.update(canvas, gameState);
+bulletPool.draw(ctx);
+```
+
+---
+
+# FASE 3: NESTE STEG
+
+For å fullføre modulariseringen må følgende implementeres:
+
+### A. PowerUpManager
+- Alle 35+ power-ups fra originalen
+- Spawn-logikk
+- Pickup-effekter
+
+### B. Boss-klasse
+- 5 boss-typer
+- Attack patterns
+- Phase transitions
+
+### C. ParticleSystem forbedringer
+- Alle effekter fra originalen
+- Chain lightning
+- Explosions med shockwave
+
+### D. SoundSystem
+- Web Audio API
+- Alle lydeffekter
+- Musikk med beat-syncing
+
+---
+
 # FASE 1: KRITISKE KLASSER — FULLFORT
 
 ## Oversikt

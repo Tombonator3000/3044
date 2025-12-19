@@ -39,6 +39,9 @@ import {
 // Weapons modules
 import { WeaponManager } from './weapons/index.js';
 
+// Rendering modules
+import { drawThemedGrid, drawBackground } from './rendering/index.js';
+
 console.log('🎮 Geometry 3044 - BULLETPROOF Edition Loading...');
 
 // ============================================

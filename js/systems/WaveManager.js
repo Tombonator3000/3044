@@ -1,417 +1,212 @@
-/**
- * Geometry 3044 - WaveManager System Module
- * Handles enemy wave spawning, difficulty progression, and wave patterns
- */
+// ============================================
+// GEOMETRY 3044 — WAVE MANAGER
+// ============================================
 
-import { CONFIG, getCurrentTheme } from '../config.js';
-import { gameState, config } from '../globals.js';
+import { config, getCurrentTheme } from '../config.js';
 import { Enemy } from '../entities/Enemy.js';
 
-/**
- * WaveManager Class
- * Controls wave-based enemy spawning and progression
- */
 export class WaveManager {
-    constructor(options = {}) {
+    constructor() {
         this.wave = 1;
+        this.enemiesPerWave = 5;
         this.enemiesSpawned = 0;
-        this.enemiesKilled = 0;
-        this.enemiesPerWave = CONFIG.waves.enemiesPerWave;
         this.spawnTimer = 0;
-        this.spawnRate = CONFIG.waves.spawnRates.wave1_2;
+        this.spawnDelay = 90;  // Frames between spawns
+        this.waveActive = false;
         this.waveComplete = false;
-        this.waveStarting = false;
+        this.waveStartDelay = 120;  // 2 seconds before wave starts
         this.waveStartTimer = 0;
-        this.waveStartDelay = 120; // 2 seconds at 60fps
+        this.showingWaveText = false;
+        this.waveTextTimer = 0;
 
-        // Formation and pattern timers
-        this.formationTimer = 0;
-        this.swarmTimer = 0;
-        this.miniBossTimer = 0;
+        // Enemy type distribution per wave
+        this.enemyTypes = ['triangle', 'square', 'pentagon', 'divebomber', 'sinewave'];
 
-        // Spawn weights for enemy types
-        this.spawnWeights = {
-            triangle: 40,
-            square: 30,
-            pentagon: 20,
-            divebomber: 5,
-            sinewave: 5
-        };
-
-        // Active enemies list reference
-        this.enemies = [];
-
-        // Store options
-        this.gameState = options.gameState || null;
-        this.canvas = options.canvas || null;
-        this.onWaveComplete = options.onWaveComplete || null;
-
-        // Connect to gameState enemies array if provided
-        if (this.gameState && this.gameState.enemies) {
-            this.enemies = this.gameState.enemies;
-        }
-
-        console.log('✅ WaveManager initialized');
+        // Boss waves
+        this.bossWaves = [5, 10, 15, 20, 25, 30];
     }
 
-    /**
-     * Set the enemies array reference
-     */
-    setEnemiesArray(enemiesArray) {
-        this.enemies = enemiesArray;
-    }
-
-    /**
-     * Get current spawn rate based on wave
-     */
-    getSpawnRate() {
-        if (this.wave <= 2) return CONFIG.waves.spawnRates.wave1_2;
-        if (this.wave <= 4) return CONFIG.waves.spawnRates.wave3_4;
-        if (this.wave <= 6) return CONFIG.waves.spawnRates.wave5_6;
-        if (this.wave <= 10) return CONFIG.waves.spawnRates.wave7_10;
-        return CONFIG.waves.spawnRates.wave11plus;
-    }
-
-    /**
-     * Get max enemies on screen based on wave
-     */
-    getMaxEnemies() {
-        return Math.min(
-            CONFIG.waves.maxEnemiesOnScreen,
-            CONFIG.waves.baseMaxEnemies + Math.floor(this.wave * CONFIG.waves.enemiesPerWaveIncrement)
-        );
-    }
-
-    /**
-     * Calculate enemies for current wave
-     */
-    getEnemiesForWave() {
-        return Math.floor(CONFIG.waves.enemiesPerWave + (this.wave - 1) * 2);
-    }
-
-    /**
-     * Update spawn weights based on wave
-     */
-    updateSpawnWeights() {
-        // Adjust weights as waves progress
-        if (this.wave >= 3) {
-            this.spawnWeights.pentagon = 25;
-            this.spawnWeights.sinewave = 10;
-        }
-        if (this.wave >= 5) {
-            this.spawnWeights.divebomber = 10;
-            this.spawnWeights.sinewave = 15;
-        }
-        if (this.wave >= 7) {
-            this.spawnWeights.triangle = 30;
-            this.spawnWeights.square = 25;
-            this.spawnWeights.pentagon = 25;
-            this.spawnWeights.divebomber = 10;
-            this.spawnWeights.sinewave = 10;
-        }
-    }
-
-    /**
-     * Select enemy type based on weights
-     */
-    selectEnemyType() {
-        const totalWeight = Object.values(this.spawnWeights).reduce((a, b) => a + b, 0);
-        let random = Math.random() * totalWeight;
-
-        for (const [type, weight] of Object.entries(this.spawnWeights)) {
-            random -= weight;
-            if (random <= 0) {
-                return type;
-            }
-        }
-
-        return 'triangle'; // Fallback
-    }
-
-    /**
-     * Spawn a single enemy
-     */
-    spawnEnemy(type = null, x = null, y = null) {
-        if (this.enemies.length >= this.getMaxEnemies()) {
-            return null;
-        }
-
-        const enemyType = type || this.selectEnemyType();
-        const spawnX = x !== null ? x : 50 + Math.random() * (config.width - 100);
-        const spawnY = y !== null ? y : -30;
-
-        const enemy = new Enemy(spawnX, spawnY, enemyType);
-        this.enemies.push(enemy);
-        this.enemiesSpawned++;
-
-        return enemy;
-    }
-
-    /**
-     * Spawn a formation of enemies
-     */
-    spawnFormation(pattern = 'v') {
-        const formations = {
-            'v': this.spawnVFormation.bind(this),
-            'line': this.spawnLineFormation.bind(this),
-            'diamond': this.spawnDiamondFormation.bind(this),
-            'wall': this.spawnWallFormation.bind(this)
-        };
-
-        const spawnFn = formations[pattern] || formations['v'];
-        spawnFn();
-    }
-
-    /**
-     * Spawn V-shaped formation
-     */
-    spawnVFormation() {
-        const centerX = config.width / 2;
-        const startY = -30;
-        const spacing = 40;
-
-        // Leader
-        const leader = this.spawnEnemy('pentagon', centerX, startY);
-        if (leader) {
-            leader.isFormationLeader = true;
-        }
-
-        // Wings
-        for (let i = 1; i <= 3; i++) {
-            this.spawnEnemy('triangle', centerX - i * spacing, startY - i * spacing * 0.5);
-            this.spawnEnemy('triangle', centerX + i * spacing, startY - i * spacing * 0.5);
-        }
-    }
-
-    /**
-     * Spawn horizontal line formation
-     */
-    spawnLineFormation() {
-        const count = Math.min(6, 3 + Math.floor(this.wave / 2));
-        const spacing = config.width / (count + 1);
-        const startY = -30;
-
-        for (let i = 1; i <= count; i++) {
-            this.spawnEnemy('square', spacing * i, startY);
-        }
-    }
-
-    /**
-     * Spawn diamond formation
-     */
-    spawnDiamondFormation() {
-        const centerX = config.width / 2;
-        const startY = -30;
-        const spacing = 35;
-
-        // Top point
-        this.spawnEnemy('pentagon', centerX, startY);
-
-        // Middle row
-        this.spawnEnemy('square', centerX - spacing, startY - spacing);
-        this.spawnEnemy('square', centerX + spacing, startY - spacing);
-
-        // Bottom row
-        this.spawnEnemy('triangle', centerX - spacing * 2, startY - spacing * 2);
-        const center = this.spawnEnemy('sinewave', centerX, startY - spacing * 2);
-        if (center) center.isElite = true;
-        this.spawnEnemy('triangle', centerX + spacing * 2, startY - spacing * 2);
-
-        // Bottom point
-        this.spawnEnemy('pentagon', centerX, startY - spacing * 3);
-    }
-
-    /**
-     * Spawn wall formation
-     */
-    spawnWallFormation() {
-        const rows = 2;
-        const cols = Math.min(8, 4 + Math.floor(this.wave / 3));
-        const spacingX = config.width / (cols + 1);
-        const spacingY = 40;
-
-        for (let row = 0; row < rows; row++) {
-            for (let col = 1; col <= cols; col++) {
-                const type = row === 0 ? 'square' : 'triangle';
-                this.spawnEnemy(type, spacingX * col, -30 - row * spacingY);
-            }
-        }
-    }
-
-    /**
-     * Spawn a mini-boss
-     */
-    spawnMiniBoss() {
-        const centerX = config.width / 2;
-        const miniBoss = this.spawnEnemy('pentagon', centerX, -50);
-
-        if (miniBoss) {
-            miniBoss.isMiniBoss = true;
-            miniBoss.hp *= 5;
-            miniBoss.size *= 1.5;
-            miniBoss.points *= 10;
-            miniBoss.speed *= 0.7;
-            console.log(`⚠️ Mini-boss spawned on wave ${this.wave}!`);
-        }
-
-        return miniBoss;
-    }
-
-    /**
-     * Record enemy kill
-     */
-    onEnemyKilled(enemy) {
-        this.enemiesKilled++;
-
-        // Check wave completion
-        if (this.enemiesKilled >= this.getEnemiesForWave() &&
-            this.enemies.filter(e => e.active).length === 0) {
-            this.completeWave();
-        }
-    }
-
-    /**
-     * Complete current wave
-     */
-    completeWave() {
-        this.waveComplete = true;
-        console.log(`✅ Wave ${this.wave} complete! Killed: ${this.enemiesKilled}`);
-
-        // Call callback if provided
-        if (this.onWaveComplete) {
-            this.onWaveComplete(this.wave);
-        }
-    }
-
-    /**
-     * Start next wave
-     */
-    nextWave() {
-        this.wave++;
+    startWave(waveNum) {
+        this.wave = waveNum;
         this.enemiesSpawned = 0;
-        this.enemiesKilled = 0;
         this.waveComplete = false;
-        this.waveStarting = true;
+        this.showingWaveText = true;
+        this.waveTextTimer = 120;  // Show wave text for 2 seconds
         this.waveStartTimer = this.waveStartDelay;
-        this.spawnRate = this.getSpawnRate();
-        this.updateSpawnWeights();
+        this.waveActive = false;
 
-        console.log(`🌊 Wave ${this.wave} starting! Theme: ${getCurrentTheme(this.wave).name}`);
+        // Calculate enemies for this wave
+        this.enemiesPerWave = this.calculateEnemiesPerWave(waveNum);
+
+        // Adjust spawn rate for higher waves
+        this.spawnDelay = Math.max(30, 90 - (waveNum * 3));
+
+        console.log(`🌊 Wave ${waveNum} starting: ${this.enemiesPerWave} enemies, spawn delay: ${this.spawnDelay}`);
     }
 
-    /**
-     * Check if should spawn boss wave
-     */
-    isBossWave() {
-        return this.wave % 5 === 0;
+    calculateEnemiesPerWave(wave) {
+        // Base enemies + scaling
+        const base = 5;
+        const perWave = 3;
+        const bonus = Math.floor(wave / 5) * 5;  // Bonus every 5 waves
+
+        return base + (wave * perWave) + bonus;
     }
 
-    /**
-     * Main update loop
-     */
-    update() {
-        // Handle wave start delay
-        if (this.waveStarting) {
+    getEnemyTypeForWave(wave) {
+        // Determine which enemy types are available based on wave
+        const availableTypes = [];
+
+        // Triangles always available
+        availableTypes.push('triangle');
+
+        // Squares from wave 2
+        if (wave >= 2) availableTypes.push('square');
+
+        // Pentagons from wave 4
+        if (wave >= 4) availableTypes.push('pentagon');
+
+        // Divebombers from wave 6
+        if (wave >= 6) availableTypes.push('divebomber');
+
+        // Sinewave elites from wave 8
+        if (wave >= 8) availableTypes.push('sinewave');
+
+        // Weight towards harder enemies in later waves
+        if (wave >= 10) {
+            // Double chance for harder enemies
+            if (wave >= 8) availableTypes.push('sinewave');
+            if (wave >= 6) availableTypes.push('divebomber');
+        }
+
+        // Pick random from available
+        return availableTypes[Math.floor(Math.random() * availableTypes.length)];
+    }
+
+    getSpawnPosition(canvas, enemyType) {
+        const padding = 50;
+        let x, y;
+
+        switch (enemyType) {
+            case 'divebomber':
+                // Divebombers come from top
+                x = padding + Math.random() * (canvas.width - padding * 2);
+                y = -30;
+                break;
+
+            case 'sinewave':
+                // Sinewave enemies start from sides
+                x = Math.random() > 0.5 ? -30 : canvas.width + 30;
+                y = 50 + Math.random() * 100;
+                break;
+
+            default:
+                // Standard enemies from top
+                x = padding + Math.random() * (canvas.width - padding * 2);
+                y = -30 - Math.random() * 50;
+        }
+
+        return { x, y };
+    }
+
+    update(enemies, canvas, gameState) {
+        // Show wave text countdown
+        if (this.showingWaveText) {
+            this.waveTextTimer--;
+            if (this.waveTextTimer <= 0) {
+                this.showingWaveText = false;
+            }
+        }
+
+        // Wave start delay
+        if (!this.waveActive && !this.waveComplete) {
             this.waveStartTimer--;
             if (this.waveStartTimer <= 0) {
-                this.waveStarting = false;
+                this.waveActive = true;
             }
             return;
         }
 
         // Don't spawn if wave complete
-        if (this.waveComplete) {
-            return;
-        }
+        if (this.waveComplete) return;
 
-        // Update timers
-        this.spawnTimer++;
-        this.formationTimer++;
-        this.swarmTimer++;
-        this.miniBossTimer++;
+        // Spawn enemies
+        this.spawnTimer--;
 
-        // Regular enemy spawning
-        if (this.spawnTimer >= this.spawnRate &&
-            this.enemiesSpawned < this.getEnemiesForWave() &&
-            this.enemies.filter(e => e.active).length < this.getMaxEnemies()) {
+        if (this.spawnTimer <= 0 && this.enemiesSpawned < this.enemiesPerWave) {
+            const enemyType = this.getEnemyTypeForWave(this.wave);
+            const pos = this.getSpawnPosition(canvas, enemyType);
 
-            // Decide spawn type
-            const random = Math.random();
+            const enemy = new Enemy(pos.x, pos.y, enemyType, gameState);
+            enemies.push(enemy);
 
-            if (this.formationTimer > CONFIG.waves.formationTimer &&
-                random < CONFIG.waves.spawnProbability.formation) {
-                // Formation spawn
-                const patterns = ['v', 'line', 'diamond', 'wall'];
-                const pattern = patterns[Math.floor(Math.random() * patterns.length)];
-                this.spawnFormation(pattern);
-                this.formationTimer = 0;
-            } else if (this.wave >= 5 &&
-                       this.miniBossTimer > CONFIG.waves.miniBossCooldown &&
-                       random < 0.05) {
-                // Mini-boss spawn
-                this.spawnMiniBoss();
-                this.miniBossTimer = 0;
-            } else {
-                // Regular spawn
-                this.spawnEnemy();
+            this.enemiesSpawned++;
+            this.spawnTimer = this.spawnDelay;
+
+            // Spawn in pairs for later waves
+            if (this.wave >= 5 && Math.random() < 0.3 && this.enemiesSpawned < this.enemiesPerWave) {
+                const extraType = this.getEnemyTypeForWave(this.wave);
+                const extraPos = this.getSpawnPosition(canvas, extraType);
+                enemies.push(new Enemy(extraPos.x, extraPos.y, extraType, gameState));
+                this.enemiesSpawned++;
             }
-
-            this.spawnTimer = 0;
         }
 
-        // Check for wave completion
-        if (this.enemiesSpawned >= this.getEnemiesForWave() &&
-            this.enemies.filter(e => e.active).length === 0) {
-            this.completeWave();
+        // Check if wave is complete
+        const aliveEnemies = enemies.filter(e => e.active).length;
+
+        if (this.enemiesSpawned >= this.enemiesPerWave && aliveEnemies === 0) {
+            this.waveComplete = true;
+            this.waveActive = false;
+            console.log(`✅ Wave ${this.wave} complete!`);
         }
     }
 
-    /**
-     * Reset manager for new game
-     */
-    reset() {
-        this.wave = 1;
-        this.enemiesSpawned = 0;
-        this.enemiesKilled = 0;
-        this.spawnTimer = 0;
-        this.spawnRate = this.getSpawnRate();
-        this.waveComplete = false;
-        this.waveStarting = false;
-        this.formationTimer = 0;
-        this.swarmTimer = 0;
-        this.miniBossTimer = 0;
-        this.enemies = [];
-        this.updateSpawnWeights();
+    isWaveComplete() {
+        return this.waveComplete;
     }
 
-    /**
-     * Get current wave info
-     */
-    getWaveInfo() {
-        return {
-            wave: this.wave,
-            enemiesSpawned: this.enemiesSpawned,
-            enemiesKilled: this.enemiesKilled,
-            enemiesRemaining: this.getEnemiesForWave() - this.enemiesKilled,
-            isComplete: this.waveComplete,
-            isStarting: this.waveStarting,
-            isBossWave: this.isBossWave(),
-            theme: getCurrentTheme(this.wave)
-        };
+    isBossWave() {
+        return this.bossWaves.includes(this.wave);
     }
 
-    /**
-     * Get stats for debugging
-     */
-    getStats() {
-        return {
-            wave: this.wave,
-            spawned: this.enemiesSpawned,
-            killed: this.enemiesKilled,
-            target: this.getEnemiesForWave(),
-            activeEnemies: this.enemies.filter(e => e.active).length,
-            maxOnScreen: this.getMaxEnemies(),
-            spawnRate: this.spawnRate
-        };
+    getWaveProgress() {
+        if (this.enemiesPerWave === 0) return 0;
+        return this.enemiesSpawned / this.enemiesPerWave;
+    }
+
+    drawWaveText(ctx, canvas) {
+        if (!this.showingWaveText) return;
+
+        const theme = getCurrentTheme(this.wave);
+        const alpha = Math.min(1, this.waveTextTimer / 30);
+        const scale = 1 + (1 - this.waveTextTimer / 120) * 0.5;
+
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.scale(scale, scale);
+        ctx.globalAlpha = alpha;
+
+        // Wave number
+        ctx.font = 'bold 72px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = theme.primary;
+
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 8;
+        ctx.strokeText(`WAVE ${this.wave}`, 0, -20);
+
+        ctx.fillStyle = theme.primary;
+        ctx.fillText(`WAVE ${this.wave}`, 0, -20);
+
+        // Theme name
+        ctx.font = 'bold 24px "Courier New", monospace';
+        ctx.shadowColor = theme.secondary;
+        ctx.fillStyle = theme.secondary;
+        ctx.fillText(theme.name, 0, 40);
+
+        ctx.restore();
     }
 }
