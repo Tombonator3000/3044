@@ -1,179 +1,333 @@
-/**
- * Geometry 3044 - BulletPool System Module
- * Object pool pattern for efficient bullet management
- */
+// ============================================
+// GEOMETRY 3044 — BULLET POOL
+// ============================================
 
-import { CONFIG } from '../config.js';
-import { config } from '../globals.js';
-import { Bullet } from '../entities/Bullet.js';
-
-/**
- * BulletPool Class
- * Manages a pool of bullets for memory-efficient projectile handling
- */
 export class BulletPool {
-    constructor(isPlayerPool = true) {
+    constructor(maxBullets = 200) {
+        this.maxBullets = maxBullets;
         this.bullets = [];
-        this.maxBullets = CONFIG.bullets.poolSize;
-        this.cleanupCounter = 0;
-        this.lastCleanupCount = 0;
-        this.isPlayerPool = isPlayerPool;
+        this.bulletIndex = 0;
+
+        // Pre-allocate bullets
+        for (let i = 0; i < maxBullets; i++) {
+            this.bullets.push(this.createBullet());
+        }
     }
 
-    /**
-     * Get a bullet from the pool (reuse inactive or create new)
-     */
-    get(x, y, vx, vy, isPlayerBullet) {
-        // Early rejection if approaching limit for enemy bullets
-        if (this.bullets.length > this.maxBullets * 0.9 && !isPlayerBullet) {
-            return null;
-        }
+    createBullet() {
+        return {
+            x: 0,
+            y: 0,
+            vx: 0,
+            vy: 0,
+            active: false,
+            isPlayer: true,
+            size: 5,
+            color: '#00ffff',
+            damage: 10,
+            pierce: false,
+            pierceCount: 0,
+            pierceHits: 0,
+            bounce: false,
+            bounceCount: 0,
+            bounceHits: 0,
+            homing: false,
+            homingStrength: 0,
+            chain: false,
+            chainRange: 0,
+            chainHits: 0,
+            maxChainHits: 3,
+            explosive: false,
+            explosionRadius: 0,
+            quantum: false,
+            trail: [],
+            maxTrailLength: 5,
+            lifetime: 0,
+            maxLifetime: 300  // 5 seconds
+        };
+    }
 
-        // Find inactive bullet first
-        for (let bullet of this.bullets) {
-            if (!bullet.active) {
-                bullet.reset(x, y, vx, vy, isPlayerBullet);
-                return bullet;
+    // Main spawn method - supports both old get() and new spawn() signatures
+    spawn(x, y, vx, vy, isPlayer = true, options = {}) {
+        // Find inactive bullet or use oldest
+        let bullet = null;
+
+        for (let i = 0; i < this.maxBullets; i++) {
+            const idx = (this.bulletIndex + i) % this.maxBullets;
+            if (!this.bullets[idx].active) {
+                bullet = this.bullets[idx];
+                this.bulletIndex = (idx + 1) % this.maxBullets;
+                break;
             }
         }
 
-        // Create new bullet only if under limit
-        if (this.bullets.length < this.maxBullets) {
-            const bullet = new Bullet(x, y, vx, vy, isPlayerBullet);
-            this.bullets.push(bullet);
-            return bullet;
+        // If no inactive found, reuse oldest
+        if (!bullet) {
+            bullet = this.bullets[this.bulletIndex];
+            this.bulletIndex = (this.bulletIndex + 1) % this.maxBullets;
         }
 
-        // If at limit, reuse oldest enemy bullet (preserve player bullets)
-        if (!isPlayerBullet) {
-            for (let bullet of this.bullets) {
-                if (!bullet.isPlayerBullet && (!bullet.active ||
-                    bullet.x < -50 || bullet.x > config.width + 50 ||
-                    bullet.y < -50 || bullet.y > config.height + 50)) {
-                    bullet.reset(x, y, vx, vy, isPlayerBullet);
-                    return bullet;
+        // Reset bullet
+        bullet.x = x;
+        bullet.y = y;
+        bullet.vx = vx;
+        bullet.vy = vy;
+        bullet.active = true;
+        bullet.isPlayer = isPlayer;
+        bullet.lifetime = 0;
+        bullet.trail = [];
+
+        // Apply defaults
+        bullet.size = options.size || (isPlayer ? 5 : 6);
+        bullet.color = options.color || (isPlayer ? '#00ffff' : '#ff0066');
+        bullet.damage = options.damage || 10;
+        bullet.maxLifetime = options.maxLifetime || 300;
+
+        // Special properties
+        bullet.pierce = options.pierce || false;
+        bullet.pierceCount = options.pierceCount || 0;
+        bullet.pierceHits = 0;
+
+        bullet.bounce = options.bounce || false;
+        bullet.bounceCount = options.bounceCount || 0;
+        bullet.bounceHits = 0;
+
+        bullet.homing = options.homing || false;
+        bullet.homingStrength = options.homingStrength || 0.05;
+
+        bullet.chain = options.chain || false;
+        bullet.chainRange = options.chainRange || 80;
+        bullet.chainHits = 0;
+        bullet.maxChainHits = options.maxChainHits || 3;
+
+        bullet.explosive = options.explosive || false;
+        bullet.explosionRadius = options.explosionRadius || 50;
+
+        bullet.quantum = options.quantum || false;
+
+        return bullet;
+    }
+
+    // Alias for backwards compatibility
+    get(x, y, vx, vy, isPlayer, options) {
+        return this.spawn(x, y, vx, vy, isPlayer, options);
+    }
+
+    update(canvas, gameState) {
+        for (const bullet of this.bullets) {
+            if (!bullet.active) continue;
+
+            // Store trail position
+            if (bullet.trail.length < bullet.maxTrailLength) {
+                bullet.trail.push({ x: bullet.x, y: bullet.y });
+            } else {
+                bullet.trail.shift();
+                bullet.trail.push({ x: bullet.x, y: bullet.y });
+            }
+
+            // Homing behavior
+            if (bullet.homing && bullet.isPlayer && gameState?.enemies) {
+                const target = this.findNearestTarget(bullet, gameState.enemies);
+                if (target) {
+                    const angle = Math.atan2(target.y - bullet.y, target.x - bullet.x);
+                    const currentAngle = Math.atan2(bullet.vy, bullet.vx);
+                    const angleDiff = angle - currentAngle;
+
+                    // Normalize angle difference
+                    const normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
+                    const newAngle = currentAngle + normalizedDiff * bullet.homingStrength;
+
+                    const speed = Math.hypot(bullet.vx, bullet.vy);
+                    bullet.vx = Math.cos(newAngle) * speed;
+                    bullet.vy = Math.sin(newAngle) * speed;
                 }
             }
-        }
 
-        return null;
-    }
+            // Move
+            bullet.x += bullet.vx;
+            bullet.y += bullet.vy;
+            bullet.lifetime++;
 
-    /**
-     * Update all bullets in the pool
-     */
-    update() {
-        this.cleanupCounter++;
-
-        // Update active bullets
-        for (let bullet of this.bullets) {
-            if (bullet.active) {
-                bullet.update();
+            // Bounce off walls
+            if (bullet.bounce && bullet.bounceHits < bullet.bounceCount) {
+                if (bullet.x < 0 || bullet.x > canvas.width) {
+                    bullet.vx *= -1;
+                    bullet.bounceHits++;
+                    bullet.x = Math.max(0, Math.min(canvas.width, bullet.x));
+                }
+                if (bullet.y < 0) {
+                    bullet.vy *= -1;
+                    bullet.bounceHits++;
+                    bullet.y = Math.max(0, bullet.y);
+                }
             }
-        }
 
-        // Adaptive cleanup interval based on bullet count
-        const cleanupInterval = this.bullets.length > 50 ?
-            CONFIG.bullets.cleanupIntervalHigh : CONFIG.bullets.cleanupIntervalLow;
-
-        if (this.cleanupCounter >= cleanupInterval) {
-            this.performCleanup();
-            this.cleanupCounter = 0;
-        }
-    }
-
-    /**
-     * Clean up inactive and off-screen bullets
-     */
-    performCleanup() {
-        const activeBefore = this.getActiveCount();
-
-        // Mark far off-screen bullets as inactive
-        for (let bullet of this.bullets) {
-            if (bullet.active && (
-                bullet.x < -CONFIG.bullets.farOffScreenMargin ||
-                bullet.x > config.width + CONFIG.bullets.farOffScreenMargin ||
-                bullet.y < -CONFIG.bullets.farOffScreenMargin ||
-                bullet.y > config.height + CONFIG.bullets.farOffScreenMargin
-            )) {
+            // Deactivate if off screen or expired
+            if (bullet.x < -50 || bullet.x > canvas.width + 50 ||
+                bullet.y < -50 || bullet.y > canvas.height + 50 ||
+                bullet.lifetime > bullet.maxLifetime) {
                 bullet.active = false;
             }
         }
-
-        // Compact array when too many inactive bullets
-        // Use splice to preserve array reference (gameState.bullets points here)
-        if (this.bullets.length > this.maxBullets * 0.8) {
-            for (let i = this.bullets.length - 1; i >= 0; i--) {
-                if (!this.bullets[i].active) {
-                    this.bullets.splice(i, 1);
-                }
-            }
-            console.log(`🧹 Bullet pool compacted: ${this.bullets.length} bullets remaining`);
-        }
-
-        const activeAfter = this.getActiveCount();
-        if (activeBefore !== activeAfter && activeAfter < this.lastCleanupCount - 5) {
-            console.log(`🧹 Bullet cleanup: ${activeBefore} → ${activeAfter} active bullets`);
-        }
-        this.lastCleanupCount = activeAfter;
     }
 
-    /**
-     * Draw all active bullets
-     */
+    findNearestTarget(bullet, enemies) {
+        let nearest = null;
+        let nearestDist = Infinity;
+
+        for (const enemy of enemies) {
+            if (!enemy.active) continue;
+
+            const dist = Math.hypot(enemy.x - bullet.x, enemy.y - bullet.y);
+            if (dist < nearestDist && dist < 300) {
+                nearestDist = dist;
+                nearest = enemy;
+            }
+        }
+
+        return nearest;
+    }
+
     draw(ctx) {
-        ctx.save();
-        for (let bullet of this.bullets) {
-            if (bullet.active) {
-                bullet.draw(ctx);
+        for (const bullet of this.bullets) {
+            if (!bullet.active) continue;
+
+            ctx.save();
+
+            // Draw trail
+            if (bullet.trail.length > 1) {
+                ctx.strokeStyle = bullet.color;
+                ctx.lineWidth = bullet.size * 0.5;
+                ctx.globalAlpha = 0.3;
+                ctx.beginPath();
+                ctx.moveTo(bullet.trail[0].x, bullet.trail[0].y);
+                for (let i = 1; i < bullet.trail.length; i++) {
+                    ctx.lineTo(bullet.trail[i].x, bullet.trail[i].y);
+                }
+                ctx.stroke();
+                ctx.globalAlpha = 1;
             }
+
+            // Glow
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = bullet.color;
+
+            // Special rendering for quantum bullets
+            if (bullet.quantum) {
+                ctx.globalAlpha = 0.7 + Math.sin(Date.now() * 0.02) * 0.3;
+
+                // Draw multiple ghost bullets
+                for (let i = 0; i < 3; i++) {
+                    const offset = Math.sin(Date.now() * 0.01 + i * 2) * 10;
+                    ctx.fillStyle = bullet.color;
+                    ctx.beginPath();
+                    ctx.arc(bullet.x + offset, bullet.y, bullet.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else {
+                // Normal bullet
+                ctx.fillStyle = bullet.color;
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, bullet.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Inner bright core
+                ctx.fillStyle = '#ffffff';
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, bullet.size * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
         }
-        ctx.restore();
     }
 
-    /**
-     * Deactivate all bullets
-     */
-    clear() {
-        for (let bullet of this.bullets) {
-            bullet.active = false;
-        }
-    }
-
-    /**
-     * Get array of active bullets (creates new array)
-     */
     getActiveBullets() {
         return this.bullets.filter(b => b.active);
     }
 
-    /**
-     * Get count of active bullets (no array creation)
-     */
-    getActiveCount() {
-        let count = 0;
-        for (let bullet of this.bullets) {
-            if (bullet.active) count++;
+    getPlayerBullets() {
+        return this.bullets.filter(b => b.active && b.isPlayer);
+    }
+
+    getEnemyBullets() {
+        return this.bullets.filter(b => b.active && !b.isPlayer);
+    }
+
+    clear() {
+        for (const bullet of this.bullets) {
+            bullet.active = false;
         }
-        return count;
     }
 
-    /**
-     * Get total pool size
-     */
-    getTotalCount() {
-        return this.bullets.length;
+    // Handle bullet hit (for pierce/chain mechanics)
+    onBulletHit(bullet, target, gameState, particleSystem) {
+        if (!bullet.active) return true;  // Bullet should be removed
+
+        // Pierce through enemies
+        if (bullet.pierce && bullet.pierceHits < bullet.pierceCount) {
+            bullet.pierceHits++;
+            bullet.damage *= 0.8;  // Reduce damage after each pierce
+            return false;  // Don't remove bullet
+        }
+
+        // Chain to nearby enemies
+        if (bullet.chain && bullet.chainHits < bullet.maxChainHits) {
+            const nextTarget = this.findChainTarget(bullet, target, gameState.enemies);
+            if (nextTarget) {
+                // Create chain lightning effect
+                if (particleSystem) {
+                    particleSystem.addChainLightning?.(bullet.x, bullet.y, nextTarget.x, nextTarget.y, bullet.color);
+                }
+
+                // Redirect bullet
+                const angle = Math.atan2(nextTarget.y - bullet.y, nextTarget.x - bullet.x);
+                const speed = Math.hypot(bullet.vx, bullet.vy);
+                bullet.vx = Math.cos(angle) * speed;
+                bullet.vy = Math.sin(angle) * speed;
+                bullet.chainHits++;
+                bullet.damage *= 0.7;
+
+                return false;  // Don't remove bullet
+            }
+        }
+
+        // Explosive bullets
+        if (bullet.explosive && gameState?.enemies) {
+            for (const enemy of gameState.enemies) {
+                if (!enemy.active || enemy === target) continue;
+
+                const dist = Math.hypot(enemy.x - bullet.x, enemy.y - bullet.y);
+                if (dist < bullet.explosionRadius) {
+                    const explosionDamage = Math.ceil(bullet.damage * (1 - dist / bullet.explosionRadius));
+                    enemy.takeDamage?.(explosionDamage);
+                }
+            }
+
+            // Explosion effect
+            if (particleSystem) {
+                particleSystem.addExplosion?.(bullet.x, bullet.y, '#ff6600', 20);
+            }
+        }
+
+        return true;  // Remove bullet
     }
 
-    /**
-     * Get pool stats for debugging
-     */
-    getStats() {
-        return {
-            total: this.bullets.length,
-            active: this.getActiveCount(),
-            maxAllowed: this.maxBullets,
-            utilizationPercent: Math.round((this.bullets.length / this.maxBullets) * 100)
-        };
+    findChainTarget(bullet, excludeTarget, enemies) {
+        let nearest = null;
+        let nearestDist = Infinity;
+
+        for (const enemy of enemies) {
+            if (!enemy.active || enemy === excludeTarget) continue;
+
+            const dist = Math.hypot(enemy.x - bullet.x, enemy.y - bullet.y);
+            if (dist < bullet.chainRange && dist < nearestDist) {
+                nearestDist = dist;
+                nearest = enemy;
+            }
+        }
+
+        return nearest;
     }
 }

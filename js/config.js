@@ -82,3 +82,35 @@ export function updateConfig(width, height) {
     config.width = width;
     config.height = height;
 }
+
+// Alias exports for backwards compatibility with main.js
+export const CONFIG = {
+    screen: config,
+    player: { startYOffset: 100 },
+    bullets: { poolSize: 200 },
+    waves: {
+        enemiesPerWave: 5,
+        spawnRates: {
+            wave1_2: 90,
+            wave3_4: 75,
+            wave5_6: 60,
+            wave7_10: 45,
+            wave11plus: 30
+        },
+        maxEnemiesOnScreen: 20,
+        baseMaxEnemies: 8,
+        enemiesPerWaveIncrement: 1.5,
+        formationTimer: 300,
+        miniBossCooldown: 600,
+        spawnProbability: {
+            formation: 0.15
+        }
+    },
+    audio: {
+        urls: {
+            menuMusic: null,
+            gameMusic: null
+        }
+    }
+};
+export const WAVE_THEMES = waveThemes;
