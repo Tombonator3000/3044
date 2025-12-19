@@ -173,6 +173,160 @@ export class CollisionSystem {
     }
 
     /**
+     * Main collision check method - called from main.js
+     * @param {Object} gameState - The game state object
+     * @param {Object} bulletPool - Player bullet pool
+     * @param {Object} enemyBulletPool - Enemy bullet pool
+     * @param {Object} particleSystem - Particle system for effects
+     * @param {Object} soundSystem - Sound system for audio
+     */
+    checkCollisions(gameState, bulletPool, enemyBulletPool, particleSystem, soundSystem) {
+        // Store references for use in collision handlers
+        this.gameState = gameState;
+        this.particleSystem = particleSystem;
+        this.soundSystem = soundSystem;
+
+        this.stats.checksPerFrame = 0;
+        this.stats.collisionsDetected = 0;
+
+        const player = gameState.player;
+
+        // Player bullets vs enemies
+        if (bulletPool) {
+            const bullets = bulletPool.getActiveBullets?.() || bulletPool.bullets || [];
+
+            for (const bullet of bullets) {
+                if (!bullet.active || !bullet.isPlayer) continue;
+
+                for (const enemy of gameState.enemies) {
+                    if (!enemy.active) continue;
+
+                    this.stats.checksPerFrame++;
+
+                    if (this.circleCollision(bullet, enemy)) {
+                        this.stats.collisionsDetected++;
+
+                        // Damage enemy
+                        const killed = enemy.takeDamage?.(bullet.damage || 10);
+
+                        // Remove bullet (unless piercing)
+                        if (!bullet.pierce) {
+                            bullet.active = false;
+                        }
+
+                        if (killed || !enemy.active) {
+                            this.handleEnemyKill(enemy);
+                        } else {
+                            // Hit effect
+                            if (particleSystem?.addSparkle) {
+                                particleSystem.addSparkle(enemy.x, enemy.y, enemy.color, 3);
+                            }
+                            if (soundSystem?.playHit) {
+                                soundSystem.playHit();
+                            }
+                        }
+
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Player bullets vs boss
+        if (bulletPool && gameState.boss?.active) {
+            const bullets = bulletPool.getActiveBullets?.() || bulletPool.bullets || [];
+
+            for (const bullet of bullets) {
+                if (!bullet.active || !bullet.isPlayer) continue;
+
+                this.stats.checksPerFrame++;
+
+                if (this.circleCollision(bullet, { x: gameState.boss.x, y: gameState.boss.y, size: gameState.boss.size })) {
+                    this.stats.collisionsDetected++;
+
+                    gameState.boss.takeDamage?.(bullet.damage || 10);
+                    bullet.active = false;
+
+                    // Hit effect
+                    if (particleSystem?.addSparkle) {
+                        particleSystem.addSparkle(gameState.boss.x, gameState.boss.y, '#ffffff', 5);
+                    }
+                    if (soundSystem?.playHit) {
+                        soundSystem.playHit();
+                    }
+                }
+            }
+        }
+
+        // Enemy bullets vs player
+        if (enemyBulletPool && player?.isAlive && !player.invulnerable) {
+            const bullets = enemyBulletPool.getActiveBullets?.() || enemyBulletPool.bullets || [];
+
+            for (const bullet of bullets) {
+                if (!bullet.active) continue;
+
+                this.stats.checksPerFrame++;
+
+                const playerHitbox = { x: player.x, y: player.y, size: (player.size || 20) * 0.5 };
+
+                if (this.circleCollision(bullet, playerHitbox)) {
+                    this.stats.collisionsDetected++;
+
+                    bullet.active = false;
+                    player.takeDamage?.(1);
+                    break;
+                }
+            }
+        }
+
+        // Enemies vs player collision
+        if (player?.isAlive && !player.invulnerable) {
+            for (const enemy of gameState.enemies) {
+                if (!enemy.active) continue;
+
+                this.stats.checksPerFrame++;
+
+                const playerHitbox = { x: player.x, y: player.y, size: (player.size || 20) * 0.5 };
+
+                if (this.circleCollision(enemy, playerHitbox)) {
+                    this.stats.collisionsDetected++;
+
+                    player.takeDamage?.(1);
+                    enemy.takeDamage?.(100); // Destroy enemy on collision
+
+                    if (particleSystem?.addExplosion) {
+                        particleSystem.addExplosion(enemy.x, enemy.y, '#ff00ff', 20);
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Player vs power-ups
+        if (player?.isAlive) {
+            for (let i = gameState.powerUps.length - 1; i >= 0; i--) {
+                const powerUp = gameState.powerUps[i];
+                if (!powerUp.active) continue;
+
+                this.stats.checksPerFrame++;
+
+                const collectRadius = { x: player.x, y: player.y, size: (player.size || 20) * 1.5 };
+
+                if (this.circleCollision(powerUp, collectRadius)) {
+                    this.stats.collisionsDetected++;
+
+                    powerUp.collect?.(player, gameState, soundSystem, particleSystem);
+
+                    // Register with power-up manager
+                    if (gameState.powerUpManager?.registerPowerUp) {
+                        gameState.powerUpManager.registerPowerUp(powerUp.type, powerUp.tier);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Check all collisions for the current frame
      * This is the main update method called each frame
      */
