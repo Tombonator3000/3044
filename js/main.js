@@ -17,12 +17,16 @@ import { Bullet } from './entities/Bullet.js';
 // Phase 3: System modules
 import { BulletPool, ParticleSystem, WaveManager, SoundSystem } from './systems/index.js';
 
+// Phase 4: Effect modules
+import { Starfield, VHSGlitchEffects, drawEnhancedCRT, Epic80sExplosion, RadicalSlang } from './effects/index.js';
+
 // Temporary: Log that modules are loading
 console.log('🎮 Geometry 3044 - Module System Loading...');
 console.log('📦 CONFIG loaded:', CONFIG.screen);
 console.log('🎨 WAVE_THEMES loaded:', Object.keys(WAVE_THEMES).length, 'themes');
 console.log('🚀 Entity modules loaded: Player, Enemy, Bullet');
 console.log('⚙️ System modules loaded: BulletPool, ParticleSystem, WaveManager, SoundSystem');
+console.log('✨ Effect modules loaded: Starfield, VHSGlitchEffects, CRTEffect, Epic80sExplosion, RadicalSlang');
 
 /**
  * Initialize the game
@@ -55,15 +59,17 @@ function init() {
     // Draw a test pattern to verify everything works
     drawTestPattern(context, canvasElement);
 
-    // TODO: Initialize game systems (Phase 4+)
+    // TODO: Initialize game systems (Phase 5+)
     // - FormationManager
-    // - Starfield
+    // - UfoManager
+    // - BonusRound
     // - etc.
 
     console.log('🎮 Geometry 3044 - Module System Ready!');
     console.log('✅ Phase 2 Complete: Entity modules (Player, Enemy, Bullet)');
     console.log('✅ Phase 3 Complete: System modules (BulletPool, ParticleSystem, WaveManager, SoundSystem)');
-    console.log('📝 Next: Implement managers (Phase 4)');
+    console.log('✅ Phase 4 Complete: Effect modules (Starfield, VHSGlitch, CRT, Explosions)');
+    console.log('📝 Next: Implement managers (Phase 5)');
 }
 
 /**
@@ -136,15 +142,21 @@ function drawTestPattern(ctx, canvas) {
     ctx.fillStyle = '#00ffff';
     ctx.fillText('✓ BulletPool.js', canvas.width / 2 + 100, canvas.height / 2 + 145);
     ctx.fillText('✓ ParticleSystem.js', canvas.width / 2 + 100, canvas.height / 2 + 170);
-    ctx.fillText('✓ WaveManager.js', canvas.width / 2 + 100, canvas.height / 2 + 195);
-    ctx.fillText('✓ SoundSystem.js', canvas.width / 2 + 100, canvas.height / 2 + 220);
+
+    // Effect modules status (Phase 4)
+    ctx.shadowColor = '#ff00ff';
+    ctx.fillStyle = '#ff00ff';
+    ctx.fillText('✓ Starfield.js', canvas.width / 2 - 120, canvas.height / 2 + 220);
+    ctx.fillText('✓ VHSGlitch.js', canvas.width / 2 - 120, canvas.height / 2 + 245);
+    ctx.fillText('✓ CRTEffect.js', canvas.width / 2 + 100, canvas.height / 2 + 220);
+    ctx.fillText('✓ Explosions.js', canvas.width / 2 + 100, canvas.height / 2 + 245);
 
     ctx.shadowBlur = 0;
 
     // Info box
     ctx.font = '14px "Courier New", monospace';
     ctx.fillStyle = '#666666';
-    ctx.fillText('Phase 3 Complete - Systems Modules Ready', canvas.width / 2, canvas.height - 50);
+    ctx.fillText('Phase 4 Complete - Effects Modules Ready', canvas.width / 2, canvas.height - 50);
 }
 
 // Initialize when DOM is ready
@@ -167,5 +179,11 @@ window.DEBUG = {
     BulletPool,
     ParticleSystem,
     WaveManager,
-    SoundSystem
+    SoundSystem,
+    // Effect classes (Phase 4)
+    Starfield,
+    VHSGlitchEffects,
+    drawEnhancedCRT,
+    Epic80sExplosion,
+    RadicalSlang
 };
