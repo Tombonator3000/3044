@@ -260,17 +260,26 @@ export class Enemy {
     tryDodge(gameState) {
         if (!gameState?.bulletPool) return;
 
-        const bullets = gameState.bulletPool.getActiveBullets?.() || [];
-
-        for (const bullet of bullets) {
-            if (!bullet.active || !bullet.isPlayer) continue;
-
-            const dist = Math.hypot(bullet.x - this.x, bullet.y - this.y);
-
-            if (dist < 80 && bullet.y < this.y) {
-                // Dodge!
-                this.x += (Math.random() > 0.5 ? 1 : -1) * 20;
-                break;
+        // Use optimized nearby bullet iterator
+        if (gameState.bulletPool.iterateNearbyPlayerBullets) {
+            for (const bullet of gameState.bulletPool.iterateNearbyPlayerBullets(this.x, this.y, 80)) {
+                if (bullet.y < this.y) {
+                    // Dodge!
+                    this.x += (Math.random() > 0.5 ? 1 : -1) * 20;
+                    return;
+                }
+            }
+        } else {
+            // Fallback for old API - iterate directly
+            const bullets = gameState.bulletPool.bullets || [];
+            for (const bullet of bullets) {
+                if (!bullet.active || !bullet.isPlayer) continue;
+                const dx = bullet.x - this.x;
+                const dy = bullet.y - this.y;
+                if (dx * dx + dy * dy < 6400 && bullet.y < this.y) { // 80^2 = 6400
+                    this.x += (Math.random() > 0.5 ? 1 : -1) * 20;
+                    return;
+                }
             }
         }
     }
@@ -290,19 +299,16 @@ export class Enemy {
         }
 
         if (this.burstFire && this.burstCount > 1) {
-            // Burst fire
+            // Burst fire - fire all at once with slight angle variation instead of setTimeout
             for (let i = 0; i < this.burstCount; i++) {
-                setTimeout(() => {
-                    if (this.active) {
-                        enemyBulletPool.spawn?.(
-                            this.x, this.y,
-                            Math.cos(angle) * this.bulletSpeed,
-                            Math.sin(angle) * this.bulletSpeed,
-                            false,
-                            { color: this.color, size: 6, damage: 1 }
-                        );
-                    }
-                }, i * 50);
+                const burstAngle = angle + (i - 1) * 0.05; // Small angle spread
+                enemyBulletPool.spawn?.(
+                    this.x, this.y,
+                    Math.cos(burstAngle) * this.bulletSpeed,
+                    Math.sin(burstAngle) * this.bulletSpeed,
+                    false,
+                    { color: this.color, size: 6, damage: 1 }
+                );
             }
         } else if (this.bulletPattern === 'spread') {
             // Spread pattern

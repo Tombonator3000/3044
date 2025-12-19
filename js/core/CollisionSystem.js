@@ -364,7 +364,7 @@ export class CollisionSystem {
         const player = gs.player;
         const playerRadius = player.size || CONFIG.player.size;
 
-        for (let i = gs.enemyBullets.length - 1; i >= 0; i--) {
+        for (let i = 0; i < gs.enemyBullets.length; i++) {
             const bullet = gs.enemyBullets[i];
             if (!bullet || !bullet.active) continue;
 
@@ -378,8 +378,8 @@ export class CollisionSystem {
             )) {
                 this.stats.collisionsDetected++;
 
-                // Remove bullet
-                gs.enemyBullets.splice(i, 1);
+                // Mark bullet as inactive (will be cleaned up by GameLoop)
+                bullet.active = false;
 
                 // Trigger callback
                 if (this.callbacks.playerHitByBullet) {
@@ -476,7 +476,7 @@ export class CollisionSystem {
         const player = gs.player;
         const playerRadius = player.size || CONFIG.player.size;
 
-        for (let i = gs.powerUps.length - 1; i >= 0; i--) {
+        for (let i = 0; i < gs.powerUps.length; i++) {
             const powerUp = gs.powerUps[i];
             if (!powerUp || !powerUp.active) continue;
 
@@ -490,8 +490,8 @@ export class CollisionSystem {
             )) {
                 this.stats.collisionsDetected++;
 
-                // Remove power-up
-                gs.powerUps.splice(i, 1);
+                // Mark power-up as inactive (will be cleaned up by GameLoop)
+                powerUp.active = false;
 
                 // Trigger callback
                 if (this.callbacks.playerCollectPowerUp) {
