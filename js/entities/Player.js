@@ -1,29 +1,18 @@
-/**
- * Geometry 3044 - Player Entity Module
- * Player class with enhanced power-up support
- */
+// ============================================
+// GEOMETRY 3044 — PLAYER CLASS (COMPLETE)
+// ============================================
 
-import { CONFIG } from '../config.js';
-import {
-    gameState,
-    particleSystem,
-    bulletPool,
-    soundSystem,
-    keys,
-    touchJoystick,
-    touchButtons,
-    config
-} from '../globals.js';
+import { config, getCurrentTheme } from '../config.js';
 
 export class Player {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.speed = CONFIG.player.speed;
-        this.size = CONFIG.player.size;
-        this.color = CONFIG.colors.player;
+        this.speed = 5.5;
+        this.size = 20;
+        this.color = config.colors.player;
         this.weaponLevel = 1;
-        this.fireRate = CONFIG.player.fireRate;
+        this.fireRate = 10;
         this.fireTimer = 0;
         this.invulnerable = false;
         this.invulnerableTimer = 0;
@@ -33,43 +22,43 @@ export class Player {
         this.canShoot = true;
         this.isAlive = true;
         this.respawnTimer = 0;
-        this.respawnDelay = CONFIG.player.respawnDelay;
+        this.respawnDelay = 60;
 
-        // FEVER MODE properties
+        // 🌈 FEVER MODE properties
         this.feverMode = 0;
         this.rainbowHue = 0;
 
-        // NEON TRAIL properties
+        // 🔥 NEON TRAIL properties
         this.trail = [];
-        this.maxTrailLength = CONFIG.player.maxTrailLength;
+        this.maxTrailLength = 10;
         this.lastX = x;
         this.lastY = y;
 
-        // ENHANCED POWER-UP PROPERTIES
+        // ⚡ ENHANCED POWER-UP PROPERTIES
         this.hasLaser = false;
-        this.laserPower = CONFIG.player.laserPower;
+        this.laserPower = 1;
         this.hasHoming = false;
-        this.homingStrength = CONFIG.player.homingStrength;
+        this.homingStrength = 1;
         this.hasSpread = false;
-        this.spreadCount = CONFIG.player.spreadCount;
+        this.spreadCount = 3;
         this.hasPierce = false;
-        this.pierceCount = CONFIG.player.pierceCount;
+        this.pierceCount = 2;
         this.hasBounce = false;
-        this.bounceCount = CONFIG.player.bounceCount;
+        this.bounceCount = 3;
         this.hasChain = false;
-        this.chainRange = CONFIG.player.chainRange;
+        this.chainRange = 80;
         this.magnetRange = 0;
         this.ghostMode = 0;
         this.mirrorShip = 0;
         this.novaReady = false;
-        this.novaPower = CONFIG.player.novaPower;
+        this.novaPower = 1;
         this.vortexActive = 0;
-        this.vortexPower = CONFIG.player.vortexPower;
+        this.vortexPower = 1;
         this.omegaMode = 0;
         this.freezePower = 0;
         this.reflectActive = 0;
         this.quantumMode = 0;
-        this.quantumShots = CONFIG.player.quantumShots;
+        this.quantumShots = 3;
         this.plasmaMode = 0;
         this.matrixMode = 0;
         this.infinityMode = 0;
@@ -81,12 +70,12 @@ export class Player {
         this.mirrorY = y;
     }
 
-    update() {
+    update(keys, canvas, bulletPool, gameState, touchJoystick, touchButtons, particleSystem, soundSystem) {
         // Handle death and respawn
         if (!this.isAlive) {
             this.respawnTimer--;
             if (this.respawnTimer <= 0) {
-                this.respawn();
+                this.respawn(canvas);
             }
             return;
         }
@@ -98,12 +87,13 @@ export class Player {
         // Normal movement
         let dx = 0, dy = 0;
 
-        if (keys['ArrowLeft'] === true || keys['a'] === true) dx -= this.speed;
-        if (keys['ArrowRight'] === true || keys['d'] === true) dx += this.speed;
-        if (keys['ArrowUp'] === true || keys['w'] === true) dy -= this.speed;
-        if (keys['ArrowDown'] === true || keys['s'] === true) dy += this.speed;
+        if (keys['ArrowLeft'] === true || keys['a'] === true || keys['A'] === true) dx -= this.speed;
+        if (keys['ArrowRight'] === true || keys['d'] === true || keys['D'] === true) dx += this.speed;
+        if (keys['ArrowUp'] === true || keys['w'] === true || keys['W'] === true) dy -= this.speed;
+        if (keys['ArrowDown'] === true || keys['s'] === true || keys['S'] === true) dy += this.speed;
 
-        if (touchJoystick.active) {
+        // Touch joystick support
+        if (touchJoystick && touchJoystick.active) {
             const touchDx = touchJoystick.currentX - touchJoystick.startX;
             const touchDy = touchJoystick.currentY - touchJoystick.startY;
             const dist = Math.sqrt(touchDx * touchDx + touchDy * touchDy);
@@ -113,22 +103,24 @@ export class Player {
             }
         }
 
+        // Diagonal movement normalization
         if (dx !== 0 && dy !== 0) {
             dx *= 0.707;
             dy *= 0.707;
         }
 
-        this.x = Math.max(this.size, Math.min(config.width - this.size, this.x + dx));
-        this.y = Math.max(this.size, Math.min(config.height - this.size, this.y + dy));
+        // Apply movement with bounds
+        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x + dx));
+        this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y + dy));
 
         // Update mirror ship
         if (this.mirrorShip > 0) {
             this.mirrorShip--;
-            this.mirrorX = config.width - this.x;
+            this.mirrorX = canvas.width - this.x;
             this.mirrorY = this.y;
         }
 
-        // Update trail
+        // 🔥 Update trail
         if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
             this.trail.push({
                 x: this.lastX,
@@ -143,7 +135,7 @@ export class Player {
 
         // Update trail fade
         this.trail = this.trail.filter(point => {
-            point.life -= CONFIG.effects.trail.fadeRate;
+            point.life -= 0.1;
             return point.life > 0;
         });
 
@@ -151,11 +143,15 @@ export class Player {
         this.fireTimer++;
         const currentFireRate = this.hasLaser ? Math.max(3, this.fireRate - this.laserPower) : this.fireRate;
 
-        if (this.canShoot && (keys[' '] === true || touchButtons.fire || this.autoFire) && this.fireTimer > currentFireRate) {
-            this.shoot();
+        const shooting = keys[' '] === true || keys['Space'] === true ||
+                        (touchButtons && touchButtons.fire) || this.autoFire;
+
+        if (this.canShoot && shooting && this.fireTimer > currentFireRate) {
+            this.shoot(bulletPool, gameState, soundSystem);
             this.fireTimer = 0;
         }
 
+        // Update invulnerability
         if (this.invulnerable) {
             this.invulnerableTimer--;
             if (this.invulnerableTimer <= 0) {
@@ -163,13 +159,13 @@ export class Player {
             }
         }
 
-        // Update fever mode
+        // 🌈 Update fever mode
         if (this.feverMode > 0) {
             this.feverMode--;
             this.rainbowHue = (this.rainbowHue + 5) % 360;
 
             if (this.feverMode % 15 === 0 && soundSystem) {
-                soundSystem.playFeverBeat();
+                soundSystem.playFeverBeat?.();
             }
 
             if (this.feverMode <= 0) {
@@ -194,231 +190,180 @@ export class Player {
             }
         }
 
-        if (this.reflectActive > 0) {
-            this.reflectActive--;
-        }
-
-        if (this.quantumMode > 0) {
-            this.quantumMode--;
-        }
+        if (this.reflectActive > 0) this.reflectActive--;
+        if (this.quantumMode > 0) this.quantumMode--;
 
         if (this.plasmaMode > 0) {
             this.plasmaMode--;
-            // Plasma mode gives unlimited energy
             if (this.fireTimer > 1) this.fireTimer = 1;
         }
 
         if (this.matrixMode > 0) {
             this.matrixMode--;
-            // Matrix mode enhances perception
             this.speed = Math.min(this.speed * 1.1, 8);
         }
 
-        if (this.infinityMode > 0) {
-            this.infinityMode--;
-        }
+        if (this.infinityMode > 0) this.infinityMode--;
 
         if (this.godMode > 0) {
             this.godMode--;
             if (this.godMode <= 0) {
                 this.invulnerable = false;
                 this.infinitePower = false;
-                this.speed = CONFIG.player.speed;
+                this.speed = 5.5;
             }
         }
 
-        // Vortex effect - attract enemies and power-ups
+        // Vortex effect
         if (this.vortexActive > 0) {
             this.vortexActive--;
-            this.applyEnhancedVortexEffect();
+            this.applyVortexEffect(gameState, particleSystem);
         }
 
-        // Enhanced Omega mode effects
+        // Omega mode effects
         if (this.omegaMode > 0) {
             this.omegaMode--;
             if (this.omegaMode % 8 === 0) {
-                this.createEnhancedOmegaPulse();
+                this.createOmegaPulse(gameState);
             }
         }
 
-        // Magnet effect for power-ups
+        // Magnet effect
         if (this.magnetRange > 0) {
-            this.applyMagnetEffect();
+            this.applyMagnetEffect(gameState);
         }
     }
 
-    shoot() {
-        const hasCombo = gameState.powerUpManager &&
-            gameState.powerUpManager.comboEffects.some(c => c.name === 'PULSE CANNON');
+    shoot(bulletPool, gameState, soundSystem) {
+        if (!bulletPool) return;
+
+        const hasCombo = gameState?.powerUpManager?.comboEffects?.some(c => c.name === 'PULSE CANNON');
 
         if (hasCombo) {
             // Pulse cannon - rapid laser beams
             for (let i = 0; i < 5; i++) {
                 setTimeout(() => {
                     if (bulletPool) {
-                        bulletPool.get(this.x, this.y - 20 - i * 5, 0, -18, true);
+                        bulletPool.spawn?.(this.x, this.y - 20 - i * 5, 0, -18, true);
                     }
                 }, i * 15);
             }
         } else if (this.quantumMode > 0) {
-            // Quantum shots - multiple parallel dimensions
+            // Quantum shots
             for (let i = 0; i < this.quantumShots; i++) {
                 const offsetX = (i - (this.quantumShots - 1) / 2) * 15;
-                if (bulletPool) {
-                    const bullet = bulletPool.get(this.x + offsetX, this.y - 20, 0, -12, true);
-                    if (bullet) {
-                        bullet.isQuantum = true;
-                        bullet.quantumPhase = i;
-                        bullet.damage = 3;
-                    }
-                }
+                bulletPool.spawn?.(this.x + offsetX, this.y - 15, 0, -14, true, {
+                    color: '#aa00ff',
+                    size: 6,
+                    damage: 12,
+                    quantum: true
+                });
             }
-        } else if (this.hasChain) {
-            // Chain lightning shots
-            if (bulletPool) {
-                const bullet = bulletPool.get(this.x, this.y - 20, 0, -10, true);
-                if (bullet) {
-                    bullet.isChain = true;
-                    bullet.chainRange = this.chainRange;
-                    bullet.chainCount = 3;
-                    bullet.damage = 2;
-                }
+        } else if (this.infinityMode > 0 || this.infinitePower) {
+            // Infinity beam
+            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+                bulletPool.spawn?.(this.x, this.y, Math.cos(angle) * 12, Math.sin(angle) * 12, true, {
+                    color: '#ffff00',
+                    size: 5,
+                    damage: 8,
+                    pierce: true
+                });
             }
-        } else if (this.hasBounce) {
-            // Bouncing projectiles
-            if (bulletPool) {
-                const bullet = bulletPool.get(this.x, this.y - 20, 0, -10, true);
-                if (bullet) {
-                    bullet.isBouncing = true;
-                    bullet.bounceCount = this.bounceCount;
-                    bullet.damage = 2;
-                }
-            }
-        } else if (this.hasSpread) {
-            // Enhanced spread shot
-            const spreadAngle = Math.PI / 6;
-            const count = Math.min(this.spreadCount + (this.weaponLevel - 1), 9);
-            for (let i = 0; i < count; i++) {
-                const angle = -spreadAngle + (i * (spreadAngle * 2) / (count - 1));
-                if (bulletPool) {
-                    bulletPool.get(
-                        this.x + Math.sin(angle) * 15,
-                        this.y - 20,
-                        Math.sin(angle) * 8,
-                        -10 - Math.cos(angle) * 3,
-                        true
-                    );
-                }
-            }
-        } else if (this.hasLaser) {
-            // Enhanced laser beam
-            const beamCount = Math.min(this.laserPower + Math.floor(this.weaponLevel / 2), 6);
-            for (let i = 0; i < beamCount; i++) {
-                const offsetX = (i - (beamCount - 1) / 2) * 8;
-                if (bulletPool) {
-                    const bullet = bulletPool.get(this.x + offsetX, this.y - 20, 0, -18, true);
-                    if (bullet) {
-                        bullet.isLaser = true;
-                        bullet.damage = 2 + Math.floor(this.laserPower / 2);
-                    }
-                }
+        } else if (this.godMode > 0) {
+            // God mode - massive spread
+            for (let angle = -Math.PI / 3; angle <= Math.PI / 3; angle += Math.PI / 12) {
+                const speed = 15;
+                bulletPool.spawn?.(this.x, this.y - 10,
+                    Math.sin(angle) * speed,
+                    -Math.cos(angle) * speed,
+                    true, {
+                        color: '#ff0000',
+                        size: 8,
+                        damage: 25,
+                        pierce: true,
+                        explosive: true
+                    });
             }
         } else {
-            // Enhanced normal weapon levels
-            switch(this.weaponLevel) {
-                case 1:
-                    if (bulletPool) bulletPool.get(this.x, this.y - 20, 0, -12, true);
-                    break;
-                case 2:
-                    if (bulletPool) {
-                        bulletPool.get(this.x - 12, this.y - 20, 0, -12, true);
-                        bulletPool.get(this.x + 12, this.y - 20, 0, -12, true);
-                    }
-                    break;
-                case 3:
-                    if (bulletPool) {
-                        bulletPool.get(this.x, this.y - 20, 0, -12, true);
-                        bulletPool.get(this.x - 18, this.y - 20, -2, -12, true);
-                        bulletPool.get(this.x + 18, this.y - 20, 2, -12, true);
-                    }
-                    break;
-                case 4:
-                    if (bulletPool) {
-                        bulletPool.get(this.x - 8, this.y - 20, 0, -12, true);
-                        bulletPool.get(this.x + 8, this.y - 20, 0, -12, true);
-                        bulletPool.get(this.x - 20, this.y - 20, -3, -12, true);
-                        bulletPool.get(this.x + 20, this.y - 20, 3, -12, true);
-                    }
-                    break;
-                case 5:
-                    if (bulletPool) {
-                        bulletPool.get(this.x, this.y - 20, 0, -12, true);
-                        bulletPool.get(this.x - 12, this.y - 20, -1, -12, true);
-                        bulletPool.get(this.x + 12, this.y - 20, 1, -12, true);
-                        bulletPool.get(this.x - 24, this.y - 20, -4, -12, true);
-                        bulletPool.get(this.x + 24, this.y - 20, 4, -12, true);
-                    }
-                    break;
-            }
+            // Normal shooting based on weapon level
+            this.normalShoot(bulletPool, soundSystem);
         }
 
-        // Mirror ship shooting (enhanced)
+        // Mirror ship also shoots
         if (this.mirrorShip > 0 && bulletPool) {
-            const mirrorCount = this.godMode > 0 ? 3 : 1;
-            for (let i = 0; i < mirrorCount; i++) {
-                const offsetY = i * -10;
-                bulletPool.get(this.mirrorX, this.mirrorY - 20 + offsetY, 0, -12, true);
+            bulletPool.spawn?.(this.mirrorX, this.mirrorY - 15, 0, -12, true, {
+                color: '#aaffff',
+                size: 5
+            });
+        }
+
+        if (soundSystem?.playShoot) soundSystem.playShoot();
+    }
+
+    normalShoot(bulletPool, soundSystem) {
+        const bulletSpeed = -12;
+        const bulletOptions = {
+            color: '#00ffff',
+            size: 5,
+            damage: 10,
+            pierce: this.hasPierce,
+            pierceCount: this.pierceCount,
+            bounce: this.hasBounce,
+            bounceCount: this.bounceCount,
+            homing: this.hasHoming,
+            homingStrength: this.homingStrength,
+            chain: this.hasChain,
+            chainRange: this.chainRange
+        };
+
+        switch (this.weaponLevel) {
+            case 1:
+                bulletPool.spawn?.(this.x, this.y - 20, 0, bulletSpeed, true, bulletOptions);
+                break;
+            case 2:
+                bulletPool.spawn?.(this.x - 8, this.y - 15, 0, bulletSpeed, true, bulletOptions);
+                bulletPool.spawn?.(this.x + 8, this.y - 15, 0, bulletSpeed, true, bulletOptions);
+                break;
+            case 3:
+                bulletPool.spawn?.(this.x, this.y - 20, 0, bulletSpeed, true, bulletOptions);
+                bulletPool.spawn?.(this.x - 12, this.y - 10, -1, bulletSpeed, true, bulletOptions);
+                bulletPool.spawn?.(this.x + 12, this.y - 10, 1, bulletSpeed, true, bulletOptions);
+                break;
+            case 4:
+                bulletPool.spawn?.(this.x - 8, this.y - 20, 0, bulletSpeed, true, bulletOptions);
+                bulletPool.spawn?.(this.x + 8, this.y - 20, 0, bulletSpeed, true, bulletOptions);
+                bulletPool.spawn?.(this.x - 16, this.y - 10, -2, bulletSpeed, true, bulletOptions);
+                bulletPool.spawn?.(this.x + 16, this.y - 10, 2, bulletSpeed, true, bulletOptions);
+                break;
+            default:
+                // Level 5+
+                bulletPool.spawn?.(this.x, this.y - 20, 0, bulletSpeed * 1.2, true, bulletOptions);
+                bulletPool.spawn?.(this.x - 10, this.y - 15, -1, bulletSpeed, true, bulletOptions);
+                bulletPool.spawn?.(this.x + 10, this.y - 15, 1, bulletSpeed, true, bulletOptions);
+                bulletPool.spawn?.(this.x - 20, this.y - 5, -2, bulletSpeed * 0.9, true, bulletOptions);
+                bulletPool.spawn?.(this.x + 20, this.y - 5, 2, bulletSpeed * 0.9, true, bulletOptions);
+        }
+
+        // Spread shot
+        if (this.hasSpread) {
+            const spreadAngle = Math.PI / 8;
+            for (let i = 0; i < this.spreadCount; i++) {
+                const angle = -Math.PI / 2 + spreadAngle * (i - (this.spreadCount - 1) / 2);
+                bulletPool.spawn?.(this.x, this.y - 10,
+                    Math.cos(angle) * 10,
+                    Math.sin(angle) * 10,
+                    true, { ...bulletOptions, color: '#ffff00', size: 4 });
             }
-        }
-
-        // God mode multi-directional shooting
-        if (this.godMode > 0) {
-            const directions = 8;
-            for (let i = 0; i < directions; i++) {
-                const angle = (Math.PI * 2 * i) / directions;
-                if (bulletPool) {
-                    bulletPool.get(
-                        this.x + Math.cos(angle) * 20,
-                        this.y + Math.sin(angle) * 20,
-                        Math.cos(angle) * 8,
-                        Math.sin(angle) * 8,
-                        true
-                    );
-                }
-            }
-        }
-
-        // Infinity mode continuous fire
-        if (this.infinityMode > 0 || this.infinitePower) {
-            setTimeout(() => {
-                if ((this.infinityMode > 0 || this.infinitePower) && bulletPool) {
-                    bulletPool.get(this.x + Math.random() * 40 - 20, this.y - 25,
-                                 (Math.random() - 0.5) * 4, -15, true);
-                }
-            }, 50);
-        }
-
-        // Enhanced nova blast
-        if (this.novaReady && keys[' '] === true) {
-            this.triggerEnhancedNova();
-            this.novaReady = false;
-        }
-
-        if (particleSystem) {
-            particleSystem.addMuzzleFlash(this.x, this.y - 20, -Math.PI/2, this.color);
-        }
-        if (soundSystem) {
-            soundSystem.playShoot();
         }
     }
 
-    applyEnhancedVortexEffect() {
+    applyVortexEffect(gameState, particleSystem) {
         if (!gameState) return;
 
         const baseRange = 200 + (this.vortexPower * 50);
 
-        // Attract enemies with enhanced force
-        gameState.enemies.forEach(enemy => {
+        // Attract enemies
+        gameState.enemies?.forEach(enemy => {
             if (enemy.active) {
                 const dx = this.x - enemy.x;
                 const dy = this.y - enemy.y;
@@ -430,19 +375,17 @@ export class Player {
                     enemy.x += Math.cos(angle) * force;
                     enemy.y += Math.sin(angle) * force;
 
-                    // Damage enemies that get too close
+                    // Damage enemies too close
                     if (dist < 50 && Math.random() < 0.1) {
-                        enemy.takeDamage(1);
-                        if (particleSystem) {
-                            particleSystem.addExplosion(enemy.x, enemy.y, '#80ff80', 8);
-                        }
+                        enemy.takeDamage?.(1);
+                        particleSystem?.addExplosion?.(enemy.x, enemy.y, '#80ff80', 8);
                     }
                 }
             }
         });
 
-        // Attract power-ups with stronger force
-        gameState.powerUps.forEach(powerUp => {
+        // Attract power-ups
+        gameState.powerUps?.forEach(powerUp => {
             if (powerUp.active) {
                 const dx = this.x - powerUp.x;
                 const dy = this.y - powerUp.y;
@@ -456,167 +399,10 @@ export class Player {
                 }
             }
         });
-
-        // Enhanced visual vortex effect
-        if (Math.random() < 0.3) {
-            const angle = Math.random() * Math.PI * 2;
-            const radius = 60 + Math.random() * baseRange;
-            const particleX = this.x + Math.cos(angle) * radius;
-            const particleY = this.y + Math.sin(angle) * radius;
-
-            if (particleSystem) {
-                particleSystem.particles.push({
-                    x: particleX,
-                    y: particleY,
-                    vx: -Math.cos(angle) * 5,
-                    vy: -Math.sin(angle) * 5,
-                    color: '#80ff80',
-                    life: 20,
-                    maxLife: 20,
-                    size: 2,
-                    active: true,
-                    update() {
-                        this.x += this.vx;
-                        this.y += this.vy;
-                        this.life--;
-                        if (this.life <= 0) this.active = false;
-                    },
-                    draw(ctx) {
-                        const alpha = this.life / this.maxLife;
-                        ctx.save();
-                        ctx.globalAlpha = alpha;
-                        ctx.fillStyle = this.color;
-                        ctx.shadowBlur = 15;
-                        ctx.shadowColor = this.color;
-                        ctx.beginPath();
-                        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.restore();
-                    }
-                });
-            }
-        }
     }
 
-    createEnhancedOmegaPulse() {
-        // Enhanced omega mode creates more destructive pulses
-        if (gameState && gameState.particles) {
-            const pulseCount = this.godMode > 0 ? 5 : 3;
-
-            for (let p = 0; p < pulseCount; p++) {
-                gameState.particles.push({
-                    x: this.x + (Math.random() - 0.5) * 120,
-                    y: this.y + (Math.random() - 0.5) * 120,
-                    radius: 0,
-                    maxRadius: 100 + (p * 20),
-                    life: 40,
-                    maxLife: 40,
-                    active: true,
-                    damage: 2 + p,
-                    update() {
-                        this.radius += this.maxRadius / this.maxLife;
-                        this.life--;
-
-                        // Damage enemies in range
-                        if (gameState && gameState.enemies && this.life % 5 === 0) {
-                            gameState.enemies.forEach(enemy => {
-                                if (enemy.active) {
-                                    const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
-                                    if (dist < this.radius && dist > this.radius - 20) {
-                                        enemy.takeDamage(this.damage);
-                                    }
-                                }
-                            });
-                        }
-
-                        if (this.life <= 0) this.active = false;
-                    },
-                    draw(ctx) {
-                        const alpha = this.life / this.maxLife;
-                        ctx.save();
-                        ctx.strokeStyle = '#ff0000';
-                        ctx.lineWidth = 4;
-                        ctx.globalAlpha = alpha;
-                        ctx.shadowBlur = 35;
-                        ctx.shadowColor = '#ff0000';
-                        ctx.beginPath();
-                        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                        ctx.stroke();
-                        ctx.restore();
-                    }
-                });
-            }
-        }
-    }
-
-    triggerEnhancedNova() {
-        // Enhanced nova with variable power
-        const baseRadius = 300;
-        const maxRadius = baseRadius * (this.novaPower + (this.godMode > 0 ? 2 : 0));
-
-        if (gameState && gameState.particles) {
-            gameState.particles.push({
-                x: this.x,
-                y: this.y,
-                radius: 0,
-                maxRadius: maxRadius,
-                life: 80,
-                maxLife: 80,
-                active: true,
-                power: this.novaPower,
-                waves: this.godMode > 0 ? 3 : 1,
-                currentWave: 0,
-                update() {
-                    this.radius += (this.maxRadius / this.maxLife) * 2;
-                    this.life--;
-
-                    // Multi-wave effect for god mode
-                    if (this.currentWave < this.waves - 1 && this.radius >= this.maxRadius * 0.8) {
-                        this.currentWave++;
-                        this.radius = 0;
-                        this.life = this.maxLife;
-                    }
-
-                    if (this.life <= 0) this.active = false;
-                },
-                draw(ctx) {
-                    const alpha = this.life / this.maxLife;
-                    ctx.save();
-
-                    // Multiple colored rings
-                    const colors = ['#ffff00', '#ff8800', '#ff4400'];
-                    colors.forEach((color, index) => {
-                        ctx.strokeStyle = color;
-                        ctx.lineWidth = 6 - index;
-                        ctx.globalAlpha = alpha * (1 - index * 0.2);
-                        ctx.shadowBlur = 40;
-                        ctx.shadowColor = color;
-                        ctx.beginPath();
-                        ctx.arc(this.x, this.y, this.radius - (index * 10), 0, Math.PI * 2);
-                        ctx.stroke();
-                    });
-
-                    ctx.restore();
-                }
-            });
-        }
-
-        // Enhanced damage area
-        if (gameState && gameState.enemies) {
-            gameState.enemies.forEach(enemy => {
-                if (enemy.active) {
-                    const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
-                    if (dist < maxRadius) {
-                        const damage = Math.ceil((4 + this.novaPower) * (1 - dist / maxRadius));
-                        enemy.takeDamage(damage);
-                    }
-                }
-            });
-        }
-    }
-
-    applyMagnetEffect() {
-        if (!gameState || !gameState.powerUps) return;
+    applyMagnetEffect(gameState) {
+        if (!gameState?.powerUps) return;
 
         gameState.powerUps.forEach(powerUp => {
             if (powerUp.active) {
@@ -624,26 +410,107 @@ export class Player {
                 const dy = this.y - powerUp.y;
                 const dist = Math.hypot(dx, dy);
 
-                if (dist < this.magnetRange) {
-                    const force = (this.magnetRange - dist) / this.magnetRange * 3;
-                    const angle = Math.atan2(dy, dx);
-                    powerUp.x += Math.cos(angle) * force;
-                    powerUp.y += Math.sin(angle) * force;
+                if (dist < this.magnetRange && dist > 0) {
+                    const force = (this.magnetRange - dist) / this.magnetRange * 5;
+                    powerUp.x += (dx / dist) * force;
+                    powerUp.y += (dy / dist) * force;
                 }
             }
         });
     }
 
+    createOmegaPulse(gameState) {
+        if (!gameState?.particles) return;
+
+        const pulseCount = this.godMode > 0 ? 5 : 3;
+
+        for (let p = 0; p < pulseCount; p++) {
+            gameState.particles.push({
+                x: this.x + (Math.random() - 0.5) * 120,
+                y: this.y + (Math.random() - 0.5) * 120,
+                radius: 0,
+                maxRadius: 100 + (p * 20),
+                life: 40,
+                maxLife: 40,
+                active: true,
+                damage: 2 + p,
+                update() {
+                    this.radius += this.maxRadius / this.maxLife;
+                    this.life--;
+
+                    if (gameState?.enemies && this.life % 5 === 0) {
+                        gameState.enemies.forEach(enemy => {
+                            if (enemy.active) {
+                                const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                                if (dist < this.radius && dist > this.radius - 20) {
+                                    enemy.takeDamage?.(this.damage);
+                                }
+                            }
+                        });
+                    }
+
+                    if (this.life <= 0) this.active = false;
+                },
+                draw(ctx) {
+                    const alpha = this.life / this.maxLife;
+                    ctx.save();
+                    ctx.strokeStyle = '#ff0000';
+                    ctx.lineWidth = 4;
+                    ctx.globalAlpha = alpha;
+                    ctx.shadowBlur = 35;
+                    ctx.shadowColor = '#ff0000';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            });
+        }
+    }
+
+    takeDamage(amount = 1) {
+        if (this.invulnerable || this.ghostMode > 0 || this.godMode > 0) return false;
+        if (this.feverMode > 0) return false;
+
+        // Shield absorbs damage first
+        if (this.shieldActive && this.shield > 0) {
+            this.shield -= amount;
+            if (this.shield <= 0) {
+                this.shieldActive = false;
+                this.shield = 0;
+            }
+            return false;
+        }
+
+        this.isAlive = false;
+        return true;
+    }
+
+    respawn(canvas) {
+        this.x = canvas ? canvas.width / 2 : 400;
+        this.y = canvas ? canvas.height - 100 : 500;
+        this.isAlive = true;
+        this.invulnerable = true;
+        this.invulnerableTimer = 180;
+        this.trail = [];
+    }
+
+    die() {
+        this.isAlive = false;
+        this.respawnTimer = this.respawnDelay;
+    }
+
     draw(ctx) {
+        if (!this.isAlive) return;
+
         ctx.save();
 
-        // Draw neon trail
+        // 🔥 Draw neon trail
         if (this.trail.length > 0) {
             this.trail.forEach((point, index) => {
                 ctx.save();
                 ctx.globalAlpha = point.life * 0.6;
 
-                // Rainbow trail in fever mode
                 if (this.feverMode > 0) {
                     ctx.fillStyle = `hsl(${(this.rainbowHue - index * 10) % 360}, 100%, 50%)`;
                     ctx.shadowBlur = 20;
@@ -689,11 +556,10 @@ export class Player {
 
         ctx.translate(this.x, this.y);
 
-        // Rainbow effect in fever mode
+        // Color effects for different modes
         if (this.feverMode > 0) {
             this.color = `hsl(${this.rainbowHue}, 100%, 50%)`;
 
-            // Extra rainbow aura
             for (let i = 0; i < 3; i++) {
                 ctx.strokeStyle = `hsla(${(this.rainbowHue + i * 30) % 360}, 100%, 50%, ${0.3 - i * 0.1})`;
                 ctx.lineWidth = 2;
@@ -704,25 +570,32 @@ export class Player {
                 ctx.stroke();
             }
         } else if (this.omegaMode > 0) {
-            // Omega mode red glow
             this.color = '#ff0000';
             ctx.strokeStyle = '#ff0000';
             ctx.lineWidth = 4;
             ctx.shadowBlur = 40;
             ctx.shadowColor = '#ff0000';
         } else if (this.ghostMode > 0) {
-            // Ghost mode transparency
             ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
             this.color = '#aaaaff';
+        } else if (this.godMode > 0) {
+            this.color = `hsl(${(Date.now() * 0.5) % 360}, 100%, 70%)`;
+            ctx.shadowBlur = 50;
+            ctx.shadowColor = this.color;
         } else {
             this.color = config.colors.player;
         }
 
+        // Ship body
         ctx.strokeStyle = this.color;
         ctx.lineWidth = 3;
         ctx.shadowBlur = 30;
         ctx.shadowColor = this.color;
-        ctx.globalAlpha = Math.min(ctx.globalAlpha, 0.9);
+
+        // Flicker when invulnerable
+        if (this.invulnerable && Math.floor(Date.now() / 100) % 2 === 0) {
+            ctx.globalAlpha = 0.3;
+        }
 
         ctx.beginPath();
         ctx.moveTo(0, -20);
@@ -735,14 +608,15 @@ export class Player {
         ctx.fillStyle = this.color + '44';
         ctx.fill();
 
-        ctx.globalAlpha = 1;
+        // Inner highlight
+        ctx.globalAlpha = Math.min(ctx.globalAlpha || 1, 0.9);
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1;
         ctx.shadowBlur = 15;
         ctx.shadowColor = this.color;
         ctx.stroke();
 
-        // Draw vortex effect
+        // Vortex effect ring
         if (this.vortexActive > 0) {
             ctx.save();
             const vortexRadius = 80 + Math.sin(Date.now() * 0.01) * 20;
@@ -755,7 +629,6 @@ export class Player {
             ctx.arc(0, 0, vortexRadius, 0, Math.PI * 2);
             ctx.stroke();
 
-            // Swirling lines
             for (let i = 0; i < 8; i++) {
                 const angle = (Date.now() * 0.005) + (i * Math.PI / 4);
                 ctx.beginPath();
@@ -766,7 +639,7 @@ export class Player {
             ctx.restore();
         }
 
-        // Afterburner effect when moving
+        // 🔥 Afterburner effect when moving
         const moving = Math.abs(this.x - this.lastX) > 1 || Math.abs(this.y - this.lastY) > 1;
         if (moving) {
             ctx.save();
@@ -795,6 +668,7 @@ export class Player {
             ctx.restore();
         }
 
+        // Weapon level indicators
         if (this.weaponLevel > 1) {
             ctx.fillStyle = '#ffff00';
             ctx.shadowBlur = 10;
@@ -806,6 +680,7 @@ export class Player {
             }
         }
 
+        // Shield display
         if (this.shieldActive && this.shield > 0) {
             ctx.strokeStyle = '#00ffff';
             ctx.lineWidth = 2;
@@ -817,6 +692,7 @@ export class Player {
             ctx.stroke();
         }
 
+        // Auto-fire indicator
         if (this.autoFire) {
             ctx.fillStyle = '#00ff00';
             ctx.font = 'bold 10px Courier New';
@@ -825,64 +701,5 @@ export class Player {
         }
 
         ctx.restore();
-    }
-
-    takeDamage() {
-        // Ignore damage if already invulnerable or in special modes
-        if (this.invulnerable || this.ghostMode > 0 || this.godMode > 0 || this.infinityMode > 0 || this.infinitePower) {
-            return false;
-        }
-        // Shield absorbs a hit without consuming a life
-        if (this.shieldActive && this.shield > 0) {
-            this.shield--;
-            if (this.shield <= 0) {
-                this.shieldActive = false;
-            }
-            // Play shield hit sound if available
-            try {
-                if (soundSystem && soundSystem.playShieldHit) {
-                    soundSystem.playShieldHit();
-                }
-            } catch (e) {
-                /* ignore sound errors */
-            }
-            return false;
-        }
-        // If already dead, ignore further damage
-        if (!this.isAlive) {
-            return false;
-        }
-        // Trigger death: set flags and timers
-        this.isAlive = false;
-        this.respawnTimer = this.respawnDelay;
-        this.invulnerable = true;
-        this.invulnerableTimer = 120;
-        // Explosion and sound effects on death
-        try {
-            if (particleSystem && typeof particleSystem.addExplosion === 'function') {
-                particleSystem.addExplosion(this.x, this.y, '#ff6666', 25);
-            }
-            if (soundSystem) {
-                if (soundSystem.playExplosion) soundSystem.playExplosion();
-                if (soundSystem.playVoiceSample) soundSystem.playVoiceSample('OOPS');
-            }
-        } catch (e) {
-            /* ignore particle/sound errors */
-        }
-        return true;
-    }
-
-    respawn() {
-        // Reset position to bottom centre and clear motion
-        this.x = config.width / 2;
-        this.y = config.height - 80;
-        this.fireTimer = 0;
-        this.isAlive = true;
-        // Brief invulnerability after respawn
-        this.invulnerable = true;
-        this.invulnerableTimer = 120;
-        // Remove any remaining shield
-        this.shieldActive = false;
-        this.shield = 0;
     }
 }
