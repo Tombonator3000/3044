@@ -1,6 +1,9 @@
 /**
  * Geometry 3044 - Main Entry Point
- * ES6 Module version - Full Game Integration
+ * ES6 Module version - BULLETPROOF Edition
+ *
+ * Priority: Playable game > Perfect features
+ * All systems have fallbacks - game will ALWAYS start
  */
 
 import { CONFIG, WAVE_THEMES, getCurrentTheme } from './config.js';
@@ -36,7 +39,539 @@ import {
 // Weapons modules
 import { WeaponManager } from './weapons/index.js';
 
-console.log('🎮 Geometry 3044 - Loading...');
+console.log('🎮 Geometry 3044 - BULLETPROOF Edition Loading...');
+
+// ============================================
+// FALLBACK CLASSES (used if real ones fail)
+// ============================================
+
+class FallbackPlayer {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.size = 20;
+        this.speed = 5;
+        this.isAlive = true;
+        this.invulnerable = false;
+        this.invulnerableTimer = 0;
+        this.shootCooldown = 0;
+        this.health = 100;
+        this.maxHealth = 100;
+    }
+
+    update(deltaTime, inputHandler, canvas, bulletPool) {
+        const keys = inputHandler?.keys || inputHandler?.getKeys?.() || {};
+
+        // Movement
+        if (keys['ArrowLeft'] || keys['KeyA']) this.x -= this.speed;
+        if (keys['ArrowRight'] || keys['KeyD']) this.x += this.speed;
+        if (keys['ArrowUp'] || keys['KeyW']) this.y -= this.speed;
+        if (keys['ArrowDown'] || keys['KeyS']) this.y += this.speed;
+
+        // Bounds
+        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
+        this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y));
+
+        // Shooting
+        if (this.shootCooldown > 0) this.shootCooldown -= deltaTime;
+        if ((keys['Space'] || keys['KeyZ']) && this.shootCooldown <= 0) {
+            this.shoot(bulletPool);
+            this.shootCooldown = 10;
+        }
+
+        // Invulnerability
+        if (this.invulnerableTimer > 0) {
+            this.invulnerableTimer -= deltaTime;
+            this.invulnerable = this.invulnerableTimer > 0;
+        }
+    }
+
+    shoot(bulletPool) {
+        if (bulletPool && bulletPool.spawn) {
+            bulletPool.spawn(this.x, this.y - this.size, 0, -12, true);
+        } else if (bulletPool && bulletPool.get) {
+            bulletPool.get(this.x, this.y - this.size, 0, -12, true);
+        }
+    }
+
+    draw(ctx) {
+        if (!this.isAlive) return;
+
+        // Flash when invulnerable
+        if (this.invulnerable && Math.floor(Date.now() / 100) % 2 === 0) return;
+
+        ctx.fillStyle = '#00ff00';
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#00ff00';
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - this.size);
+        ctx.lineTo(this.x - this.size * 0.7, this.y + this.size);
+        ctx.lineTo(this.x + this.size * 0.7, this.y + this.size);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+
+    takeDamage(amount = 1) {
+        if (this.invulnerable) return false;
+        this.isAlive = false;
+        return true;
+    }
+
+    respawn(x, y) {
+        this.x = x;
+        this.y = y;
+        this.isAlive = true;
+        this.invulnerable = true;
+        this.invulnerableTimer = 180; // 3 seconds
+    }
+}
+
+class FallbackBulletPool {
+    constructor() {
+        this.bullets = [];
+        this.maxBullets = 100;
+    }
+
+    spawn(x, y, vx, vy, isPlayer = true, options = {}) {
+        if (this.bullets.length >= this.maxBullets) {
+            this.bullets.shift();
+        }
+
+        this.bullets.push({
+            x, y, vx, vy,
+            isPlayer,
+            active: true,
+            size: options.size || 5,
+            color: options.color || (isPlayer ? '#00ffff' : '#ff0066'),
+            damage: options.damage || 10
+        });
+    }
+
+    get(x, y, vx, vy, isPlayer, options) {
+        this.spawn(x, y, vx, vy, isPlayer, options);
+    }
+
+    update(canvas, deltaTime = 1) {
+        this.bullets = this.bullets.filter(b => {
+            if (!b.active) return false;
+
+            b.x += b.vx * deltaTime;
+            b.y += b.vy * deltaTime;
+
+            if (b.x < -50 || b.x > canvas.width + 50 ||
+                b.y < -50 || b.y > canvas.height + 50) {
+                return false;
+            }
+
+            return true;
+        });
+    }
+
+    draw(ctx) {
+        for (const b of this.bullets) {
+            if (!b.active) continue;
+
+            ctx.fillStyle = b.color;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = b.color;
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+    }
+
+    clear() {
+        this.bullets = [];
+    }
+
+    getActiveBullets() {
+        return this.bullets.filter(b => b.active);
+    }
+
+    getPlayerBullets() {
+        return this.bullets.filter(b => b.active && b.isPlayer);
+    }
+
+    getEnemyBullets() {
+        return this.bullets.filter(b => b.active && !b.isPlayer);
+    }
+}
+
+class FallbackParticleSystem {
+    constructor() {
+        this.particles = [];
+        this.maxParticles = 200;
+    }
+
+    addParticle(options) {
+        if (this.particles.length >= this.maxParticles) {
+            this.particles.shift();
+        }
+
+        this.particles.push({
+            x: options.x || 0,
+            y: options.y || 0,
+            vx: options.vx || (Math.random() - 0.5) * 4,
+            vy: options.vy || (Math.random() - 0.5) * 4,
+            life: options.life || 30,
+            maxLife: options.life || 30,
+            size: options.size || 3,
+            color: options.color || '#ffffff'
+        });
+    }
+
+    createExplosion(x, y, color = '#ff6600', count = 15) {
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 6;
+            this.addParticle({
+                x, y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 20 + Math.random() * 20,
+                size: 2 + Math.random() * 4,
+                color
+            });
+        }
+    }
+
+    update(deltaTime = 1) {
+        this.particles = this.particles.filter(p => {
+            p.x += p.vx * deltaTime;
+            p.y += p.vy * deltaTime;
+            p.vx *= 0.98;
+            p.vy *= 0.98;
+            p.life -= deltaTime;
+            return p.life > 0;
+        });
+    }
+
+    draw(ctx) {
+        for (const p of this.particles) {
+            const alpha = p.life / p.maxLife;
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+}
+
+class FallbackEnemy {
+    constructor(x, y, type = 'basic') {
+        this.x = x;
+        this.y = y;
+        this.type = type;
+        this.size = 20;
+        this.health = 30;
+        this.maxHealth = 30;
+        this.speed = 2;
+        this.active = true;
+        this.points = 100;
+        this.shootTimer = 60 + Math.random() * 60;
+    }
+
+    update(playerX, playerY, canvas, deltaTime = 1) {
+        this.y += this.speed * deltaTime;
+
+        if (this.x < playerX) this.x += 0.5 * deltaTime;
+        if (this.x > playerX) this.x -= 0.5 * deltaTime;
+
+        this.shootTimer -= deltaTime;
+        if (this.shootTimer <= 0) {
+            this.shootTimer = 90 + Math.random() * 60;
+        }
+
+        if (this.y > canvas.height + 50) {
+            this.active = false;
+        }
+    }
+
+    takeDamage(amount) {
+        this.health -= amount;
+        if (this.health <= 0) {
+            this.active = false;
+            return true;
+        }
+        return false;
+    }
+
+    draw(ctx) {
+        if (!this.active) return;
+
+        ctx.fillStyle = '#ff0066';
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#ff0066';
+
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - this.size);
+        ctx.lineTo(this.x + this.size, this.y);
+        ctx.lineTo(this.x, this.y + this.size);
+        ctx.lineTo(this.x - this.size, this.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+}
+
+class FallbackWaveManager {
+    constructor() {
+        this.wave = 1;
+        this.enemiesPerWave = 5;
+        this.spawnTimer = 0;
+        this.spawnDelay = 60;
+        this.enemiesSpawned = 0;
+        this.waveActive = false;
+        this.enemies = [];
+    }
+
+    startWave(waveNum) {
+        this.wave = waveNum;
+        this.enemiesPerWave = 5 + waveNum * 2;
+        this.enemiesSpawned = 0;
+        this.spawnTimer = 0;
+        this.waveActive = true;
+    }
+
+    update(canvas, deltaTime = 1) {
+        if (!this.waveActive) return;
+
+        this.spawnTimer -= deltaTime;
+
+        if (this.spawnTimer <= 0 && this.enemiesSpawned < this.enemiesPerWave) {
+            const x = 50 + Math.random() * (canvas.width - 100);
+            const enemy = new FallbackEnemy(x, -30);
+            this.enemies.push(enemy);
+            this.enemiesSpawned++;
+            this.spawnTimer = this.spawnDelay;
+        }
+
+        // Update enemies
+        for (const enemy of this.enemies) {
+            if (enemy.active) {
+                enemy.update(canvas.width / 2, canvas.height - 100, canvas, deltaTime);
+            }
+        }
+
+        // Remove inactive
+        this.enemies = this.enemies.filter(e => e.active);
+
+        // Check wave complete
+        if (this.enemiesSpawned >= this.enemiesPerWave && this.enemies.length === 0) {
+            this.waveActive = false;
+        }
+    }
+
+    isWaveComplete() {
+        return !this.waveActive;
+    }
+
+    getEnemies() {
+        return this.enemies;
+    }
+}
+
+class FallbackInputHandler {
+    constructor() {
+        this.keys = {};
+        this.init();
+    }
+
+    init() {
+        document.addEventListener('keydown', (e) => {
+            this.keys[e.key] = true;
+            this.keys[e.code] = true;
+
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            this.keys[e.key] = false;
+            this.keys[e.code] = false;
+        });
+
+        console.log('✅ FallbackInputHandler initialized');
+    }
+
+    isKeyPressed(key) {
+        return this.keys[key] === true;
+    }
+
+    getKeys() {
+        return this.keys;
+    }
+
+    update() {}
+
+    isActionActive(action) {
+        const actionMap = {
+            moveUp: ['ArrowUp', 'KeyW'],
+            moveDown: ['ArrowDown', 'KeyS'],
+            moveLeft: ['ArrowLeft', 'KeyA'],
+            moveRight: ['ArrowRight', 'KeyD'],
+            fire: ['Space', 'KeyZ'],
+            bomb: ['KeyX'],
+            pause: ['Escape', 'KeyP']
+        };
+
+        const keys = actionMap[action] || [];
+        return keys.some(k => this.keys[k]);
+    }
+
+    isActionPressed(action) {
+        return this.isActionActive(action);
+    }
+
+    getMovement() {
+        let dx = 0, dy = 0;
+        if (this.isActionActive('moveLeft')) dx -= 1;
+        if (this.isActionActive('moveRight')) dx += 1;
+        if (this.isActionActive('moveUp')) dy -= 1;
+        if (this.isActionActive('moveDown')) dy += 1;
+        return { x: dx, y: dy };
+    }
+}
+
+class FallbackSoundSystem {
+    constructor() {
+        this.initialized = true;
+        console.log('✅ FallbackSoundSystem initialized (silent mode)');
+    }
+
+    init() { return Promise.resolve(); }
+    play() {}
+    playShoot() {}
+    playExplosion() {}
+    playPowerUp() {}
+    playHit() {}
+    playBomb() {}
+    playGameOver() {}
+    playMusic() {}
+    stopMusic() {}
+    pauseMusic() {}
+    resumeMusic() {}
+    loadMusic() { return Promise.resolve(); }
+}
+
+class FallbackStarfield {
+    constructor(canvas) {
+        this.stars = [];
+        this.width = canvas?.width || 800;
+        this.height = canvas?.height || 600;
+
+        for (let i = 0; i < 100; i++) {
+            this.stars.push({
+                x: Math.random() * this.width,
+                y: Math.random() * this.height,
+                speed: 0.5 + Math.random() * 2,
+                size: Math.random() * 2
+            });
+        }
+    }
+
+    update(deltaTime = 1) {
+        for (const star of this.stars) {
+            star.y += star.speed * deltaTime;
+            if (star.y > this.height) {
+                star.y = 0;
+                star.x = Math.random() * this.width;
+            }
+        }
+    }
+
+    draw(ctx) {
+        ctx.fillStyle = '#ffffff';
+        for (const star of this.stars) {
+            ctx.globalAlpha = 0.3 + star.speed * 0.2;
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+}
+
+class FallbackHUD {
+    constructor() {
+        this.currentThemeId = 'neoArcade';
+        this.width = 800;
+        this.height = 600;
+    }
+
+    getThemeId() {
+        return this.currentThemeId;
+    }
+
+    setTheme(themeId) {
+        this.currentThemeId = themeId;
+    }
+
+    resize(width, height) {
+        this.width = width;
+        this.height = height;
+    }
+
+    update(gameState, deltaTime) {}
+
+    draw(ctx, gameState) {
+        if (!gameState) return;
+
+        ctx.save();
+        ctx.font = 'bold 20px Courier New';
+        ctx.shadowBlur = 10;
+
+        // Score
+        ctx.fillStyle = '#00ffff';
+        ctx.shadowColor = '#00ffff';
+        ctx.textAlign = 'left';
+        ctx.fillText(`SCORE: ${(gameState.score || 0).toLocaleString()}`, 20, 30);
+
+        // Lives
+        ctx.fillStyle = '#ff0066';
+        ctx.shadowColor = '#ff0066';
+        ctx.fillText(`LIVES: ${gameState.lives || 0}`, 20, 55);
+
+        // Wave
+        ctx.fillStyle = '#ffff00';
+        ctx.shadowColor = '#ffff00';
+        ctx.textAlign = 'right';
+        ctx.fillText(`WAVE: ${gameState.wave || 1}`, this.width - 20, 30);
+
+        // Bombs
+        ctx.fillStyle = '#ff8800';
+        ctx.shadowColor = '#ff8800';
+        ctx.fillText(`BOMBS: ${gameState.bombs || 0}`, this.width - 20, 55);
+
+        ctx.shadowBlur = 0;
+        ctx.restore();
+    }
+}
+
+// ============================================
+// SAFE INITIALIZATION HELPER
+// ============================================
+
+function safeInit(name, initFn, fallbackFn) {
+    try {
+        const result = initFn();
+        console.log(`✅ ${name} initialized`);
+        return result;
+    } catch (error) {
+        console.warn(`⚠️ ${name} failed:`, error.message);
+        if (fallbackFn) {
+            const fallback = fallbackFn();
+            console.log(`   ↳ Using fallback for ${name}`);
+            return fallback;
+        }
+        return null;
+    }
+}
 
 // Game instances
 let canvasElement = null;
@@ -61,7 +596,7 @@ let weaponManager = null;
  * Initialize the game
  */
 function init() {
-    console.log('🚀 Initializing Geometry 3044...');
+    console.log('🚀 Initializing Geometry 3044 (Bulletproof)...');
 
     // Get canvas element
     canvasElement = document.getElementById('gameCanvas');
@@ -84,8 +619,11 @@ function init() {
 
     console.log('✅ Canvas initialized:', CONFIG.screen.width, 'x', CONFIG.screen.height);
 
-    // Initialize sound system
-    soundSystem = new SoundSystem();
+    // Initialize sound system with fallback
+    soundSystem = safeInit('SoundSystem',
+        () => new SoundSystem(),
+        () => new FallbackSoundSystem()
+    );
     setSoundSystem(soundSystem);
 
     // Initialize menu manager
@@ -98,7 +636,10 @@ function init() {
     };
 
     // Initialize starfield for menu background
-    starfield = new Starfield();
+    starfield = safeInit('Starfield',
+        () => new Starfield(),
+        () => new FallbackStarfield(canvasElement)
+    );
     setStarfield(starfield);
 
     // Draw menu background
@@ -173,10 +714,12 @@ function drawMenuBackground() {
 }
 
 /**
- * Start the game
+ * Start the game — BULLETPROOF VERSION
  */
 function startGame() {
-    console.log('🎮 [1] startGame() called');
+    console.log('');
+    console.log('🎮 ========== STARTING GEOMETRY 3044 (BULLETPROOF) ==========');
+    console.log('');
 
     // Guard against multiple startGame calls
     if (gameStarting) {
@@ -184,181 +727,506 @@ function startGame() {
         return;
     }
     setGameStarting(true);
-    console.log('🎮 [1b] gameStarting guard set');
 
     try {
-        // Initialize sound system if not already done
-        console.log('🎮 [2] Checking sound system...');
+        // ==================
+        // STEP 1: Sound System
+        // ==================
+        console.log('Step 1: Checking sound system...');
         if (soundSystem && !soundSystem.initialized) {
-            soundSystem.init();
+            try {
+                soundSystem.init();
+            } catch (e) {
+                console.warn('⚠️ Sound init failed:', e.message);
+            }
         }
 
-        // Play menu select sound
         if (soundSystem) {
-            soundSystem.play('menuSelect');
+            try {
+                soundSystem.play('menuSelect');
+            } catch (e) {
+                // Ignore sound errors
+            }
         }
 
-        // Check credits
-        console.log('🎮 [3] Checking credits...');
-        console.log('  - menuManager:', menuManager ? '✅' : '❌');
+        // ==================
+        // STEP 2: Credits
+        // ==================
+        console.log('Step 2: Checking credits...');
         if (!menuManager.useCredit()) {
             console.log('❌ No credits available!');
-            setGameStarting(false); // Reset guard on failure
+            setGameStarting(false);
             return;
         }
-        console.log('🎮 [4] Credit used successfully');
+        console.log('✅ Credit used successfully');
 
-        // Create game state
-        console.log('🎮 [5] Creating GameState...');
-        gameStateInstance = new GameState();
+        // ==================
+        // STEP 3: Game State
+        // ==================
+        console.log('Step 3: Creating GameState...');
+        gameStateInstance = safeInit('GameState',
+            () => new GameState(),
+            () => ({
+                score: 0,
+                lives: 3,
+                bombs: 3,
+                wave: 1,
+                combo: 0,
+                comboTimer: 0,
+                multiplier: 1,
+                highScore: parseInt(localStorage.getItem('geometry3044_highscore')) || 0,
+                gameRunning: false,
+                paused: false,
+                playerInvulnerable: false,
+                invulnerabilityTimer: 0,
+                player: null,
+                enemies: [],
+                activePowerUps: [],
+                addScore: function(points) { this.score += points * this.multiplier; },
+                incrementCombo: function() {
+                    this.combo++;
+                    this.comboTimer = 120;
+                    this.multiplier = 1 + Math.floor(this.combo / 5);
+                }
+            })
+        );
         setGameState(gameStateInstance);
-        console.log('  - gameState created:', gameStateInstance ? '✅' : '❌');
 
-        // Create player
-        console.log('🎮 [6] Creating Player...');
-        console.log('  - canvas width:', canvasElement?.width);
-        console.log('  - canvas height:', canvasElement?.height);
-        console.log('  - startYOffset:', CONFIG.player.startYOffset);
-        const player = new Player(
-            canvasElement.width / 2,
-            canvasElement.height - CONFIG.player.startYOffset
+        // ==================
+        // STEP 4: Player
+        // ==================
+        console.log('Step 4: Creating Player...');
+        const playerX = canvasElement.width / 2;
+        const playerY = canvasElement.height - (CONFIG.player?.startYOffset || 100);
+
+        const player = safeInit('Player',
+            () => new Player(playerX, playerY),
+            () => new FallbackPlayer(playerX, playerY)
         );
         gameStateInstance.player = player;
-        console.log('  - player created:', player ? '✅' : '❌');
-        console.log('  - player position:', player?.x, player?.y);
 
-        // Initialize systems
-        console.log('🎮 [7] Initializing systems...');
+        // ==================
+        // STEP 5: Core Systems
+        // ==================
+        console.log('Step 5: Initializing core systems...');
+        console.log('');
 
-        particleSystem = new ParticleSystem();
+        // Particle System
+        particleSystem = safeInit('ParticleSystem',
+            () => new ParticleSystem(),
+            () => new FallbackParticleSystem()
+        );
         setParticleSystem(particleSystem);
-        console.log('  - ParticleSystem:', particleSystem ? '✅' : '❌');
 
-        bulletPool = new BulletPool(CONFIG.bullets.poolSize);
+        // Bullet Pool (player)
+        bulletPool = safeInit('BulletPool',
+            () => new BulletPool(CONFIG.bullets?.poolSize || 100),
+            () => new FallbackBulletPool()
+        );
         setBulletPool(bulletPool);
-        console.log('  - BulletPool:', bulletPool ? '✅' : '❌');
 
-        enemyBulletPool = new BulletPool(CONFIG.bullets.poolSize);
+        // Bullet Pool (enemies)
+        enemyBulletPool = safeInit('EnemyBulletPool',
+            () => new BulletPool(CONFIG.bullets?.poolSize || 100),
+            () => new FallbackBulletPool()
+        );
         setEnemyBulletPool(enemyBulletPool);
-        console.log('  - EnemyBulletPool:', enemyBulletPool ? '✅' : '❌');
 
-        // Initialize input handler with canvas
-        console.log('🎮 [8] Initializing InputHandler...');
-        inputHandler = new InputHandler(canvasElement);
-        // Note: init() is already called in constructor
-        console.log('  - InputHandler:', inputHandler ? '✅' : '❌');
+        // Input Handler
+        inputHandler = safeInit('InputHandler',
+            () => new InputHandler(canvasElement),
+            () => new FallbackInputHandler()
+        );
 
-        // Initialize collision system
-        console.log('🎮 [9] Initializing CollisionSystem...');
-        collisionSystem = new CollisionSystem({
-            gameState: gameStateInstance,
-            particleSystem: particleSystem,
-            soundSystem: soundSystem,
-            onEnemyDestroyed: (enemy, bullet) => {
-                gameStateInstance.addScore(enemy.points || 100);
-                gameStateInstance.incrementCombo();
-            },
-            onPlayerHit: () => {
-                if (!gameStateInstance.playerInvulnerable) {
-                    playerDeath();
+        // Collision System
+        collisionSystem = safeInit('CollisionSystem',
+            () => new CollisionSystem({
+                gameState: gameStateInstance,
+                particleSystem: particleSystem,
+                soundSystem: soundSystem,
+                onEnemyDestroyed: (enemy, bullet) => {
+                    gameStateInstance.addScore(enemy.points || 100);
+                    gameStateInstance.incrementCombo();
+                },
+                onPlayerHit: () => {
+                    if (!gameStateInstance.playerInvulnerable) {
+                        playerDeath();
+                    }
                 }
-            }
-        });
-        console.log('  - CollisionSystem:', collisionSystem ? '✅' : '❌');
+            }),
+            () => null // Manual collision check in fallback mode
+        );
 
-        // Initialize wave manager
-        console.log('🎮 [10] Initializing WaveManager...');
-        waveManager = new WaveManager({
-            gameState: gameStateInstance,
-            canvas: canvasElement,
-            onWaveComplete: (waveNum) => {
-                console.log(`🌊 Wave ${waveNum} complete!`);
-                if (soundSystem) soundSystem.play('waveComplete');
-            }
-        });
+        // Wave Manager
+        waveManager = safeInit('WaveManager',
+            () => new WaveManager({
+                gameState: gameStateInstance,
+                canvas: canvasElement,
+                onWaveComplete: (waveNum) => {
+                    console.log(`🌊 Wave ${waveNum} complete!`);
+                    if (soundSystem) {
+                        try { soundSystem.play('waveComplete'); } catch (e) {}
+                    }
+                }
+            }),
+            () => new FallbackWaveManager()
+        );
         setWaveManager(waveManager);
-        console.log('  - WaveManager:', waveManager ? '✅' : '❌');
 
-        // Initialize VHS glitch effect
-        console.log('🎮 [11] Initializing VHSGlitch...');
-        vhsGlitch = new VHSGlitchEffects();
+        // VHS Glitch Effect
+        vhsGlitch = safeInit('VHSGlitch',
+            () => new VHSGlitchEffects(),
+            () => null
+        );
         setVhsGlitch(vhsGlitch);
-        console.log('  - VHSGlitch:', vhsGlitch ? '✅' : '❌');
 
-        // Initialize HUD
-        console.log('🎮 [12] Initializing HUD...');
-        hud = new HUD();
-        hud.resize(canvasElement.width, canvasElement.height);
-        console.log('  - HUD:', hud ? '✅' : '❌');
+        // HUD
+        hud = safeInit('HUD',
+            () => {
+                const h = new HUD();
+                h.resize(canvasElement.width, canvasElement.height);
+                return h;
+            },
+            () => new FallbackHUD()
+        );
 
-        // Initialize options menu
-        console.log('🎮 [13] Initializing OptionsMenu...');
-        optionsMenu = new OptionsMenu(hud, () => {
-            gameStateInstance.paused = false;
-        });
-        console.log('  - OptionsMenu:', optionsMenu ? '✅' : '❌');
+        // Options Menu — with safe HUD access
+        optionsMenu = safeInit('OptionsMenu',
+            () => {
+                if (!hud || typeof hud.getThemeId !== 'function') {
+                    throw new Error('HUD not available or missing getThemeId');
+                }
+                return new OptionsMenu(hud, () => {
+                    gameStateInstance.paused = false;
+                });
+            },
+            () => null
+        );
 
-        // Initialize weapon manager
-        console.log('🎮 [14] Initializing WeaponManager...');
-        weaponManager = new WeaponManager({
-            gameState: gameStateInstance,
-            bulletPool: bulletPool,
-            particleSystem: particleSystem,
-            soundSystem: soundSystem
-        });
+        // Weapon Manager
+        weaponManager = safeInit('WeaponManager',
+            () => new WeaponManager({
+                gameState: gameStateInstance,
+                bulletPool: bulletPool,
+                particleSystem: particleSystem,
+                soundSystem: soundSystem
+            }),
+            () => null
+        );
         setWeaponManager(weaponManager);
-        console.log('  - WeaponManager:', weaponManager ? '✅' : '❌');
 
-        // Create game loop
-        console.log('🎮 [15] Creating GameLoop...');
-        gameLoop = new GameLoop({
-            canvas: canvasElement,
-            ctx: context,
-            gameState: gameStateInstance,
-            inputHandler: inputHandler,
-            collisionSystem: collisionSystem,
-            particleSystem: particleSystem,
-            bulletPool: bulletPool,
-            waveManager: waveManager,
-            soundSystem: soundSystem,
-            starfield: starfield,
-            vhsGlitch: vhsGlitch,
-            hud: hud,
-            optionsMenu: optionsMenu,
-            weaponManager: weaponManager,
-            renderCRT: (ctx) => drawEnhancedCRT(ctx, canvasElement.width, canvasElement.height)
-        });
-        console.log('  - GameLoop:', gameLoop ? '✅' : '❌');
+        console.log('');
 
-        // Set game as running
-        console.log('🎮 [16] Setting game as running...');
+        // ==================
+        // STEP 6: Game Loop
+        // ==================
+        console.log('Step 6: Creating GameLoop...');
+        gameLoop = safeInit('GameLoop',
+            () => new GameLoop({
+                canvas: canvasElement,
+                ctx: context,
+                gameState: gameStateInstance,
+                inputHandler: inputHandler,
+                collisionSystem: collisionSystem,
+                particleSystem: particleSystem,
+                bulletPool: bulletPool,
+                waveManager: waveManager,
+                soundSystem: soundSystem,
+                starfield: starfield,
+                vhsGlitch: vhsGlitch,
+                hud: hud,
+                optionsMenu: optionsMenu,
+                weaponManager: weaponManager,
+                renderCRT: (ctx) => drawEnhancedCRT(ctx, canvasElement.width, canvasElement.height)
+            }),
+            () => null // Use fallback game loop
+        );
+
+        // ==================
+        // STEP 7: Start Game
+        // ==================
+        console.log('Step 7: Starting game...');
         gameStateInstance.gameRunning = true;
 
         // Switch to game UI
-        console.log('🎮 [17] Switching to game UI...');
         menuManager.showGameUI();
 
-        // Start the game loop
-        console.log('🎮 [18] Starting game loop...');
-        gameLoop.start();
+        // Start game loop
+        if (gameLoop && gameLoop.start) {
+            gameLoop.start();
+            console.log('✅ GameLoop started');
+        } else {
+            console.log('⚠️ Using fallback game loop');
+            requestAnimationFrame(fallbackGameLoop);
+        }
 
         // Load and play game music
-        console.log('🎮 [19] Loading music...');
         loadAndPlayMusic('game');
 
-        console.log('🎮 [20] ✅ Game started successfully!');
-        console.log('='.repeat(50));
-        console.log('DEBUG INFO:');
-        console.log('  - gameState.gameRunning:', gameStateInstance.gameRunning);
-        console.log('  - gameLoop.isRunning():', gameLoop.isRunning());
-        console.log('  - player exists:', !!gameStateInstance.player);
-        console.log('='.repeat(50));
+        console.log('');
+        console.log('🎮 ========== GAME STARTED SUCCESSFULLY! ==========');
+        console.log('');
 
     } catch (error) {
-        console.error('🎮 [ERROR] Game failed to start:', error);
+        console.error('🎮 [CRITICAL ERROR] Game failed to start:', error);
         console.error('Stack trace:', error.stack);
-        setGameStarting(false); // Reset guard on error
+        setGameStarting(false);
+
+        // Try to show error to user
+        try {
+            alert('Game failed to start: ' + error.message + '\nPlease refresh the page.');
+        } catch (e) {}
     }
+}
+
+/**
+ * Fallback game loop — used if GameLoop class fails
+ */
+let lastTime = 0;
+function fallbackGameLoop(currentTime) {
+    if (!gameStateInstance || !gameStateInstance.gameRunning) {
+        console.log('Fallback game loop stopped');
+        return;
+    }
+
+    const deltaTime = Math.min((currentTime - lastTime) / 16.67, 3);
+    lastTime = currentTime;
+
+    requestAnimationFrame(fallbackGameLoop);
+
+    // Paused?
+    if (gameStateInstance.paused) {
+        drawPauseScreen();
+        return;
+    }
+
+    // Update
+    try {
+        fallbackUpdate(deltaTime);
+    } catch (e) {
+        console.error('Fallback update error:', e);
+    }
+
+    // Render
+    try {
+        fallbackRender();
+    } catch (e) {
+        console.error('Fallback render error:', e);
+    }
+}
+
+function fallbackUpdate(deltaTime) {
+    // Handle pause
+    if (inputHandler) {
+        if (inputHandler.isActionPressed?.('pause') ||
+            inputHandler.keys?.['Escape'] ||
+            inputHandler.keys?.['KeyP']) {
+            if (!window._pauseHeld) {
+                gameStateInstance.paused = !gameStateInstance.paused;
+                window._pauseHeld = true;
+            }
+        } else {
+            window._pauseHeld = false;
+        }
+    }
+
+    if (gameStateInstance.paused) return;
+
+    // Update starfield
+    if (starfield?.update) starfield.update(deltaTime);
+
+    // Update player
+    if (gameStateInstance.player?.update) {
+        gameStateInstance.player.update(deltaTime, inputHandler, canvasElement, bulletPool);
+    }
+
+    // Update bullets
+    if (bulletPool?.update) bulletPool.update(canvasElement, deltaTime);
+    if (enemyBulletPool?.update) enemyBulletPool.update(canvasElement, deltaTime);
+
+    // Update wave manager (spawns enemies)
+    if (waveManager?.update) {
+        waveManager.update(canvasElement, deltaTime);
+    }
+
+    // Update particles
+    if (particleSystem?.update) particleSystem.update(deltaTime);
+
+    // Collision detection (fallback)
+    fallbackCollisionCheck();
+
+    // Combo decay
+    if (gameStateInstance.comboTimer > 0) {
+        gameStateInstance.comboTimer -= deltaTime;
+        if (gameStateInstance.comboTimer <= 0) {
+            gameStateInstance.combo = 0;
+            gameStateInstance.multiplier = 1;
+        }
+    }
+
+    // Check player death
+    if (gameStateInstance.player && !gameStateInstance.player.isAlive) {
+        playerDeath();
+    }
+
+    // Check wave complete
+    if (waveManager?.isWaveComplete?.()) {
+        gameStateInstance.wave++;
+        if (waveManager.startWave) {
+            waveManager.startWave(gameStateInstance.wave);
+        }
+    }
+
+    // Update HUD
+    if (hud?.update) {
+        hud.update(gameStateInstance, deltaTime);
+    }
+}
+
+function fallbackCollisionCheck() {
+    const player = gameStateInstance.player;
+    if (!player || !player.isAlive) return;
+
+    // Get enemies
+    const enemies = waveManager?.enemies || waveManager?.getEnemies?.() || gameStateInstance.enemies || [];
+
+    // Get bullets
+    const playerBullets = bulletPool?.getPlayerBullets?.() ||
+                          bulletPool?.getActiveBullets?.()?.filter(b => b.isPlayer) || [];
+    const enemyBullets = enemyBulletPool?.getActiveBullets?.() ||
+                         enemyBulletPool?.getEnemyBullets?.() || [];
+
+    // Player bullets vs enemies
+    for (const bullet of playerBullets) {
+        if (!bullet.active) continue;
+
+        for (const enemy of enemies) {
+            if (!enemy.active) continue;
+
+            const dist = Math.hypot(bullet.x - enemy.x, bullet.y - enemy.y);
+            if (dist < (bullet.size || 5) + (enemy.size || 20)) {
+                bullet.active = false;
+                const killed = enemy.takeDamage?.(bullet.damage || 10);
+
+                if (killed || !enemy.active) {
+                    gameStateInstance.addScore(enemy.points || 100);
+                    gameStateInstance.incrementCombo();
+
+                    if (particleSystem?.createExplosion) {
+                        particleSystem.createExplosion(enemy.x, enemy.y, '#ff6600', 15);
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    // Enemy bullets vs player
+    if (!player.invulnerable) {
+        for (const bullet of enemyBullets) {
+            if (!bullet.active) continue;
+
+            const dist = Math.hypot(bullet.x - player.x, bullet.y - player.y);
+            if (dist < (bullet.size || 5) + (player.size || 20) * 0.5) {
+                bullet.active = false;
+                player.takeDamage?.(1);
+                break;
+            }
+        }
+    }
+
+    // Enemies vs player collision
+    if (!player.invulnerable) {
+        for (const enemy of enemies) {
+            if (!enemy.active) continue;
+
+            const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+            if (dist < (enemy.size || 20) + (player.size || 20) * 0.5) {
+                enemy.active = false;
+                player.takeDamage?.(1);
+
+                if (particleSystem?.createExplosion) {
+                    particleSystem.createExplosion(enemy.x, enemy.y, '#ff00ff', 25);
+                }
+                break;
+            }
+        }
+    }
+}
+
+function fallbackRender() {
+    // Clear
+    context.fillStyle = '#0a0015';
+    context.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+    // Draw starfield
+    if (starfield?.draw) starfield.draw(context);
+
+    // Draw grid
+    drawGrid();
+
+    // Draw particles
+    if (particleSystem?.draw) particleSystem.draw(context);
+
+    // Draw bullets
+    if (bulletPool?.draw) bulletPool.draw(context);
+    if (enemyBulletPool?.draw) enemyBulletPool.draw(context);
+
+    // Draw enemies
+    const enemies = waveManager?.enemies || waveManager?.getEnemies?.() || gameStateInstance.enemies || [];
+    for (const enemy of enemies) {
+        if (enemy.draw) enemy.draw(context);
+    }
+
+    // Draw player
+    if (gameStateInstance.player?.draw) {
+        gameStateInstance.player.draw(context);
+    }
+
+    // Draw HUD
+    if (hud?.draw) {
+        hud.draw(context, gameStateInstance);
+    }
+}
+
+function drawGrid() {
+    context.strokeStyle = 'rgba(0, 255, 255, 0.1)';
+    context.lineWidth = 1;
+
+    const spacing = 50;
+
+    for (let x = 0; x < canvasElement.width; x += spacing) {
+        context.beginPath();
+        context.moveTo(x, 0);
+        context.lineTo(x, canvasElement.height);
+        context.stroke();
+    }
+
+    for (let y = 0; y < canvasElement.height; y += spacing) {
+        context.beginPath();
+        context.moveTo(0, y);
+        context.lineTo(canvasElement.width, y);
+        context.stroke();
+    }
+}
+
+function drawPauseScreen() {
+    fallbackRender();
+
+    context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    context.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+    context.fillStyle = '#00ffff';
+    context.font = 'bold 48px Courier New';
+    context.textAlign = 'center';
+    context.shadowBlur = 20;
+    context.shadowColor = '#00ffff';
+    context.fillText('PAUSED', canvasElement.width / 2, canvasElement.height / 2);
+
+    context.font = '20px Courier New';
+    context.fillStyle = '#ffffff';
+    context.shadowBlur = 0;
+    context.fillText('Press P or ESC to continue', canvasElement.width / 2, canvasElement.height / 2 + 50);
 }
 
 /**
@@ -369,10 +1237,10 @@ function playerDeath() {
 
     gameStateInstance.lives--;
     gameStateInstance.playerInvulnerable = true;
-    gameStateInstance.invulnerabilityTimer = 180; // 3 seconds at 60fps
+    gameStateInstance.invulnerabilityTimer = 180;
 
     if (soundSystem) {
-        soundSystem.play('playerDeath');
+        try { soundSystem.play('playerDeath'); } catch (e) {}
     }
 
     // Create explosion effect
@@ -390,12 +1258,18 @@ function playerDeath() {
         gameOver();
     } else {
         // Respawn player
-        setTimeout(() => {
-            if (gameStateInstance && gameStateInstance.player) {
-                gameStateInstance.player.x = canvasElement.width / 2;
-                gameStateInstance.player.y = canvasElement.height - CONFIG.player.startYOffset;
-            }
-        }, 1000);
+        if (gameStateInstance.player?.respawn) {
+            gameStateInstance.player.respawn(
+                canvasElement.width / 2,
+                canvasElement.height - (CONFIG.player?.startYOffset || 100)
+            );
+        } else {
+            gameStateInstance.player.x = canvasElement.width / 2;
+            gameStateInstance.player.y = canvasElement.height - (CONFIG.player?.startYOffset || 100);
+            gameStateInstance.player.isAlive = true;
+            gameStateInstance.player.invulnerable = true;
+            gameStateInstance.player.invulnerableTimer = 180;
+        }
     }
 }
 
@@ -429,8 +1303,10 @@ function gameOver() {
     }
 
     if (soundSystem) {
-        soundSystem.play('explosionLarge');
-        soundSystem.stopMusic();
+        try {
+            soundSystem.play('explosionLarge');
+            soundSystem.stopMusic();
+        } catch (e) {}
     }
 
     // Show game over screen
@@ -467,28 +1343,36 @@ async function loadAndPlayMusic(type) {
 
     // Initialize sound system if needed
     if (!soundSystem.initialized) {
-        await soundSystem.init();
+        try {
+            await soundSystem.init();
+        } catch (e) {
+            console.warn('Sound system init failed:', e);
+            return;
+        }
     }
 
     try {
         const url = type === 'menu'
-            ? CONFIG.audio.urls.menuMusic
-            : CONFIG.audio.urls.gameMusic;
+            ? CONFIG.audio?.urls?.menuMusic
+            : CONFIG.audio?.urls?.gameMusic;
 
-        // Try to load and play music
-        await soundSystem.loadMusic(type, url);
-        soundSystem.playMusic(type, true);
+        if (url) {
+            await soundSystem.loadMusic(type, url);
+            soundSystem.playMusic(type, true);
+        }
     } catch (error) {
         console.warn(`Could not load ${type} music:`, error);
 
         // Try fallback
         try {
             const fallbackUrl = type === 'menu'
-                ? CONFIG.audio.urls.fallbackMenuMusic
-                : CONFIG.audio.urls.fallbackGameMusic;
+                ? CONFIG.audio?.urls?.fallbackMenuMusic
+                : CONFIG.audio?.urls?.fallbackGameMusic;
 
-            await soundSystem.loadMusic(type, fallbackUrl);
-            soundSystem.playMusic(type, true);
+            if (fallbackUrl) {
+                await soundSystem.loadMusic(type, fallbackUrl);
+                soundSystem.playMusic(type, true);
+            }
         } catch (fallbackError) {
             console.warn(`Fallback music also failed:`, fallbackError);
         }
@@ -509,7 +1393,7 @@ if (document.readyState === 'loading') {
 window.diagnoseGame = function() {
     console.log('');
     console.log('='.repeat(50));
-    console.log('=== GAME DIAGNOSTICS ===');
+    console.log('=== GAME DIAGNOSTICS (BULLETPROOF) ===');
     console.log('='.repeat(50));
     console.log('');
 
@@ -521,89 +1405,20 @@ window.diagnoseGame = function() {
         console.log('  - Width:', canvasEl.width);
         console.log('  - Height:', canvasEl.height);
         console.log('  - Display style:', getComputedStyle(canvasEl).display);
-        console.log('  - Visibility:', getComputedStyle(canvasEl).visibility);
     }
 
-    // Menu
-    const menu = document.getElementById('menuScreen');
+    // Systems status
     console.log('');
-    console.log('📋 MENU SCREEN:');
-    console.log('  - Element found:', menu ? '✅' : '❌');
-    if (menu) {
-        console.log('  - Display:', menu.style.display || getComputedStyle(menu).display);
-    }
-
-    // Game UI
-    const gameUI = document.getElementById('gameUI');
-    console.log('');
-    console.log('🎮 GAME UI:');
-    console.log('  - Element found:', gameUI ? '✅' : '❌');
-    if (gameUI) {
-        console.log('  - Display:', gameUI.style.display || getComputedStyle(gameUI).display);
-    }
-
-    // Start button
-    const startBtn = document.getElementById('startGameBtn');
-    console.log('');
-    console.log('🔘 START BUTTON:');
-    console.log('  - Element found:', startBtn ? '✅' : '❌');
-    if (startBtn) {
-        console.log('  - Disabled:', startBtn.disabled);
-        console.log('  - Text:', startBtn.textContent);
-    }
-
-    // Global functions
-    console.log('');
-    console.log('🔧 GLOBAL FUNCTIONS:');
-    console.log('  - window.startGame:', typeof window.startGame);
-    console.log('  - window.diagnoseGame:', typeof window.diagnoseGame);
-
-    // Credits info
-    console.log('');
-    console.log('💰 CREDITS & MENU:');
+    console.log('📊 SYSTEMS STATUS:');
     console.log('  - menuManager:', menuManager ? '✅' : '❌');
-    if (menuManager) {
-        console.log('  - Current state:', menuManager.getState());
-    }
-    // Check credits display
-    const creditsDisplay = document.getElementById('creditsCount');
-    if (creditsDisplay) {
-        console.log('  - Credits shown:', creditsDisplay.textContent);
-    }
-
-    // Local variables
-    console.log('');
-    console.log('📊 LOCAL STATE:');
-    console.log('  - canvasElement:', canvasElement ? '✅' : '❌');
-    console.log('  - context:', context ? '✅' : '❌');
-    console.log('  - menuManager:', menuManager ? '✅' : '❌');
-    console.log('  - soundSystem:', soundSystem ? '✅' : '❌');
+    console.log('  - soundSystem:', soundSystem ? '✅' : '❌', soundSystem?.constructor?.name);
     console.log('  - gameStateInstance:', gameStateInstance ? '✅' : '❌');
+    console.log('  - inputHandler:', inputHandler ? '✅' : '❌', inputHandler?.constructor?.name);
+    console.log('  - particleSystem:', particleSystem ? '✅' : '❌', particleSystem?.constructor?.name);
+    console.log('  - bulletPool:', bulletPool ? '✅' : '❌', bulletPool?.constructor?.name);
+    console.log('  - waveManager:', waveManager ? '✅' : '❌', waveManager?.constructor?.name);
+    console.log('  - hud:', hud ? '✅' : '❌', hud?.constructor?.name);
     console.log('  - gameLoop:', gameLoop ? '✅' : '❌');
-    console.log('  - starfield:', starfield ? '✅' : '❌');
-
-    // Classes
-    console.log('');
-    console.log('📦 CLASSES AVAILABLE:');
-    console.log('  - Player:', typeof Player);
-    console.log('  - Enemy:', typeof Enemy);
-    console.log('  - Bullet:', typeof Bullet);
-    console.log('  - BulletPool:', typeof BulletPool);
-    console.log('  - ParticleSystem:', typeof ParticleSystem);
-    console.log('  - WaveManager:', typeof WaveManager);
-    console.log('  - GameState:', typeof GameState);
-    console.log('  - GameLoop:', typeof GameLoop);
-    console.log('  - InputHandler:', typeof InputHandler);
-    console.log('  - CollisionSystem:', typeof CollisionSystem);
-    console.log('  - HUD:', typeof HUD);
-    console.log('  - MenuManager:', typeof MenuManager);
-
-    // Check for errors in cachedUI
-    console.log('');
-    console.log('🔗 CACHED UI ELEMENTS:');
-    Object.entries(cachedUI).forEach(([key, value]) => {
-        console.log(`  - ${key}:`, value ? '✅' : '❌');
-    });
 
     console.log('');
     console.log('='.repeat(50));
@@ -613,15 +1428,15 @@ window.diagnoseGame = function() {
 
     return {
         canvas: !!canvasEl,
-        menu: !!menu,
-        gameUI: !!gameUI,
-        startBtn: !!startBtn,
         menuManager: !!menuManager,
-        ready: !!canvasEl && !!menu && !!startBtn && !!menuManager
+        soundSystem: !!soundSystem,
+        gameState: !!gameStateInstance,
+        inputHandler: !!inputHandler,
+        ready: !!canvasEl && !!menuManager
     };
 };
 
-// Quick test function - draws red screen to verify canvas works
+// Quick test function
 window.testCanvas = function() {
     const canvasEl = document.getElementById('gameCanvas');
     if (!canvasEl) {
@@ -657,6 +1472,8 @@ window.DEBUG = {
     getSoundSystem: () => soundSystem,
     getGameState: () => gameStateInstance,
     getGameLoop: () => gameLoop,
+    getInputHandler: () => inputHandler,
+    getHUD: () => hud,
     // Classes
     Player,
     Enemy,
@@ -676,6 +1493,15 @@ window.DEBUG = {
     HUD,
     OptionsMenu,
     WeaponManager,
+    // Fallback classes
+    FallbackPlayer,
+    FallbackBulletPool,
+    FallbackParticleSystem,
+    FallbackInputHandler,
+    FallbackSoundSystem,
+    FallbackStarfield,
+    FallbackHUD,
+    FallbackWaveManager,
     // HUD Themes
     HUD_THEMES,
     getTheme,

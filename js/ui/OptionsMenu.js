@@ -12,7 +12,10 @@ export class OptionsMenu {
         this.visible = false;
 
         this.themes = getAllThemes();
-        this.selectedIndex = this.themes.findIndex(t => t.id === hud.getThemeId());
+
+        // Safe theme ID access - handle missing HUD or missing getThemeId method
+        const currentThemeId = hud?.currentThemeId || hud?.getThemeId?.() || 'neoArcade';
+        this.selectedIndex = this.themes.findIndex(t => t.id === currentThemeId);
         if (this.selectedIndex < 0) this.selectedIndex = 0;
 
         this.options = [
@@ -94,8 +97,9 @@ export class OptionsMenu {
     show() {
         this.visible = true;
         this.openProgress = 0;
-        // Refresh selected theme index
-        this.selectedIndex = this.themes.findIndex(t => t.id === this.hud.getThemeId());
+        // Refresh selected theme index - safe access
+        const currentThemeId = this.hud?.currentThemeId || this.hud?.getThemeId?.() || 'neoArcade';
+        this.selectedIndex = this.themes.findIndex(t => t.id === currentThemeId);
         if (this.selectedIndex < 0) this.selectedIndex = 0;
     }
 
@@ -120,7 +124,9 @@ export class OptionsMenu {
     }
 
     applyTheme() {
-        this.hud.setTheme(this.themes[this.selectedIndex].id);
+        if (this.hud?.setTheme) {
+            this.hud.setTheme(this.themes[this.selectedIndex].id);
+        }
         this.previewTheme = null;
     }
 
