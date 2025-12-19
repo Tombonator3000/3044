@@ -87,34 +87,47 @@ export class InputHandler {
      * Initialize input event listeners
      */
     init() {
-        // Keyboard events
+        // Keyboard events - use window, works without canvas
         this._boundHandlers.keydown = this.handleKeyDown.bind(this);
         this._boundHandlers.keyup = this.handleKeyUp.bind(this);
         window.addEventListener('keydown', this._boundHandlers.keydown);
         window.addEventListener('keyup', this._boundHandlers.keyup);
 
-        // Mouse events
+        // Mouse events - require canvas, fallback to document
         this._boundHandlers.mousemove = this.handleMouseMove.bind(this);
         this._boundHandlers.mousedown = this.handleMouseDown.bind(this);
         this._boundHandlers.mouseup = this.handleMouseUp.bind(this);
-        this.canvas.addEventListener('mousemove', this._boundHandlers.mousemove);
-        this.canvas.addEventListener('mousedown', this._boundHandlers.mousedown);
-        this.canvas.addEventListener('mouseup', this._boundHandlers.mouseup);
 
-        // Touch events
+        if (this.canvas) {
+            this.canvas.addEventListener('mousemove', this._boundHandlers.mousemove);
+            this.canvas.addEventListener('mousedown', this._boundHandlers.mousedown);
+            this.canvas.addEventListener('mouseup', this._boundHandlers.mouseup);
+        } else {
+            console.warn('InputHandler: Canvas not provided, using document for mouse events');
+            document.addEventListener('mousemove', this._boundHandlers.mousemove);
+            document.addEventListener('mousedown', this._boundHandlers.mousedown);
+            document.addEventListener('mouseup', this._boundHandlers.mouseup);
+        }
+
+        // Touch events - require canvas
         this._boundHandlers.touchstart = this.handleTouchStart.bind(this);
         this._boundHandlers.touchmove = this.handleTouchMove.bind(this);
         this._boundHandlers.touchend = this.handleTouchEnd.bind(this);
-        this.canvas.addEventListener('touchstart', this._boundHandlers.touchstart, { passive: false });
-        this.canvas.addEventListener('touchmove', this._boundHandlers.touchmove, { passive: false });
-        this.canvas.addEventListener('touchend', this._boundHandlers.touchend, { passive: false });
 
-        // Prevent context menu on right-click
-        this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+        if (this.canvas) {
+            this.canvas.addEventListener('touchstart', this._boundHandlers.touchstart, { passive: false });
+            this.canvas.addEventListener('touchmove', this._boundHandlers.touchmove, { passive: false });
+            this.canvas.addEventListener('touchend', this._boundHandlers.touchend, { passive: false });
+
+            // Prevent context menu on right-click
+            this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
 
         // Handle window blur (release all keys)
         this._boundHandlers.blur = this.handleBlur.bind(this);
         window.addEventListener('blur', this._boundHandlers.blur);
+
+        console.log('✅ InputHandler initialized', this.canvas ? 'with canvas' : 'without canvas');
     }
 
     /**
@@ -125,13 +138,20 @@ export class InputHandler {
         window.removeEventListener('keyup', this._boundHandlers.keyup);
         window.removeEventListener('blur', this._boundHandlers.blur);
 
-        this.canvas.removeEventListener('mousemove', this._boundHandlers.mousemove);
-        this.canvas.removeEventListener('mousedown', this._boundHandlers.mousedown);
-        this.canvas.removeEventListener('mouseup', this._boundHandlers.mouseup);
+        if (this.canvas) {
+            this.canvas.removeEventListener('mousemove', this._boundHandlers.mousemove);
+            this.canvas.removeEventListener('mousedown', this._boundHandlers.mousedown);
+            this.canvas.removeEventListener('mouseup', this._boundHandlers.mouseup);
+            this.canvas.removeEventListener('touchstart', this._boundHandlers.touchstart);
+            this.canvas.removeEventListener('touchmove', this._boundHandlers.touchmove);
+            this.canvas.removeEventListener('touchend', this._boundHandlers.touchend);
+        } else {
+            document.removeEventListener('mousemove', this._boundHandlers.mousemove);
+            document.removeEventListener('mousedown', this._boundHandlers.mousedown);
+            document.removeEventListener('mouseup', this._boundHandlers.mouseup);
+        }
 
-        this.canvas.removeEventListener('touchstart', this._boundHandlers.touchstart);
-        this.canvas.removeEventListener('touchmove', this._boundHandlers.touchmove);
-        this.canvas.removeEventListener('touchend', this._boundHandlers.touchend);
+        console.log('InputHandler destroyed');
     }
 
     /**
@@ -182,9 +202,14 @@ export class InputHandler {
      * Handle mouse move
      */
     handleMouseMove(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        this.mouse.x = (e.clientX - rect.left) * (CONFIG.screen.width / rect.width);
-        this.mouse.y = (e.clientY - rect.top) * (CONFIG.screen.height / rect.height);
+        if (this.canvas) {
+            const rect = this.canvas.getBoundingClientRect();
+            this.mouse.x = (e.clientX - rect.left) * (CONFIG.screen.width / rect.width);
+            this.mouse.y = (e.clientY - rect.top) * (CONFIG.screen.height / rect.height);
+        } else {
+            this.mouse.x = e.clientX;
+            this.mouse.y = e.clientY;
+        }
     }
 
     /**
@@ -312,11 +337,14 @@ export class InputHandler {
      * Get touch position relative to canvas
      */
     getTouchPosition(touch) {
-        const rect = this.canvas.getBoundingClientRect();
-        return {
-            x: (touch.clientX - rect.left) * (CONFIG.screen.width / rect.width),
-            y: (touch.clientY - rect.top) * (CONFIG.screen.height / rect.height)
-        };
+        if (this.canvas) {
+            const rect = this.canvas.getBoundingClientRect();
+            return {
+                x: (touch.clientX - rect.left) * (CONFIG.screen.width / rect.width),
+                y: (touch.clientY - rect.top) * (CONFIG.screen.height / rect.height)
+            };
+        }
+        return { x: touch.clientX, y: touch.clientY };
     }
 
     /**
