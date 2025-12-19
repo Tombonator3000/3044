@@ -76,6 +76,9 @@ class Particle {
             case 'debris':
                 this.drawDebris(ctx, currentSize);
                 break;
+            case 'score':
+                this.drawScore(ctx, this.size);
+                break;
             default:
                 this.drawDefault(ctx, currentSize);
         }
@@ -90,6 +93,16 @@ class Particle {
         ctx.beginPath();
         ctx.arc(0, 0, size, 0, Math.PI * 2);
         ctx.fill();
+    }
+
+    drawScore(ctx, size) {
+        // Score popup text
+        ctx.font = `bold ${size}px "Courier New", monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = this.color;
+        ctx.fillText(this.text || '+100', 0, 0);
     }
 
     drawSpark(ctx, size) {
@@ -470,5 +483,237 @@ export class ParticleSystem {
             maxAllowed: this.maxParticles,
             utilizationPercent: Math.round((this.getActiveCount() / this.maxParticles) * 100)
         };
+    }
+
+    // ============================================
+    // ADDITIONAL METHODS FROM ORIGINAL (Phase 3)
+    // ============================================
+
+    /**
+     * Alias methods for compatibility with original API
+     */
+    addParticle(options) {
+        const particle = this.getParticle();
+        particle.reset(options.x || 0, options.y || 0, {
+            vx: options.vx || (Math.random() - 0.5) * 4,
+            vy: options.vy || (Math.random() - 0.5) * 4,
+            life: options.life || 30,
+            size: options.size || 3,
+            color: options.color || '#ffffff',
+            type: options.type || 'default',
+            gravity: options.gravity || 0,
+            friction: options.friction || 0.98,
+            rotationSpeed: options.rotationSpeed || 0
+        });
+    }
+
+    addExplosion(x, y, color = '#ff6600', count = 15, options = {}) {
+        const speed = options.speed || 6;
+        const life = options.life || 30;
+        const size = options.size || 4;
+
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+            const velocity = speed * (0.5 + Math.random() * 0.5);
+
+            this.addParticle({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * velocity,
+                vy: Math.sin(angle) * velocity,
+                life: life + Math.random() * 20,
+                size: size * (0.5 + Math.random() * 0.5),
+                color: color,
+                type: 'explosion',
+                gravity: 0.1,
+                friction: 0.96
+            });
+        }
+
+        // Add bright center flash
+        this.addParticle({
+            x: x,
+            y: y,
+            vx: 0,
+            vy: 0,
+            life: 10,
+            size: size * 3,
+            color: '#ffffff',
+            type: 'glow'
+        });
+    }
+
+    addSparkle(x, y, color = '#ffff00', count = 5) {
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 1 + Math.random() * 2;
+
+            this.addParticle({
+                x: x + (Math.random() - 0.5) * 20,
+                y: y + (Math.random() - 0.5) * 20,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 1,
+                life: 20 + Math.random() * 20,
+                size: 2 + Math.random() * 2,
+                color: color,
+                type: 'spark',
+                gravity: -0.05,
+                friction: 0.99
+            });
+        }
+    }
+
+    addTrail(x, y, color = '#00ffff', size = 3) {
+        this.addParticle({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 0.5,
+            vy: Math.random() * 0.5,
+            life: 15,
+            size: size,
+            color: color,
+            type: 'trail',
+            friction: 0.95
+        });
+    }
+
+    addPowerUpCollect(x, y, color = '#00ff00') {
+        // Ring of particles expanding outward
+        for (let i = 0; i < 12; i++) {
+            const angle = (Math.PI * 2 * i) / 12;
+            this.addParticle({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * 4,
+                vy: Math.sin(angle) * 4,
+                life: 30,
+                size: 5,
+                color: color,
+                type: 'glow',
+                friction: 0.92
+            });
+        }
+
+        // Rising sparkles
+        for (let i = 0; i < 8; i++) {
+            this.addParticle({
+                x: x + (Math.random() - 0.5) * 30,
+                y: y,
+                vx: (Math.random() - 0.5) * 2,
+                vy: -3 - Math.random() * 3,
+                life: 40,
+                size: 3,
+                color: '#ffffff',
+                type: 'spark',
+                gravity: -0.02
+            });
+        }
+    }
+
+    addChainLightning(x1, y1, x2, y2, color = '#00ffff') {
+        const segments = 8;
+        const dx = (x2 - x1) / segments;
+        const dy = (y2 - y1) / segments;
+
+        for (let i = 0; i < segments; i++) {
+            const offsetX = (Math.random() - 0.5) * 20;
+            const offsetY = (Math.random() - 0.5) * 20;
+
+            this.addParticle({
+                x: x1 + dx * i + offsetX,
+                y: y1 + dy * i + offsetY,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2,
+                life: 10,
+                size: 4,
+                color: color,
+                type: 'spark'
+            });
+        }
+    }
+
+    addScorePopup(x, y, score, color = '#ffff00') {
+        // Score popup particle with text property
+        const particle = this.getParticle();
+        particle.reset(x, y, {
+            vx: 0,
+            vy: -2,
+            life: 60,
+            size: 16,
+            color: color,
+            type: 'score'
+        });
+        particle.text = '+' + score.toLocaleString();
+        particle.maxLife = 60;
+    }
+
+    addShieldHit(x, y) {
+        for (let i = 0; i < 8; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            this.addParticle({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * 3,
+                vy: Math.sin(angle) * 3,
+                life: 20,
+                size: 4,
+                color: '#00ffff',
+                type: 'spark',
+                friction: 0.9
+            });
+        }
+    }
+
+    addFeverParticle(x, y, hue) {
+        this.addParticle({
+            x: x + (Math.random() - 0.5) * 60,
+            y: y + (Math.random() - 0.5) * 60,
+            vx: (Math.random() - 0.5) * 4,
+            vy: (Math.random() - 0.5) * 4,
+            life: 30 + Math.random() * 20,
+            size: 5 + Math.random() * 5,
+            color: `hsl(${hue}, 100%, 50%)`,
+            type: 'glow',
+            friction: 0.95
+        });
+    }
+
+    addBossExplosion(x, y) {
+        // Massive explosion for boss death
+        const colors = ['#ff0000', '#ff6600', '#ffff00', '#ffffff'];
+
+        for (let wave = 0; wave < 3; wave++) {
+            setTimeout(() => {
+                for (let i = 0; i < 30; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 4 + Math.random() * 8;
+                    const color = colors[Math.floor(Math.random() * colors.length)];
+
+                    this.addParticle({
+                        x: x + (Math.random() - 0.5) * 50,
+                        y: y + (Math.random() - 0.5) * 50,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: 50 + Math.random() * 30,
+                        size: 5 + Math.random() * 8,
+                        color: color,
+                        type: 'explosion',
+                        gravity: 0.05,
+                        friction: 0.97
+                    });
+                }
+            }, wave * 100);
+        }
+    }
+
+    /**
+     * Alias for createExplosion (backwards compatibility)
+     */
+    createExplosion(x, y, color = '#ff6600', count = 15) {
+        this.addExplosion(x, y, color, count);
+    }
+
+    getCount() {
+        return this.getActiveCount();
     }
 }

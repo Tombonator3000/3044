@@ -4,6 +4,244 @@
 
 ---
 
+# FASE 3: ADVANCED SYSTEMS — FULLFØRT ✅
+
+## Oversikt
+Implementert avanserte systemer for partikler, power-ups, og kollisjonshåndtering:
+- ParticleSystem utvidet med alle effekttyper
+- PowerUp klasse med 35+ power-up typer
+- PowerUpManager for combo-system
+- CollisionSystem med spatial hashing
+
+## Endringer
+
+### 1. js/systems/ParticleSystem.js - UTVIDET
+Lagt til nye metoder for kompatibilitet med originalen:
+- `addParticle(options)` - Generell partikkel-metode
+- `addExplosion(x, y, color, count, options)` - Eksplosjoner med flash
+- `addSparkle(x, y, color, count)` - Gnist-effekter
+- `addTrail(x, y, color, size)` - Spor-partikler
+- `addPowerUpCollect(x, y, color)` - Power-up innsamling med ring
+- `addChainLightning(x1, y1, x2, y2, color)` - Lyn-effekt mellom punkter
+- `addScorePopup(x, y, score, color)` - Score tekst som flyter opp
+- `addShieldHit(x, y)` - Skjold-treff effekt
+- `addFeverParticle(x, y, hue)` - Fever mode partikkel
+- `addBossExplosion(x, y)` - Massiv boss-eksplosjon (3 waves)
+- `createExplosion()` - Alias for bakoverkompatibilitet
+- `getCount()` - Alias for getActiveCount()
+
+Particle-klassen oppdatert med:
+- `drawScore()` - Tegner score popup tekst
+- Score type lagt til i switch statement
+
+### 2. js/entities/PowerUp.js - NY FIL
+Komplett PowerUp klasse med 35+ typer:
+
+**Tier 1 - Common (60% sjanse):**
+- weapon, shield, bomb, points, speed
+
+**Tier 2 - Uncommon (25% sjanse):**
+- laser, spread, homing, magnet, autofire, life
+
+**Tier 3 - Rare (12% sjanse):**
+- pierce, bounce, chain, freeze, mirror, vortex
+
+**Tier 4 - Epic (3% sjanse):**
+- nova, omega, ghost, quantum, plasma, matrix
+
+**Tier 5 - Legendary (<1% sjanse):**
+- fever, infinity, god
+
+Funksjoner:
+- `getRandomType()` - Vektet tilfeldig valg
+- `setupType()` - Setter farge, symbol, navn, tier
+- `update(canvas)` - Flyter ned, roterer, blinker
+- `collect(player, gameState, soundSystem, particleSystem)` - Samler inn
+- `applyEffect(player, gameState)` - Aktiverer power-up effekt
+- `draw(ctx)` - Tegner med glow, tier-indikator, symbol
+- `drawStar(ctx, cx, cy, innerRadius, outerRadius, points)` - Tegner stjerne
+
+Visuelle effekter:
+- Pulserende glow basert på tier
+- Rotasjon
+- Stjerne-form for Epic/Legendary
+- Diamant-form for Rare
+- Sirkel for Common/Uncommon
+- Tier-indikatorer (prikker rundt)
+- Blinking når lifetime < 120
+
+### 3. js/systems/PowerUpManager.js - NY FIL
+Combo-system for power-ups:
+
+**Combo recipes:**
+1. PULSE CANNON (laser + speed) - Rapid fire lasers
+2. DEATH BLOSSOM (spread + homing) - Homing spread shots
+3. CHAIN LIGHTNING (chain + pierce) - Piercing chain bolts
+4. BLACK HOLE (vortex + nova) - Gravity well
+5. TIME WARP (matrix + ghost) - Phase through time
+6. ARMAGEDDON (omega + infinity) - Total destruction
+7. ASCENSION (god + fever) - Ultimate power
+
+Funksjoner:
+- `registerPowerUp(type, tier)` - Registrerer innsamlet power-up
+- `checkCombos()` - Sjekker for aktive combos
+- `activateCombo(recipe)` - Aktiverer combo-effekt
+- `applyComboEffect(comboName)` - Anvender combo på spiller
+- `cleanupComboEffect(comboName)` - Rydder opp når combo utløper
+- `update()` - Oppdaterer timer og aktive combos
+- `drawUI(ctx)` - Tegner combo-status og timer
+- `getStats()` - Returnerer statistikk
+- `isComboActive(comboName)` - Sjekker om combo er aktiv
+- `getComboDuration(comboName)` - Henter gjenværende tid
+- `reset()` - Nullstiller alt
+
+### 4. js/core/CollisionSystem.js - UTVIDET
+Lagt til spatial hashing og nye metoder:
+
+**Spatial hashing:**
+- `clearGrid()` - Tømmer spatial hash
+- `getCellKey(x, y)` - Beregner celle-nøkkel
+- `addToGrid(entity, type)` - Legger til entitet
+- `getNearby(x, y, radius)` - Henter nærliggende entiteter
+- `buildSpatialHash()` - Bygger hash fra game state
+
+**Forbedret kollisjon:**
+- `checkCollisionsSpatial(bulletPool, enemyBulletPool)` - Spatial hash kollisjon
+- `handleEnemyKill(enemy)` - Håndterer drept fiende med:
+  - Score med multiplier
+  - Combo oppdatering
+  - RadicalSlang trigger
+  - Eksplosjon og score popup
+  - Screen shake
+  - Power-up spawn sjanse
+- `handlePlayerHit(player)` - Håndterer spiller-treff
+- `trySpawnPowerUp(x, y, enemyTier)` - Spawner power-up:
+  - Base: 15% sjanse
+  - +5% per enemy tier
+  - +1% per wave
+  - Maks 50% sjanse
+- `checkCircleCollision(a, b)` - Alias
+- `pointInCircle(px, py, cx, cy, radius)` - Punkt i sirkel
+
+Import av PowerUp klasse for spawning.
+
+### 5. js/entities/index.js - OPPDATERT
+- Lagt til `export { PowerUp } from './PowerUp.js'`
+
+### 6. js/systems/index.js - OPPDATERT
+- Lagt til `export { PowerUpManager } from './PowerUpManager.js'`
+
+---
+
+## Filstruktur etter Fase 3
+
+```
+js/
+├── config.js
+├── entities/
+│   ├── Player.js
+│   ├── Enemy.js
+│   ├── Bullet.js
+│   ├── PowerUp.js           <- FASE 3 ✅ NY
+│   └── index.js             <- FASE 3 ✅ OPPDATERT
+├── effects/
+│   ├── Starfield.js
+│   ├── RadicalSlang.js
+│   ├── Explosions.js
+│   └── index.js
+├── systems/
+│   ├── BulletPool.js
+│   ├── WaveManager.js
+│   ├── ParticleSystem.js    <- FASE 3 ✅ UTVIDET
+│   ├── PowerUpManager.js    <- FASE 3 ✅ NY
+│   ├── SoundSystem.js
+│   └── index.js             <- FASE 3 ✅ OPPDATERT
+├── core/
+│   ├── CollisionSystem.js   <- FASE 3 ✅ UTVIDET
+│   ├── GameState.js
+│   ├── InputHandler.js
+│   ├── GameLoop.js
+│   └── index.js
+├── rendering/
+│   ├── GridRenderer.js
+│   └── index.js
+├── ui/
+│   └── ...
+└── main.js
+```
+
+---
+
+## Testing Fase 3
+
+For å teste at Fase 3 fungerer:
+
+1. Sjekk at imports fungerer:
+```javascript
+import { PowerUp } from './entities/PowerUp.js';
+import { PowerUpManager } from './systems/PowerUpManager.js';
+```
+
+2. Sjekk at PowerUp kan opprettes:
+```javascript
+const powerUp = new PowerUp(400, 300);
+console.log(powerUp.type, powerUp.name, powerUp.tier);
+powerUp.update(canvas);
+powerUp.draw(ctx);
+```
+
+3. Sjekk at PowerUpManager kan opprettes:
+```javascript
+const manager = new PowerUpManager(player);
+manager.registerPowerUp('laser', 2);
+manager.registerPowerUp('speed', 1);
+manager.checkCombos(); // Aktiverer PULSE CANNON
+manager.update();
+manager.drawUI(ctx);
+```
+
+4. Sjekk at partikkeleffekter fungerer:
+```javascript
+particleSystem.addExplosion(400, 300, '#ff6600', 20);
+particleSystem.addScorePopup(400, 300, 5000, '#ffff00');
+particleSystem.addPowerUpCollect(400, 300, '#00ff00');
+particleSystem.addChainLightning(100, 100, 400, 300, '#00ffff');
+```
+
+5. Sjekk at CollisionSystem spawner power-ups:
+```javascript
+collisionSystem.trySpawnPowerUp(400, 300, 3);
+// Sjekk at gameState.powerUps inneholder ny power-up
+```
+
+---
+
+# FASE 4: NESTE STEG
+
+For å fullføre modulariseringen må følgende implementeres:
+
+### A. Boss-klasse
+- 5 boss-typer med unike mønstre
+- Attack patterns
+- Phase transitions
+
+### B. SoundSystem
+- Web Audio API
+- Alle lydeffekter
+- Musikk med beat-syncing
+
+### C. HUD forbedringer
+- Power-up slots display
+- Boss health bar
+- Wave progress indicator
+
+### D. VHS/CRT effekter
+- Scanlines
+- Chromatic aberration
+- Glitch effects
+
+---
+
 # FASE 2: CORE SYSTEMS — FULLFØRT ✅
 
 ## Oversikt
