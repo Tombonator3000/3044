@@ -12,7 +12,7 @@ import { Enemy } from '../entities/Enemy.js';
  * Controls wave-based enemy spawning and progression
  */
 export class WaveManager {
-    constructor() {
+    constructor(options = {}) {
         this.wave = 1;
         this.enemiesSpawned = 0;
         this.enemiesKilled = 0;
@@ -40,6 +40,18 @@ export class WaveManager {
 
         // Active enemies list reference
         this.enemies = [];
+
+        // Store options
+        this.gameState = options.gameState || null;
+        this.canvas = options.canvas || null;
+        this.onWaveComplete = options.onWaveComplete || null;
+
+        // Connect to gameState enemies array if provided
+        if (this.gameState && this.gameState.enemies) {
+            this.enemies = this.gameState.enemies;
+        }
+
+        console.log('✅ WaveManager initialized');
     }
 
     /**
@@ -264,6 +276,11 @@ export class WaveManager {
     completeWave() {
         this.waveComplete = true;
         console.log(`✅ Wave ${this.wave} complete! Killed: ${this.enemiesKilled}`);
+
+        // Call callback if provided
+        if (this.onWaveComplete) {
+            this.onWaveComplete(this.wave);
+        }
     }
 
     /**

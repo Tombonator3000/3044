@@ -192,8 +192,11 @@ export class InputHandler {
      * Handle window blur
      */
     handleBlur() {
-        // Release all keys
-        this.keys = {};
+        // Release all keys - clear properties instead of reassigning object
+        // This preserves the object reference for globals.js connection
+        for (const key in this.keys) {
+            this.keys[key] = false;
+        }
         this.keysPressed = {};
         this.keysReleased = {};
         this.mouse.leftButton = false;
