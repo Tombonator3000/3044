@@ -8,6 +8,10 @@ export class BulletPool {
         this.bullets = [];
         this.bulletIndex = 0;
 
+        // Cached counts to avoid filtering arrays
+        this._activeCount = 0;
+        this._playerBulletCount = 0;
+
         // Pre-allocate bullets
         for (let i = 0; i < maxBullets; i++) {
             this.bullets.push(this.createBullet());
@@ -114,8 +118,14 @@ export class BulletPool {
     }
 
     update(canvas, gameState) {
+        this._activeCount = 0;
+        this._playerBulletCount = 0;
+
         for (const bullet of this.bullets) {
             if (!bullet.active) continue;
+
+            this._activeCount++;
+            if (bullet.isPlayer) this._playerBulletCount++;
 
             // Store trail position
             if (bullet.trail.length < bullet.maxTrailLength) {
@@ -243,16 +253,36 @@ export class BulletPool {
         }
     }
 
+    // Returns the bullets array directly - caller should check .active
+    // This avoids creating new arrays every frame
     getActiveBullets() {
-        return this.bullets.filter(b => b.active);
+        return this.bullets;
     }
 
     getPlayerBullets() {
-        return this.bullets.filter(b => b.active && b.isPlayer);
+        return this.bullets;
     }
 
     getEnemyBullets() {
-        return this.bullets.filter(b => b.active && !b.isPlayer);
+        return this.bullets;
+    }
+
+    // Get count of active bullets (cached, updated in update())
+    getActiveCount() {
+        return this._activeCount;
+    }
+
+    // Iterate only active player bullets near a position (for dodge checks)
+    *iterateNearbyPlayerBullets(x, y, radius) {
+        const radiusSq = radius * radius;
+        for (const bullet of this.bullets) {
+            if (!bullet.active || !bullet.isPlayer) continue;
+            const dx = bullet.x - x;
+            const dy = bullet.y - y;
+            if (dx * dx + dy * dy < radiusSq) {
+                yield bullet;
+            }
+        }
     }
 
     clear() {

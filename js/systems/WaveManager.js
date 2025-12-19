@@ -152,8 +152,11 @@ export class WaveManager {
             }
         }
 
-        // Check if wave is complete
-        const aliveEnemies = enemies.filter(e => e.active).length;
+        // Check if wave is complete - count directly instead of filter()
+        let aliveEnemies = 0;
+        for (let i = 0; i < enemies.length; i++) {
+            if (enemies[i].active) aliveEnemies++;
+        }
 
         if (this.enemiesSpawned >= this.enemiesPerWave && aliveEnemies === 0) {
             this.waveComplete = true;

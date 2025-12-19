@@ -223,70 +223,70 @@ export class GameLoop {
             gs.player.update(movement, firing, timeFactor);
         }
 
-        // Update enemies
-        for (let i = gs.enemies.length - 1; i >= 0; i--) {
+        // Update enemies - use swap-and-pop for O(1) removal
+        let enemyWriteIdx = 0;
+        for (let i = 0; i < gs.enemies.length; i++) {
             const enemy = gs.enemies[i];
             if (enemy && enemy.update) {
                 enemy.update(timeFactor);
-
-                // Remove dead enemies
-                if (!enemy.alive) {
-                    gs.enemies.splice(i, 1);
-                }
+            }
+            if (enemy && enemy.alive) {
+                gs.enemies[enemyWriteIdx++] = enemy;
             }
         }
+        gs.enemies.length = enemyWriteIdx;
 
-        // Update player bullets
-        for (let i = gs.bullets.length - 1; i >= 0; i--) {
+        // Update player bullets - use swap-and-pop for O(1) removal
+        let bulletWriteIdx = 0;
+        for (let i = 0; i < gs.bullets.length; i++) {
             const bullet = gs.bullets[i];
             if (bullet && bullet.update) {
                 bullet.update(timeFactor);
-
-                // Remove inactive bullets
-                if (!bullet.active) {
-                    gs.bullets.splice(i, 1);
-                }
+            }
+            if (bullet && bullet.active) {
+                gs.bullets[bulletWriteIdx++] = bullet;
             }
         }
+        gs.bullets.length = bulletWriteIdx;
 
-        // Update enemy bullets
-        for (let i = gs.enemyBullets.length - 1; i >= 0; i--) {
+        // Update enemy bullets - use swap-and-pop for O(1) removal
+        let enemyBulletWriteIdx = 0;
+        for (let i = 0; i < gs.enemyBullets.length; i++) {
             const bullet = gs.enemyBullets[i];
             if (bullet && bullet.update) {
                 bullet.update(timeFactor);
-
-                // Remove inactive bullets
-                if (!bullet.active) {
-                    gs.enemyBullets.splice(i, 1);
-                }
+            }
+            if (bullet && bullet.active) {
+                gs.enemyBullets[enemyBulletWriteIdx++] = bullet;
             }
         }
+        gs.enemyBullets.length = enemyBulletWriteIdx;
 
-        // Update power-ups
-        for (let i = gs.powerUps.length - 1; i >= 0; i--) {
+        // Update power-ups - use swap-and-pop for O(1) removal
+        let powerUpWriteIdx = 0;
+        for (let i = 0; i < gs.powerUps.length; i++) {
             const powerUp = gs.powerUps[i];
             if (powerUp && powerUp.update) {
                 powerUp.update(timeFactor);
-
-                // Remove inactive power-ups
-                if (!powerUp.active) {
-                    gs.powerUps.splice(i, 1);
-                }
+            }
+            if (powerUp && powerUp.active) {
+                gs.powerUps[powerUpWriteIdx++] = powerUp;
             }
         }
+        gs.powerUps.length = powerUpWriteIdx;
 
-        // Update explosions
-        for (let i = gs.explosions.length - 1; i >= 0; i--) {
+        // Update explosions - use swap-and-pop for O(1) removal
+        let explosionWriteIdx = 0;
+        for (let i = 0; i < gs.explosions.length; i++) {
             const explosion = gs.explosions[i];
             if (explosion && explosion.update) {
                 explosion.update();
-
-                // Remove finished explosions
-                if (explosion.finished) {
-                    gs.explosions.splice(i, 1);
-                }
+            }
+            if (explosion && !explosion.finished) {
+                gs.explosions[explosionWriteIdx++] = explosion;
             }
         }
+        gs.explosions.length = explosionWriteIdx;
 
         // Update collision detection
         if (this.collisionSystem) {

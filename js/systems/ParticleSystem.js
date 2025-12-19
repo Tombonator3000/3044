@@ -176,6 +176,7 @@ export class ParticleSystem {
         this.particles = [];
         this.maxParticles = CONFIG.particles.maxCount;
         this.poolIndex = 0;
+        this._activeCount = 0; // Cached count for performance
 
         // Pre-allocate particle pool
         for (let i = 0; i < this.maxParticles; i++) {
@@ -192,11 +193,12 @@ export class ParticleSystem {
             const idx = (this.poolIndex + i) % this.particles.length;
             if (!this.particles[idx].active) {
                 this.poolIndex = (idx + 1) % this.particles.length;
+                this._activeCount++; // Track new activation
                 return this.particles[idx];
             }
         }
 
-        // If all active, reuse oldest
+        // If all active, reuse oldest (count stays the same)
         this.poolIndex = (this.poolIndex + 1) % this.particles.length;
         return this.particles[this.poolIndex];
     }
@@ -432,19 +434,30 @@ export class ParticleSystem {
      * Update all particles
      */
     update() {
-        for (let particle of this.particles) {
+        // Early exit if no active particles
+        if (this._activeCount === 0) return;
+
+        let activeCount = 0;
+        for (let i = 0; i < this.particles.length; i++) {
+            const particle = this.particles[i];
             if (particle.active) {
                 particle.update();
+                if (particle.active) activeCount++; // Still active after update
             }
         }
+        this._activeCount = activeCount;
     }
 
     /**
      * Draw all active particles
      */
     draw(ctx) {
+        // Early exit if no active particles
+        if (this._activeCount === 0) return;
+
         ctx.save();
-        for (let particle of this.particles) {
+        for (let i = 0; i < this.particles.length; i++) {
+            const particle = this.particles[i];
             if (particle.active) {
                 particle.draw(ctx);
             }
@@ -459,17 +472,14 @@ export class ParticleSystem {
         for (let particle of this.particles) {
             particle.active = false;
         }
+        this._activeCount = 0;
     }
 
     /**
-     * Get active particle count
+     * Get active particle count (cached for performance)
      */
     getActiveCount() {
-        let count = 0;
-        for (let particle of this.particles) {
-            if (particle.active) count++;
-        }
-        return count;
+        return this._activeCount;
     }
 
     /**
