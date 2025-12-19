@@ -3,7 +3,7 @@
  * Manages all game menu screens and transitions
  */
 
-import { CONFIG, WAVE_THEMES, getCurrentTheme } from '../config.js';
+import { CONFIG, getCurrentTheme } from '../config.js';
 import { cachedUI, getCredits, setCredits, gameStarting, setGameStarting } from '../globals.js';
 
 /**
