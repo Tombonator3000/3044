@@ -746,16 +746,39 @@ body {
     text-align: center;
     margin: 20px 0;
     min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
 }
 
 .high-score-entry {
     display: flex;
     justify-content: space-between;
     width: 500px;
-    margin: 10px 0;
+    margin: 5px 0;
     padding: 10px 20px;
     border: 1px solid #00ffff;
     background: rgba(0, 255, 255, 0.1);
+}
+
+.high-score-entry .rank {
+    width: 50px;
+    text-align: left;
+    color: #ff00ff;
+}
+
+.high-score-entry .initials {
+    flex: 1;
+    text-align: center;
+    color: #00ffff;
+    font-weight: bold;
+}
+
+.high-score-entry .score {
+    width: 150px;
+    text-align: right;
+    color: #ffff00;
 }
 
 .high-score-entry.new-entry {

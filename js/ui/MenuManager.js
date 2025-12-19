@@ -305,7 +305,7 @@ export class MenuManager {
      * @param {Array} scores - Array of high score objects
      */
     showHighScoreList(scores) {
-        const listContainer = document.getElementById('highScoreListContainer');
+        const listContainer = document.getElementById('highScoreList');
         if (listContainer && scores) {
             listContainer.innerHTML = scores.map((score, index) =>
                 `<div class="high-score-entry">
@@ -316,6 +316,113 @@ export class MenuManager {
             ).join('');
         }
         this.transitionTo(MenuState.HIGH_SCORE_LIST);
+    }
+
+    /**
+     * Show high scores from main menu
+     */
+    showHighScoresFromMenu() {
+        const scores = this.loadHighScores();
+        this.showHighScoreList(scores);
+    }
+
+    /**
+     * Close high scores and return to main menu
+     */
+    closeHighScores() {
+        this.transitionTo(MenuState.MAIN);
+    }
+
+    /**
+     * Load high scores from localStorage
+     * @returns {Array} Array of high score objects
+     */
+    loadHighScores() {
+        try {
+            const saved = localStorage.getItem('geometry3044_highScores');
+            if (saved) {
+                return JSON.parse(saved);
+            }
+        } catch (e) {
+            console.warn('Failed to load high scores:', e);
+        }
+
+        // Return default high scores if none saved
+        const currentHighScore = parseInt(localStorage.getItem('geometry3044_highScore')) || 0;
+        const defaultScores = [
+            { initials: 'AAA', score: currentHighScore > 0 ? currentHighScore : 50000 },
+            { initials: 'BBB', score: 40000 },
+            { initials: 'CCC', score: 30000 },
+            { initials: 'DDD', score: 20000 },
+            { initials: 'EEE', score: 10000 },
+            { initials: 'FFF', score: 8000 },
+            { initials: 'GGG', score: 6000 },
+            { initials: 'HHH', score: 4000 },
+            { initials: 'III', score: 2000 },
+            { initials: 'JJJ', score: 1000 }
+        ];
+
+        // Sort by score descending and update if current high score is higher
+        if (currentHighScore > defaultScores[0].score) {
+            defaultScores[0].score = currentHighScore;
+            defaultScores[0].initials = '???';
+        }
+        defaultScores.sort((a, b) => b.score - a.score);
+
+        return defaultScores;
+    }
+
+    /**
+     * Save high scores to localStorage
+     * @param {Array} scores - Array of high score objects
+     */
+    saveHighScores(scores) {
+        try {
+            localStorage.setItem('geometry3044_highScores', JSON.stringify(scores));
+        } catch (e) {
+            console.warn('Failed to save high scores:', e);
+        }
+    }
+
+    /**
+     * Add a new high score
+     * @param {string} initials - Player initials (3 characters)
+     * @param {number} score - The score to add
+     * @returns {number} The rank (1-10) or -1 if not a high score
+     */
+    addHighScore(initials, score) {
+        const scores = this.loadHighScores();
+
+        // Check if this score makes the list
+        if (scores.length >= 10 && score <= scores[scores.length - 1].score) {
+            return -1;
+        }
+
+        // Add new score
+        scores.push({ initials: initials.toUpperCase(), score: score });
+
+        // Sort by score descending
+        scores.sort((a, b) => b.score - a.score);
+
+        // Keep only top 10
+        const top10 = scores.slice(0, 10);
+
+        // Save
+        this.saveHighScores(top10);
+
+        // Return rank
+        return top10.findIndex(s => s.initials === initials.toUpperCase() && s.score === score) + 1;
+    }
+
+    /**
+     * Check if a score qualifies for the high score list
+     * @param {number} score - The score to check
+     * @returns {boolean} True if the score would make the top 10
+     */
+    isHighScore(score) {
+        const scores = this.loadHighScores();
+        if (scores.length < 10) return true;
+        return score > scores[scores.length - 1].score;
     }
 
     /**
@@ -499,6 +606,18 @@ export class MenuManager {
         const optionsBtn = document.getElementById('optionsBtn');
         if (optionsBtn) {
             optionsBtn.addEventListener('click', () => this.showOptions());
+        }
+
+        // High Scores button in main menu
+        const highScoresBtn = document.getElementById('highScoresBtn');
+        if (highScoresBtn) {
+            highScoresBtn.addEventListener('click', () => this.showHighScoresFromMenu());
+        }
+
+        // Close high scores button
+        const closeHighScoresBtn = document.getElementById('closeHighScoresBtn');
+        if (closeHighScoresBtn) {
+            closeHighScoresBtn.addEventListener('click', () => this.closeHighScores());
         }
 
         // Back button in options
