@@ -27,6 +27,10 @@
 
                 <div class="menu-buttons">
                     <button class="btn" id="startGameBtn">Start Game</button>
+                    <button class="btn btn-secondary" id="selectShipBtn">Select Ship</button>
+                    <button class="btn btn-secondary" id="gameModeBtn">Game Mode</button>
+                    <button class="btn btn-secondary" id="dailyChallengeBtn">Daily Challenge</button>
+                    <button class="btn btn-secondary" id="achievementsBtn">Achievements</button>
                     <button class="btn btn-secondary" id="highScoresBtn">High Scores</button>
                     <button class="btn btn-secondary" id="optionsBtn">Options</button>
                 </div>
@@ -163,6 +167,71 @@
                 </div>
 
                 <button class="btn" id="optionsBackBtn">BACK</button>
+            </div>
+        </div>
+
+        <!-- SHIP SELECT SCREEN -->
+        <div id="shipSelectScreen" class="fullscreen-menu">
+            <div class="menu-container">
+                <h2 class="screen-title">SELECT YOUR SHIP</h2>
+                <div class="ship-grid" id="shipGrid">
+                    <!-- Ships will be populated by JavaScript -->
+                </div>
+                <div class="selection-info">
+                    <div class="selected-ship-name" id="selectedShipName">NEON FALCON</div>
+                    <div class="selected-ship-desc" id="selectedShipDesc">Balanced ship for all situations</div>
+                    <div class="selected-ship-stats" id="selectedShipStats"></div>
+                </div>
+                <div class="menu-nav-buttons">
+                    <button class="btn" id="confirmShipBtn">SELECT</button>
+                    <button class="btn btn-secondary" id="backFromShipBtn">BACK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GAME MODE SELECT SCREEN -->
+        <div id="gameModeScreen" class="fullscreen-menu">
+            <div class="menu-container">
+                <h2 class="screen-title">SELECT GAME MODE</h2>
+                <div class="mode-grid" id="modeGrid">
+                    <!-- Modes will be populated by JavaScript -->
+                </div>
+                <div class="selection-info">
+                    <div class="selected-mode-name" id="selectedModeName">CLASSIC</div>
+                    <div class="selected-mode-desc" id="selectedModeDesc">Standard arcade mode with waves of enemies</div>
+                </div>
+                <div class="menu-nav-buttons">
+                    <button class="btn" id="confirmModeBtn">SELECT</button>
+                    <button class="btn btn-secondary" id="backFromModeBtn">BACK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- DAILY CHALLENGE SCREEN -->
+        <div id="dailyChallengeScreen" class="fullscreen-menu">
+            <div class="menu-container">
+                <h2 class="screen-title">DAILY CHALLENGE</h2>
+                <div class="challenge-info" id="challengeInfo">
+                    <!-- Challenge info will be populated by JavaScript -->
+                </div>
+                <div class="menu-nav-buttons">
+                    <button class="btn" id="playDailyChallengeBtn">PLAY CHALLENGE</button>
+                    <button class="btn btn-secondary" id="backFromChallengeBtn">BACK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACHIEVEMENTS SCREEN -->
+        <div id="achievementsScreen" class="fullscreen-menu">
+            <div class="menu-container achievements-container">
+                <h2 class="screen-title">ACHIEVEMENTS</h2>
+                <div class="achievements-progress" id="achievementsProgress">0/25 Unlocked</div>
+                <div class="achievements-list" id="achievementsList">
+                    <!-- Achievements will be populated by JavaScript -->
+                </div>
+                <div class="menu-nav-buttons">
+                    <button class="btn btn-secondary" id="backFromAchievementsBtn">BACK</button>
+                </div>
             </div>
         </div>
 

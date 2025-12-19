@@ -339,6 +339,411 @@ function setupMenu() {
     if (highScoreEl) {
         highScoreEl.textContent = parseInt(highScore).toLocaleString();
     }
+
+    // Setup new menu buttons
+    setupShipSelectScreen();
+    setupGameModeScreen();
+    setupDailyChallengeScreen();
+    setupAchievementsScreen();
+}
+
+// ============================================
+// SHIP SELECT SCREEN
+// ============================================
+
+let selectedShipIndex = 0;
+
+function setupShipSelectScreen() {
+    const selectShipBtn = document.getElementById('selectShipBtn');
+    const shipSelectScreen = document.getElementById('shipSelectScreen');
+    const confirmShipBtn = document.getElementById('confirmShipBtn');
+    const backFromShipBtn = document.getElementById('backFromShipBtn');
+    const shipGrid = document.getElementById('shipGrid');
+
+    if (selectShipBtn) {
+        selectShipBtn.addEventListener('click', () => {
+            resetAttractModeTimeout();
+            showScreen('shipSelectScreen');
+            populateShipGrid();
+        });
+    }
+
+    if (confirmShipBtn) {
+        confirmShipBtn.addEventListener('click', () => {
+            const ships = shipManager.getAllShips();
+            const selectedShip = ships[selectedShipIndex];
+            if (selectedShip && selectedShip.unlocked) {
+                shipManager.selectShip(selectedShip.id);
+                if (soundSystem) soundSystem.playPowerUp(1);
+            }
+            showScreen('menuScreen');
+        });
+    }
+
+    if (backFromShipBtn) {
+        backFromShipBtn.addEventListener('click', () => {
+            showScreen('menuScreen');
+        });
+    }
+}
+
+function populateShipGrid() {
+    const shipGrid = document.getElementById('shipGrid');
+    if (!shipGrid || !shipManager) return;
+
+    const ships = shipManager.getAllShips();
+    const currentShip = shipManager.getCurrentShip();
+
+    shipGrid.innerHTML = '';
+
+    ships.forEach((ship, index) => {
+        const card = document.createElement('div');
+        card.className = `ship-card ${ship.unlocked ? '' : 'locked'} ${ship.id === currentShip.id ? 'selected' : ''}`;
+        card.style.borderColor = ship.unlocked ? ship.color : '#666';
+
+        card.innerHTML = `
+            <div class="ship-preview" style="border-color: ${ship.color}">
+                <svg width="56" height="56" viewBox="0 0 56 56">
+                    <polygon points="28,5 8,50 28,40 48,50"
+                             fill="${ship.unlocked ? ship.color + '44' : '#33333344'}"
+                             stroke="${ship.unlocked ? ship.color : '#666'}"
+                             stroke-width="2"/>
+                </svg>
+            </div>
+            <div class="ship-name" style="color: ${ship.unlocked ? ship.color : '#666'}">${ship.name}</div>
+        `;
+
+        if (ship.unlocked) {
+            card.addEventListener('click', () => {
+                selectedShipIndex = index;
+                updateShipSelection();
+                if (soundSystem) soundSystem.playPowerUp(0);
+            });
+        }
+
+        shipGrid.appendChild(card);
+    });
+
+    updateShipSelection();
+}
+
+function updateShipSelection() {
+    const ships = shipManager.getAllShips();
+    const ship = ships[selectedShipIndex];
+
+    // Update cards
+    const cards = document.querySelectorAll('.ship-card');
+    cards.forEach((card, i) => {
+        card.classList.toggle('selected', i === selectedShipIndex);
+    });
+
+    // Update info panel
+    const nameEl = document.getElementById('selectedShipName');
+    const descEl = document.getElementById('selectedShipDesc');
+    const statsEl = document.getElementById('selectedShipStats');
+
+    if (nameEl) nameEl.textContent = ship.name;
+    if (nameEl) nameEl.style.color = ship.color;
+    if (descEl) descEl.textContent = ship.unlocked ? ship.description : getUnlockConditionText(ship.unlockCondition);
+
+    if (statsEl && ship.unlocked) {
+        statsEl.innerHTML = `
+            <div class="stat-bar">
+                <span class="stat-label">SPEED</span>
+                <div class="stat-value"><div class="stat-fill" style="width: ${(ship.stats.speed / 10) * 100}%"></div></div>
+            </div>
+            <div class="stat-bar">
+                <span class="stat-label">DAMAGE</span>
+                <div class="stat-value"><div class="stat-fill" style="width: ${(ship.stats.damage / 2) * 100}%"></div></div>
+            </div>
+            <div class="stat-bar">
+                <span class="stat-label">LIVES</span>
+                <div class="stat-value"><div class="stat-fill" style="width: ${(ship.stats.lives / 5) * 100}%"></div></div>
+            </div>
+        `;
+    } else if (statsEl) {
+        statsEl.innerHTML = '<div style="color: #ff6666;">🔒 LOCKED</div>';
+    }
+}
+
+// ============================================
+// GAME MODE SCREEN
+// ============================================
+
+let selectedModeIndex = 0;
+
+function setupGameModeScreen() {
+    const gameModeBtn = document.getElementById('gameModeBtn');
+    const confirmModeBtn = document.getElementById('confirmModeBtn');
+    const backFromModeBtn = document.getElementById('backFromModeBtn');
+
+    if (gameModeBtn) {
+        gameModeBtn.addEventListener('click', () => {
+            resetAttractModeTimeout();
+            showScreen('gameModeScreen');
+            populateModeGrid();
+        });
+    }
+
+    if (confirmModeBtn) {
+        confirmModeBtn.addEventListener('click', () => {
+            const modes = gameModeManager.getAllModes();
+            const selectedMode = modes[selectedModeIndex];
+            if (selectedMode && (selectedMode.unlocked || !selectedMode.unlockCondition)) {
+                gameModeManager.selectMode(selectedMode.id);
+                if (soundSystem) soundSystem.playPowerUp(1);
+            }
+            showScreen('menuScreen');
+        });
+    }
+
+    if (backFromModeBtn) {
+        backFromModeBtn.addEventListener('click', () => {
+            showScreen('menuScreen');
+        });
+    }
+}
+
+function populateModeGrid() {
+    const modeGrid = document.getElementById('modeGrid');
+    if (!modeGrid || !gameModeManager) return;
+
+    const modes = gameModeManager.getAllModes();
+    const currentMode = gameModeManager.getCurrentMode();
+
+    modeGrid.innerHTML = '';
+
+    modes.forEach((mode, index) => {
+        const isLocked = !mode.unlocked && mode.unlockCondition;
+        const card = document.createElement('div');
+        card.className = `mode-card ${isLocked ? 'locked' : ''} ${mode.id === currentMode.id ? 'selected' : ''}`;
+        card.style.borderColor = isLocked ? '#666' : mode.color;
+
+        card.innerHTML = `
+            <div class="mode-icon">${mode.icon}</div>
+            <div class="mode-name" style="color: ${isLocked ? '#666' : mode.color}">${mode.name}</div>
+            <div class="mode-desc">${isLocked ? getUnlockConditionText(mode.unlockCondition) : mode.description}</div>
+            ${!isLocked ? `<div class="mode-multiplier">x${mode.settings.scoreMultiplier} SCORE</div>` : ''}
+        `;
+
+        if (!isLocked) {
+            card.addEventListener('click', () => {
+                selectedModeIndex = index;
+                updateModeSelection();
+                if (soundSystem) soundSystem.playPowerUp(0);
+            });
+        }
+
+        modeGrid.appendChild(card);
+    });
+
+    updateModeSelection();
+}
+
+function updateModeSelection() {
+    const modes = gameModeManager.getAllModes();
+    const mode = modes[selectedModeIndex];
+
+    // Update cards
+    const cards = document.querySelectorAll('.mode-card');
+    cards.forEach((card, i) => {
+        card.classList.toggle('selected', i === selectedModeIndex);
+    });
+
+    // Update info panel
+    const nameEl = document.getElementById('selectedModeName');
+    const descEl = document.getElementById('selectedModeDesc');
+
+    if (nameEl) {
+        nameEl.textContent = mode.name;
+        nameEl.style.color = mode.color;
+    }
+    if (descEl) {
+        descEl.textContent = mode.description;
+    }
+}
+
+// ============================================
+// DAILY CHALLENGE SCREEN
+// ============================================
+
+function setupDailyChallengeScreen() {
+    const dailyChallengeBtn = document.getElementById('dailyChallengeBtn');
+    const playDailyChallengeBtn = document.getElementById('playDailyChallengeBtn');
+    const backFromChallengeBtn = document.getElementById('backFromChallengeBtn');
+
+    if (dailyChallengeBtn) {
+        dailyChallengeBtn.addEventListener('click', () => {
+            resetAttractModeTimeout();
+            showScreen('dailyChallengeScreen');
+            populateDailyChallenge();
+        });
+    }
+
+    if (playDailyChallengeBtn) {
+        playDailyChallengeBtn.addEventListener('click', () => {
+            // Set game mode to include daily challenge modifiers
+            if (dailyChallengeSystem) {
+                gameModeManager.selectMode('classic');
+                showScreen('menuScreen');
+                // Start game with challenge modifiers
+                setTimeout(() => {
+                    window.startGame();
+                    if (gameState && dailyChallengeSystem.currentChallenge) {
+                        dailyChallengeSystem.applyChallenge(gameState);
+                    }
+                }, 100);
+            }
+        });
+    }
+
+    if (backFromChallengeBtn) {
+        backFromChallengeBtn.addEventListener('click', () => {
+            showScreen('menuScreen');
+        });
+    }
+}
+
+function populateDailyChallenge() {
+    const challengeInfo = document.getElementById('challengeInfo');
+    if (!challengeInfo || !dailyChallengeSystem) return;
+
+    const challenge = dailyChallengeSystem.currentChallenge;
+    if (!challenge) {
+        dailyChallengeSystem.generateDailyChallenge();
+    }
+
+    const status = dailyChallengeSystem.getStatus();
+    const timeLeft = dailyChallengeSystem.getTimeUntilNextChallenge();
+
+    challengeInfo.innerHTML = `
+        <div class="challenge-date">${challenge.dayName} - ${challenge.date}</div>
+
+        <div class="challenge-modifier">
+            <div class="modifier-icon">${challenge.primaryModifier.icon}</div>
+            <div class="modifier-name">${challenge.primaryModifier.name}</div>
+            <div class="modifier-desc">${challenge.primaryModifier.description}</div>
+        </div>
+
+        ${challenge.secondaryModifier ? `
+            <div class="challenge-modifier" style="border-color: #00ffff;">
+                <div class="modifier-icon">${challenge.secondaryModifier.icon}</div>
+                <div class="modifier-name">${challenge.secondaryModifier.name}</div>
+                <div class="modifier-desc">${challenge.secondaryModifier.description}</div>
+            </div>
+        ` : ''}
+
+        <div class="challenge-target">TARGET: ${challenge.targetScore.toLocaleString()} POINTS</div>
+        <div class="challenge-reward">REWARD: x${challenge.reward.toFixed(1)} SCORE BONUS</div>
+
+        <div class="challenge-status ${status.completed ? 'completed' : 'pending'}">
+            ${status.completed ? '✅ CHALLENGE COMPLETE!' : '⏳ Not yet completed'}
+            ${status.score > 0 ? `<br>Your best: ${status.score.toLocaleString()}` : ''}
+        </div>
+
+        <div style="margin-top: 15px; color: #666; font-size: 0.9em;">
+            Next challenge in: ${timeLeft.hours}h ${timeLeft.minutes}m
+        </div>
+    `;
+}
+
+// ============================================
+// ACHIEVEMENTS SCREEN
+// ============================================
+
+function setupAchievementsScreen() {
+    const achievementsBtn = document.getElementById('achievementsBtn');
+    const backFromAchievementsBtn = document.getElementById('backFromAchievementsBtn');
+
+    if (achievementsBtn) {
+        achievementsBtn.addEventListener('click', () => {
+            resetAttractModeTimeout();
+            showScreen('achievementsScreen');
+            populateAchievements();
+        });
+    }
+
+    if (backFromAchievementsBtn) {
+        backFromAchievementsBtn.addEventListener('click', () => {
+            showScreen('menuScreen');
+        });
+    }
+}
+
+function populateAchievements() {
+    const achievementsList = document.getElementById('achievementsList');
+    const progressEl = document.getElementById('achievementsProgress');
+    if (!achievementsList || !achievementSystem) return;
+
+    const progress = achievementSystem.getProgress();
+    if (progressEl) {
+        progressEl.textContent = `${progress.unlocked}/${progress.total} Unlocked • ${progress.points} Points`;
+    }
+
+    const achievements = Object.values(achievementSystem.achievements);
+
+    // Sort: unlocked first, then by points
+    achievements.sort((a, b) => {
+        if (a.unlocked && !b.unlocked) return -1;
+        if (!a.unlocked && b.unlocked) return 1;
+        return b.points - a.points;
+    });
+
+    achievementsList.innerHTML = '';
+
+    achievements.forEach(achievement => {
+        const card = document.createElement('div');
+        card.className = `achievement-card ${achievement.unlocked ? 'unlocked' : 'locked'}`;
+
+        card.innerHTML = `
+            <div class="achievement-icon">${achievement.icon}</div>
+            <div class="achievement-info">
+                <div class="achievement-name">${achievement.name}</div>
+                <div class="achievement-desc">${achievement.description}</div>
+            </div>
+            <div class="achievement-points">${achievement.points} pts</div>
+        `;
+
+        achievementsList.appendChild(card);
+    });
+}
+
+// ============================================
+// SCREEN NAVIGATION HELPER
+// ============================================
+
+function showScreen(screenId) {
+    // Hide all screens
+    const screens = [
+        'menuScreen', 'shipSelectScreen', 'gameModeScreen',
+        'dailyChallengeScreen', 'achievementsScreen',
+        'optionsScreen', 'highScoreListScreen'
+    ];
+
+    screens.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+
+    // Show requested screen
+    const screen = document.getElementById(screenId);
+    if (screen) {
+        screen.style.display = 'flex';
+    }
+}
+
+function getUnlockConditionText(condition) {
+    if (!condition) return 'Already unlocked';
+
+    switch (condition.type) {
+        case 'wave': return `🔒 Reach Wave ${condition.value}`;
+        case 'score': return `🔒 Score ${condition.value.toLocaleString()}`;
+        case 'games': return `🔒 Play ${condition.value} games`;
+        case 'grazes': return `🔒 ${condition.value.toLocaleString()} grazes`;
+        case 'pointBlankKills': return `🔒 ${condition.value} point blank kills`;
+        case 'bossKills': return `🔒 Defeat ${condition.value} bosses`;
+        default: return '🔒 Complete requirements';
+    }
 }
 
 function updateCreditsDisplay() {
