@@ -242,10 +242,10 @@ function startGame() {
         setEnemyBulletPool(enemyBulletPool);
         console.log('  - EnemyBulletPool:', enemyBulletPool ? '✅' : '❌');
 
-        // Initialize input handler
+        // Initialize input handler with canvas
         console.log('🎮 [8] Initializing InputHandler...');
-        inputHandler = new InputHandler();
-        inputHandler.init();
+        inputHandler = new InputHandler(canvasElement);
+        // Note: init() is already called in constructor
         console.log('  - InputHandler:', inputHandler ? '✅' : '❌');
 
         // Initialize collision system
