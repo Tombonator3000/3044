@@ -916,12 +916,12 @@ export class CollisionSystem {
         const gs = this.gameState;
         if (!gs) return;
 
-        // Base chance + bonus for harder enemies
-        const baseChance = 0.15;
-        const tierBonus = (enemyTier || 1) * 0.05;
-        const waveBonus = ((gs.wave || 1) - 1) * 0.01;
+        // Base chance + bonus for harder enemies (balanced for difficulty)
+        const baseChance = 0.08;  // Reduced from 0.15
+        const tierBonus = (enemyTier || 1) * 0.03;  // Reduced from 0.05
+        const waveBonus = ((gs.wave || 1) - 1) * 0.005;  // Reduced from 0.01
 
-        const spawnChance = Math.min(baseChance + tierBonus + waveBonus, 0.5);
+        const spawnChance = Math.min(baseChance + tierBonus + waveBonus, 0.35);  // Max reduced from 0.5
 
         if (Math.random() < spawnChance) {
             // Initialize power-ups array if needed

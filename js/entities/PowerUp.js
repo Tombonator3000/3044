@@ -44,22 +44,22 @@ export class PowerUp {
             'fever', 'infinity', 'god'
         ];
 
-        // Weighted random
+        // Weighted random (balanced for difficulty - rarer drops)
         const roll = Math.random();
-        if (roll < 0.01) {
-            // Legendary
+        if (roll < 0.003) {
+            // Legendary (0.3% - reduced from 1%)
             return ['fever', 'infinity', 'god'][Math.floor(Math.random() * 3)];
-        } else if (roll < 0.04) {
-            // Epic
+        } else if (roll < 0.018) {
+            // Epic (1.5% - reduced from 3%)
             return ['nova', 'omega', 'ghost', 'quantum', 'plasma', 'matrix'][Math.floor(Math.random() * 6)];
-        } else if (roll < 0.16) {
-            // Rare
+        } else if (roll < 0.098) {
+            // Rare (8% - reduced from 12%)
             return ['pierce', 'bounce', 'chain', 'freeze', 'mirror', 'vortex'][Math.floor(Math.random() * 6)];
-        } else if (roll < 0.41) {
-            // Uncommon
+        } else if (roll < 0.318) {
+            // Uncommon (22% - reduced from 25%)
             return ['laser', 'spread', 'homing', 'magnet', 'autofire', 'life'][Math.floor(Math.random() * 6)];
         } else {
-            // Common
+            // Common (68.2% - increased from 59%)
             return ['weapon', 'shield', 'bomb', 'points', 'speed'][Math.floor(Math.random() * 5)];
         }
     }
@@ -183,21 +183,40 @@ export class PowerUp {
                 setTimeout(() => { player.speed = Math.max(player.speed - 0.5, 5.5); }, 10000);
                 break;
 
-            // Uncommon
+            // Uncommon (now with 45 second duration)
             case 'laser':
                 player.hasLaser = true;
                 player.laserPower = Math.min((player.laserPower || 0) + 1, 5);
+                clearTimeout(player._laserTimeout);
+                player._laserTimeout = setTimeout(() => {
+                    player.laserPower = Math.max(1, player.laserPower - 1);
+                    if (player.laserPower <= 1) player.hasLaser = false;
+                }, 45000);
                 break;
             case 'spread':
                 player.hasSpread = true;
                 player.spreadCount = Math.min((player.spreadCount || 3) + 2, 9);
+                clearTimeout(player._spreadTimeout);
+                player._spreadTimeout = setTimeout(() => {
+                    player.spreadCount = Math.max(3, player.spreadCount - 2);
+                    if (player.spreadCount <= 3) player.hasSpread = false;
+                }, 45000);
                 break;
             case 'homing':
                 player.hasHoming = true;
                 player.homingStrength = Math.min((player.homingStrength || 0) + 0.02, 0.15);
+                clearTimeout(player._homingTimeout);
+                player._homingTimeout = setTimeout(() => {
+                    player.homingStrength = Math.max(0, player.homingStrength - 0.02);
+                    if (player.homingStrength <= 0) player.hasHoming = false;
+                }, 45000);
                 break;
             case 'magnet':
                 player.magnetRange = Math.min((player.magnetRange || 0) + 100, 400);
+                clearTimeout(player._magnetTimeout);
+                player._magnetTimeout = setTimeout(() => {
+                    player.magnetRange = Math.max(0, player.magnetRange - 100);
+                }, 45000);
                 break;
             case 'autofire':
                 player.autoFire = true;
@@ -207,18 +226,33 @@ export class PowerUp {
                 if (gameState) gameState.lives = Math.min((gameState.lives || 0) + 1, 9);
                 break;
 
-            // Rare
+            // Rare (now with 45 second duration)
             case 'pierce':
                 player.hasPierce = true;
                 player.pierceCount = Math.min((player.pierceCount || 0) + 1, 5);
+                clearTimeout(player._pierceTimeout);
+                player._pierceTimeout = setTimeout(() => {
+                    player.pierceCount = Math.max(0, player.pierceCount - 1);
+                    if (player.pierceCount <= 0) player.hasPierce = false;
+                }, 45000);
                 break;
             case 'bounce':
                 player.hasBounce = true;
                 player.bounceCount = Math.min((player.bounceCount || 0) + 1, 5);
+                clearTimeout(player._bounceTimeout);
+                player._bounceTimeout = setTimeout(() => {
+                    player.bounceCount = Math.max(0, player.bounceCount - 1);
+                    if (player.bounceCount <= 0) player.hasBounce = false;
+                }, 45000);
                 break;
             case 'chain':
                 player.hasChain = true;
                 player.chainRange = Math.min((player.chainRange || 0) + 30, 200);
+                clearTimeout(player._chainTimeout);
+                player._chainTimeout = setTimeout(() => {
+                    player.chainRange = Math.max(0, player.chainRange - 30);
+                    if (player.chainRange <= 0) player.hasChain = false;
+                }, 45000);
                 break;
             case 'freeze':
                 player.freezePower = 300;  // 5 seconds
