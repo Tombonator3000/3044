@@ -457,7 +457,8 @@ window.startGame = function() {
     const gameUI = document.getElementById('gameUI');
 
     if (menuScreen) menuScreen.style.display = 'none';
-    if (gameUI) gameUI.style.display = 'block';
+    // Canvas-based HUD is now used instead of DOM elements
+    // if (gameUI) gameUI.style.display = 'block';
 
     // Initialize game
     initGame(false);
