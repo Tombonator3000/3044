@@ -21,6 +21,7 @@ import { HUD } from './ui/HUD.js';
 import { drawThemedGrid, drawBackground } from './rendering/GridRenderer.js';
 import { initCachedUI } from './globals.js';
 import { MobileControls } from './ui/MobileControls.js';
+import { MenuManager, GameSettings } from './ui/MenuManager.js';
 
 // New gameplay systems
 import { GrazingSystem } from './systems/GrazingSystem.js';
@@ -53,6 +54,7 @@ let soundSystem = null;
 let hud = null;
 let powerUpManager = null;
 let mobileControls = null;
+let menuManager = null;
 
 // === NEW GAMEPLAY SYSTEMS ===
 let grazingSystem = null;
@@ -123,6 +125,10 @@ function init() {
 
     // Initialize cached UI elements
     initCachedUI();
+
+    // Initialize menu manager for options and high scores
+    menuManager = new MenuManager();
+    menuManager.init();
 
     // Initialize sound system (needs user interaction to fully activate)
     soundSystem = new SoundSystem();
