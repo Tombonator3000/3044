@@ -22,6 +22,17 @@ import { drawThemedGrid, drawBackground } from './rendering/GridRenderer.js';
 import { initCachedUI } from './globals.js';
 import { MobileControls } from './ui/MobileControls.js';
 
+// New gameplay systems
+import { GrazingSystem } from './systems/GrazingSystem.js';
+import { RiskRewardSystem } from './systems/RiskRewardSystem.js';
+import { SlowMotionSystem } from './systems/SlowMotionSystem.js';
+import { ZoneSystem } from './systems/ZoneSystem.js';
+import { ReactiveMusicSystem } from './systems/ReactiveMusicSystem.js';
+import { ShipManager } from './systems/ShipManager.js';
+import { GameModeManager } from './systems/GameModeManager.js';
+import { DailyChallengeSystem } from './systems/DailyChallengeSystem.js';
+import { AchievementSystem } from './systems/AchievementSystem.js';
+
 // === GLOBAL STATE ===
 let canvas, ctx;
 let gameState = null;
@@ -42,6 +53,21 @@ let soundSystem = null;
 let hud = null;
 let powerUpManager = null;
 let mobileControls = null;
+
+// === NEW GAMEPLAY SYSTEMS ===
+let grazingSystem = null;
+let riskRewardSystem = null;
+let slowMotionSystem = null;
+let zoneSystem = null;
+let reactiveMusicSystem = null;
+let shipManager = null;
+let gameModeManager = null;
+let dailyChallengeSystem = null;
+let achievementSystem = null;
+
+// Achievement notification state
+let achievementNotification = null;
+let achievementNotificationTimer = 0;
 
 // === INPUT ===
 let keys = {};
@@ -115,11 +141,19 @@ function init() {
     mobileControls = new MobileControls(canvas);
     mobileControls.resize(canvas.width, canvas.height);
 
+    // Initialize new gameplay systems
+    shipManager = new ShipManager();
+    gameModeManager = new GameModeManager();
+    dailyChallengeSystem = new DailyChallengeSystem();
+    achievementSystem = new AchievementSystem();
+
     // Update config
     updateConfig(canvas.width, canvas.height);
 
     // Setup menu
     setupMenu();
+
+    console.log('🎮 New systems initialized: Grazing, Risk/Reward, SlowMo, Zones, Ships, Modes, Achievements');
 
     // Start menu animation
     requestAnimationFrame(menuLoop);
@@ -521,6 +555,18 @@ function initGame(isAttractMode = false) {
     collisionSystem = new CollisionSystem();
     radicalSlang = new RadicalSlang();
 
+    // Initialize new gameplay systems
+    grazingSystem = new GrazingSystem();
+    riskRewardSystem = new RiskRewardSystem();
+    slowMotionSystem = new SlowMotionSystem();
+    zoneSystem = new ZoneSystem(canvas.width, canvas.height);
+    reactiveMusicSystem = new ReactiveMusicSystem(soundSystem);
+
+    // Initialize reactive music
+    if (soundSystem?.initialized) {
+        reactiveMusicSystem.init();
+    }
+
     // Reset starfield
     if (starfield) {
         starfield.resize(canvas.width, canvas.height);
@@ -531,8 +577,14 @@ function initGame(isAttractMode = false) {
     // Create player
     player = new Player(canvas.width / 2, canvas.height - 100);
 
+    // Apply selected ship stats
+    const shipLives = shipManager?.applyShipStats(player) || 3;
+
     // Initialize power-up manager
     powerUpManager = new PowerUpManager(player);
+
+    // Get current game mode settings
+    const modeSettings = gameModeManager?.getCurrentModeSettings() || {};
 
     // Game state
     gameState = {
@@ -540,8 +592,8 @@ function initGame(isAttractMode = false) {
         paused: false,
         gameOver: false,
         score: 0,
-        lives: 3,
-        bombs: 3,
+        lives: modeSettings.lives || shipLives,
+        bombs: modeSettings.bombs || 3,
         wave: 1,
         combo: 0,
         maxCombo: 0,
@@ -555,8 +607,32 @@ function initGame(isAttractMode = false) {
         radicalSlang: radicalSlang,
         screenShake: { x: 0, y: 0, intensity: 0, duration: 0 },
         highScore: parseInt(localStorage.getItem('geometry3044_highScore')) || 0,
-        isAttractMode: isAttractMode
+        isAttractMode: isAttractMode,
+
+        // New gameplay stats
+        grazeCount: 0,
+        grazeStreak: 0,
+        riskRewardBonus: 0,
+        pointBlankKills: 0,
+        zoneKills: 0,
+        sessionStats: {
+            kills: 0,
+            grazes: 0,
+            pointBlankKills: 0,
+            powerUpsCollected: 0,
+            bossKills: 0
+        },
+
+        // Game mode settings
+        gameMode: gameModeManager?.currentMode || 'classic',
+        canShoot: modeSettings.canShoot !== false,
+        scoreMultiplier: modeSettings.scoreMultiplier || 1.0
     };
+
+    // Initialize game mode
+    if (gameModeManager) {
+        gameModeManager.initializeMode(gameState);
+    }
 
     // Start wave 1
     waveManager.startWave(1);
@@ -626,8 +702,20 @@ function gameLoop(currentTime) {
 // ============================================
 
 function update(deltaTime) {
+    // Apply slow motion if active
+    let adjustedDeltaTime = deltaTime;
+    if (slowMotionSystem) {
+        const timeFactor = slowMotionSystem.update();
+        adjustedDeltaTime = slowMotionSystem.adjustDeltaTime(deltaTime);
+
+        // Check for near-death slow motion
+        if (player?.isAlive && !player.invulnerable) {
+            slowMotionSystem.checkNearDeath(player, enemyBulletPool);
+        }
+    }
+
     // Update starfield
-    if (starfield) starfield.update(deltaTime);
+    if (starfield) starfield.update(adjustedDeltaTime);
 
     // Update mobile controls and sync touch state
     if (mobileControls && mobileControls.enabled) {
@@ -703,6 +791,14 @@ function update(deltaTime) {
             // Update starfield theme
             if (starfield) starfield.updateTheme(gameState.wave);
 
+            // Trigger wave complete effects
+            if (slowMotionSystem) {
+                slowMotionSystem.trigger('waveComplete');
+            }
+            if (reactiveMusicSystem) {
+                reactiveMusicSystem.triggerWaveComplete();
+            }
+
             // Boss wave?
             if (waveManager.isBossWave() || gameState.wave % 5 === 0) {
                 spawnBoss();
@@ -734,6 +830,49 @@ function update(deltaTime) {
     // Collision detection
     if (collisionSystem) {
         collisionSystem.checkCollisions(gameState, bulletPool, enemyBulletPool, particleSystem, soundSystem);
+    }
+
+    // Update new gameplay systems
+    if (grazingSystem && player?.isAlive) {
+        grazingSystem.update(player, enemyBulletPool, gameState, particleSystem, soundSystem);
+    }
+
+    if (riskRewardSystem) {
+        riskRewardSystem.update();
+    }
+
+    if (zoneSystem) {
+        zoneSystem.update(adjustedDeltaTime);
+    }
+
+    if (reactiveMusicSystem) {
+        reactiveMusicSystem.update(gameState, adjustedDeltaTime);
+    }
+
+    // Update game mode
+    if (gameModeManager) {
+        const modeResult = gameModeManager.update(gameState, adjustedDeltaTime);
+        if (modeResult && !modeResult.continue) {
+            // Mode ended (time up, victory, etc.)
+            if (modeResult.reason === 'victory') {
+                // Victory - show celebration
+                if (vhsEffect) vhsEffect.triggerGlitch(2, 60);
+                if (reactiveMusicSystem) reactiveMusicSystem.triggerWaveComplete();
+            }
+        }
+    }
+
+    // Achievement notification update
+    if (achievementNotification) {
+        achievementNotificationTimer++;
+        if (achievementNotificationTimer > 180) {
+            achievementNotification = null;
+            achievementNotificationTimer = 0;
+            // Check for next notification
+            if (achievementSystem) {
+                achievementNotification = achievementSystem.getNextNotification();
+            }
+        }
     }
 
     // Update combo
@@ -801,6 +940,9 @@ function render() {
     // Grid
     drawThemedGrid(ctx, canvas, gameState.wave);
 
+    // Zone system (behind everything)
+    if (zoneSystem) zoneSystem.draw(ctx);
+
     // Particles (behind entities)
     if (particleSystem) particleSystem.draw(ctx);
 
@@ -832,6 +974,16 @@ function render() {
         }
     }
 
+    // Draw grazing effects
+    if (grazingSystem && player) {
+        grazingSystem.draw(ctx, player);
+    }
+
+    // Draw risk/reward effects
+    if (riskRewardSystem) {
+        riskRewardSystem.draw(ctx);
+    }
+
     // Radical slang
     if (radicalSlang) radicalSlang.draw(ctx, canvas.width, canvas.height);
 
@@ -850,6 +1002,53 @@ function render() {
     if (mobileControls && mobileControls.enabled) {
         mobileControls.draw(ctx);
     }
+
+    // Slow motion overlay
+    if (slowMotionSystem) {
+        slowMotionSystem.draw(ctx, canvas);
+    }
+
+    // Achievement notification
+    if (achievementNotification && achievementSystem) {
+        const progress = Math.min(1, achievementNotificationTimer / 30);
+        achievementSystem.drawNotification(ctx, canvas, achievementNotification, progress);
+    }
+
+    // Game mode HUD info
+    if (gameModeManager) {
+        const modeInfo = gameModeManager.getHUDInfo();
+        if (modeInfo) {
+            drawModeHUD(ctx, modeInfo);
+        }
+    }
+}
+
+// Draw game mode specific HUD
+function drawModeHUD(ctx, modeInfo) {
+    ctx.save();
+    ctx.font = 'bold 16px "Courier New", monospace';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#ffff00';
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#ffff00';
+
+    const x = canvas.width - 20;
+    const y = 60;
+
+    if (modeInfo.showTimer) {
+        const minutes = Math.floor(modeInfo.timeRemaining / 60);
+        const seconds = modeInfo.timeRemaining % 60;
+        ctx.fillText(`${modeInfo.label}: ${minutes}:${seconds.toString().padStart(2, '0')}`, x, y);
+    } else if (modeInfo.showBossProgress) {
+        ctx.fillText(`${modeInfo.label}: ${modeInfo.current}/${modeInfo.total}`, x, y);
+    } else if (modeInfo.showSurvivalTime) {
+        ctx.fillText(`${modeInfo.label}: ${modeInfo.survivalTime}s`, x, y);
+    } else if (modeInfo.showMultiplier) {
+        ctx.fillStyle = '#ffd700';
+        ctx.fillText(modeInfo.label, x, y);
+    }
+
+    ctx.restore();
 }
 
 // ============================================
@@ -900,6 +1099,16 @@ function spawnBoss() {
 
     if (vhsEffect) {
         vhsEffect.triggerGlitch(2, 60);
+    }
+
+    // Trigger reactive music boss effect
+    if (reactiveMusicSystem) {
+        reactiveMusicSystem.triggerBossMusic();
+    }
+
+    // Trigger slow motion for boss appearance
+    if (slowMotionSystem) {
+        slowMotionSystem.trigger('bossKill');
     }
 
     // Screen shake
@@ -1045,6 +1254,36 @@ function handlePlayerDeath() {
         if (gameState.score > gameState.highScore) {
             gameState.highScore = gameState.score;
             localStorage.setItem('geometry3044_highScore', gameState.highScore);
+        }
+
+        // Update achievements and stats
+        if (achievementSystem && grazingSystem && riskRewardSystem) {
+            const sessionStats = {
+                kills: gameState.sessionStats?.kills || 0,
+                score: gameState.score,
+                wave: gameState.wave,
+                maxCombo: gameState.maxCombo,
+                grazes: grazingSystem.getStats().sessionGrazes,
+                maxGrazeStreak: grazingSystem.getStats().maxStreak,
+                pointBlankKills: riskRewardSystem.getStats().pointBlankKills,
+                powerUpsCollected: gameState.sessionStats?.powerUpsCollected || 0,
+                bossKills: gameState.sessionStats?.bossKills || 0,
+                gameMode: gameState.gameMode
+            };
+
+            const newAchievements = achievementSystem.updateStats(sessionStats);
+            if (newAchievements.length > 0) {
+                achievementNotification = newAchievements[0];
+                achievementNotificationTimer = 0;
+            }
+
+            // Check for new ship/mode unlocks
+            if (shipManager) {
+                shipManager.checkUnlocks(achievementSystem.stats);
+            }
+            if (gameModeManager) {
+                gameModeManager.checkUnlocks(achievementSystem.stats);
+            }
         }
     } else {
         // Respawn
