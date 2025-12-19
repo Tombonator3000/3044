@@ -1067,6 +1067,25 @@ let hazardManager = null;
         
         let touchJoystick = { active: false, startX: 0, startY: 0, currentX: 0, currentY: 0 };
         let touchButtons = { fire: false, bomb: false };
+
+        // 🚀 PERFORMANCE: Cached DOM references (avoid repeated getElementById calls)
+        let cachedUI = {
+            score: null,
+            wave: null,
+            lives: null,
+            bombs: null,
+            highScore: null,
+            menuScreen: null,
+            gameUI: null,
+            gameOverScreen: null
+        };
+
+        // 🚀 PERFORMANCE: Per-frame time cache (avoid multiple Date.now() calls)
+        let frameTime = 0;
+
+        // 🚀 PERFORMANCE: Cached formatted score (avoid toLocaleString every frame)
+        let cachedScoreFormatted = '0';
+        let lastCachedScore = -1;
         
         let particleSystem, bulletPool, enemyBulletPool, waveManager, soundSystem;
         let attractMode = false;
@@ -2628,8 +2647,8 @@ let hazardManager = null;
             update() {
                 if (this.glitchTimer > 0) {
                     this.glitchTimer--;
-                    this.scanlineOffset = Math.sin(Date.now() * 0.01) * 2;
-                    this.chromaShift = Math.sin(Date.now() * 0.02) * this.colorSeparation;
+                    this.scanlineOffset = Math.sin(frameTime * 0.01) * 2;
+                    this.chromaShift = Math.sin(frameTime * 0.02) * this.colorSeparation;
                     
                     // Update distortion lines
                     this.horizontalDistortion = this.horizontalDistortion.filter(line => {
@@ -2757,7 +2776,7 @@ let hazardManager = null;
                 ctx.globalAlpha = 0.03;
                 
                 this.scanLines.forEach(line => {
-                    const flicker = Math.sin(Date.now() * line.flickerSpeed) * 0.3 + 0.7;
+                    const flicker = Math.sin(frameTime * line.flickerSpeed) * 0.3 + 0.7;
                     ctx.fillStyle = `rgba(0, 255, 100, ${line.brightness * flicker})`;
                     ctx.fillRect(0, line.y, config.width, 1);
                 });
@@ -3933,7 +3952,7 @@ let hazardManager = null;
                     ctx.shadowColor = '#ff0000';
                 } else if (this.ghostMode > 0) {
                     // Ghost mode transparency
-                    ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
+                    ctx.globalAlpha = 0.5 + Math.sin(frameTime * 0.01) * 0.3;
                     this.color = '#aaaaff';
                 } else {
                     this.color = config.colors.player;
@@ -3966,7 +3985,7 @@ let hazardManager = null;
                 // Draw vortex effect
                 if (this.vortexActive > 0) {
                     ctx.save();
-                    const vortexRadius = 80 + Math.sin(Date.now() * 0.01) * 20;
+                    const vortexRadius = 80 + Math.sin(frameTime * 0.01) * 20;
                     ctx.strokeStyle = '#80ff80';
                     ctx.lineWidth = 2;
                     ctx.globalAlpha = 0.6;
@@ -3978,7 +3997,7 @@ let hazardManager = null;
                     
                     // Swirling lines
                     for (let i = 0; i < 8; i++) {
-                        const angle = (Date.now() * 0.005) + (i * Math.PI / 4);
+                        const angle = (frameTime * 0.005) + (i * Math.PI / 4);
                         ctx.beginPath();
                         ctx.moveTo(Math.cos(angle) * 40, Math.sin(angle) * 40);
                         ctx.lineTo(Math.cos(angle) * vortexRadius, Math.sin(angle) * vortexRadius);
@@ -4032,7 +4051,7 @@ let hazardManager = null;
                     ctx.lineWidth = 2;
                     ctx.shadowBlur = 20;
                     ctx.shadowColor = '#00ffff';
-                    ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
+                    ctx.globalAlpha = 0.5 + Math.sin(frameTime * 0.01) * 0.3;
                     ctx.beginPath();
                     ctx.arc(0, 0, 35, 0, Math.PI * 2);
                     ctx.stroke();
@@ -8072,7 +8091,7 @@ let hazardManager = null;
                             if (this.intensity >= 2) {
                                 // Rainbow effect for tier 2+
                                 const gradient = ctx.createLinearGradient(-200, 0, 200, 0);
-                                const hue = Date.now() * 0.01 % 360;
+                                const hue = frameTime * 0.01 % 360;
                                 gradient.addColorStop(0, `hsl(${hue}, 100%, 50%)`);
                                 gradient.addColorStop(0.5, `hsl(${(hue + 120) % 360}, 100%, 50%)`);
                                 gradient.addColorStop(1, `hsl(${(hue + 240) % 360}, 100%, 50%)`);
@@ -8425,7 +8444,7 @@ let hazardManager = null;
                 for (let [type, data] of effects.powerUps) {
                     const x = 20 + (index * 45);
                     const alpha = data.duration < 60 ? (data.duration / 60) : 1;
-                    const pulse = Math.sin(Date.now() * 0.01) * 0.2 + 0.8;
+                    const pulse = Math.sin(frameTime * 0.01) * 0.2 + 0.8;
                     
                     ctx.save();
                     ctx.globalAlpha = alpha;
@@ -9399,27 +9418,18 @@ let hazardManager = null;
             }
             
             gameState.lastScoreIncrease = gameState.score;
-            
-            // Update UI elements
-            const scoreElement = document.getElementById('scoreDisplay');
-            const waveElement = document.getElementById('waveDisplay');
-            const livesElement = document.getElementById('livesDisplay');
-            const bombsElement = document.getElementById('bombsDisplay');
-            
-            if (scoreElement) scoreElement.textContent = gameState.score.toLocaleString();
-            if (waveElement) waveElement.textContent = gameState.wave;
-            if (livesElement) livesElement.textContent = gameState.lives;
-            if (bombsElement) bombsElement.textContent = gameState.bombs;
-            
-            // Update high score display
-            const highScores = getHighScores();
-            const topScore = highScores.length > 0 ? highScores[0].score : 0;
-            const highScoreElement = document.getElementById('highScoreDisplay');
-            if (highScoreElement) {
-                highScoreElement.textContent = topScore.toLocaleString();
+
+            // 🚀 PERFORMANCE: Use cached DOM references and cached score formatting
+            // Only format score when it changes (toLocaleString is expensive)
+            if (gameState.score !== lastCachedScore) {
+                cachedScoreFormatted = gameState.score.toLocaleString();
+                lastCachedScore = gameState.score;
             }
-            
-            console.log(`📊 UI Updated - Score: ${gameState.score}, Lives: ${gameState.lives}, Wave: ${gameState.wave}`);
+
+            if (cachedUI.score) cachedUI.score.textContent = cachedScoreFormatted;
+            if (cachedUI.wave) cachedUI.wave.textContent = gameState.wave;
+            if (cachedUI.lives) cachedUI.lives.textContent = gameState.lives;
+            if (cachedUI.bombs) cachedUI.bombs.textContent = gameState.bombs;
         }
 
         // Collision Detection
@@ -9432,12 +9442,13 @@ let hazardManager = null;
                     if (ufoManager && ufoManager.ufos) {
                         ufoManager.ufos.forEach(ufo => {
                             if (ufo && ufo.active) {
-                                const dist = Math.hypot(
-                                    bullet.x - ufo.x,
-                                    bullet.y - ufo.y
-                                );
-                                
-                                if (dist < ufo.size) {
+                                // 🚀 PERFORMANCE: Use squared distance (avoid sqrt)
+                                const dx = bullet.x - ufo.x;
+                                const dy = bullet.y - ufo.y;
+                                const distSq = dx * dx + dy * dy;
+                                const radiusSq = ufo.size * ufo.size;
+
+                                if (distSq < radiusSq) {
                                     bullet.active = false;
                                     const damage = bullet.damage || 1;
                                     ufo.takeDamage(damage);
@@ -9530,12 +9541,13 @@ let hazardManager = null;
                     }
                     
                     if (gameState.boss && gameState.boss.active) {
-                        const dist = Math.hypot(
-                            bullet.x - gameState.boss.x,
-                            bullet.y - gameState.boss.y
-                        );
-                        
-                        if (dist < gameState.boss.size) {
+                        // 🚀 PERFORMANCE: Use squared distance (avoid sqrt)
+                        const dx = bullet.x - gameState.boss.x;
+                        const dy = bullet.y - gameState.boss.y;
+                        const distSq = dx * dx + dy * dy;
+                        const radiusSq = gameState.boss.size * gameState.boss.size;
+
+                        if (distSq < radiusSq) {
                             bullet.active = false;
                             if (gameState.boss && gameState.boss.takeDamage) {
                                 gameState.boss.takeDamage(bullet.damage);
@@ -9548,12 +9560,13 @@ let hazardManager = null;
                     
                     gameState.enemies.forEach(enemy => {
                         if (enemy && enemy.active && enemy.color) {
-                            const dist = Math.hypot(
-                                bullet.x - enemy.x,
-                                bullet.y - enemy.y
-                            );
-                            
-                            if (dist < enemy.size) {
+                            // 🚀 PERFORMANCE: Use squared distance (avoid sqrt)
+                            const dx = bullet.x - enemy.x;
+                            const dy = bullet.y - enemy.y;
+                            const distSq = dx * dx + dy * dy;
+                            const radiusSq = enemy.size * enemy.size;
+
+                            if (distSq < radiusSq) {
                                 bullet.active = false;
                                 const damage = bullet.damage || 1;
                                 enemy.takeDamage(damage);
@@ -9723,12 +9736,13 @@ let hazardManager = null;
             if (!gameState.player.invulnerable && gameState.player.feverMode <= 0 && gameState.player.isAlive) {
                 enemyBulletPool.getActiveBullets().forEach(bullet => {
                     if (!bullet.isPlayerBullet && bullet.active) {
-                        const dist = Math.hypot(
-                            bullet.x - gameState.player.x,
-                            bullet.y - gameState.player.y
-                        );
-                        
-                        if (dist < gameState.player.size) {
+                        // 🚀 PERFORMANCE: Use squared distance (avoid sqrt)
+                        const dx = bullet.x - gameState.player.x;
+                        const dy = bullet.y - gameState.player.y;
+                        const distSq = dx * dx + dy * dy;
+                        const radiusSq = gameState.player.size * gameState.player.size;
+
+                        if (distSq < radiusSq) {
                             bullet.active = false;
                             
                             if (gameState.player.takeDamage()) {
@@ -9751,12 +9765,14 @@ let hazardManager = null;
             if (!gameState.player.invulnerable && gameState.player.feverMode <= 0 && gameState.player.isAlive) {
                 gameState.enemies.forEach(enemy => {
                     if (enemy && enemy.active && enemy.size && enemy.x !== undefined && enemy.y !== undefined) {
-                        const dist = Math.hypot(
-                            enemy.x - gameState.player.x,
-                            enemy.y - gameState.player.y
-                        );
-                        
-                        if (dist < enemy.size + gameState.player.size) {
+                        // 🚀 PERFORMANCE: Use squared distance (avoid sqrt)
+                        const dx = enemy.x - gameState.player.x;
+                        const dy = enemy.y - gameState.player.y;
+                        const distSq = dx * dx + dy * dy;
+                        const combinedRadius = enemy.size + gameState.player.size;
+                        const radiusSq = combinedRadius * combinedRadius;
+
+                        if (distSq < radiusSq) {
                             if (gameState.player.takeDamage()) {
                                 gameState.lives--;
                                 enemy.active = false;
@@ -9782,12 +9798,12 @@ let hazardManager = null;
             
             gameState.powerUps.forEach(powerUp => {
                 if (powerUp && powerUp.active) {
-                    const dist = Math.hypot(
-                        powerUp.x - gameState.player.x,
-                        powerUp.y - gameState.player.y
-                    );
-                    
-                    if (dist < 30) {
+                    // 🚀 PERFORMANCE: Use squared distance (avoid sqrt)
+                    const dx = powerUp.x - gameState.player.x;
+                    const dy = powerUp.y - gameState.player.y;
+                    const distSq = dx * dx + dy * dy;
+
+                    if (distSq < 900) { // 30 * 30 = 900
                         powerUp.active = false;
                         
                         // Initialize PowerUpManager if not exists
@@ -10099,8 +10115,9 @@ let hazardManager = null;
         function update() {
             try {
                 if (!gameState || !gameState.running) return;
-                
-                // 🚀 PERFORMANCE MONITOR
+
+                // 🚀 PERFORMANCE: Cache time values once per frame
+                frameTime = Date.now();
                 const frameStart = performance.now();
                 
                 const timeScale = gameState.slowMotion > 0 ? 0.3 : 1.0;
@@ -10112,16 +10129,22 @@ let hazardManager = null;
                 if (holographicUI && frameStart % 4 === 0) holographicUI.update(); // Every 4th frame
                 if (laserTargeting) laserTargeting.update();
                 
-                // Update epic explosions with limit check
+                // 🚀 PERFORMANCE: Update explosions with in-place removal (avoid filter/slice)
                 if (epic80sExplosions && epic80sExplosions.length > 0) {
-                    // 🚀 PERFORMANCE: Limit concurrent explosions
+                    // Hard cap at 3 explosions - just truncate if over
                     if (epic80sExplosions.length > 3) {
-                        epic80sExplosions = epic80sExplosions.slice(-3); // Keep only newest 3
+                        epic80sExplosions.length = 3;
                     }
-                    epic80sExplosions = epic80sExplosions.filter(explosion => {
+                    // In-place update and removal
+                    let writeIdx = 0;
+                    for (let i = 0; i < epic80sExplosions.length; i++) {
+                        const explosion = epic80sExplosions[i];
                         explosion.update();
-                        return explosion.active;
-                    });
+                        if (explosion.active) {
+                            epic80sExplosions[writeIdx++] = explosion;
+                        }
+                    }
+                    epic80sExplosions.length = writeIdx;
                 }
                 
                 if (attractMode) {
@@ -10166,24 +10189,27 @@ let hazardManager = null;
                 }
                 
                 if (gameState.enemies && timeScale === 1) {
-                    // 🚀 PERFORMANCE: Limit enemy count and updates
+                    // 🚀 PERFORMANCE: Limit enemy count - use length truncation instead of slice
                     if (gameState.enemies.length > 15) {
-                        gameState.enemies = gameState.enemies.slice(0, 15); // Hard cap at 15 enemies
+                        gameState.enemies.length = 15;
                     }
-                    
-                    gameState.enemies = gameState.enemies.filter(enemy => {
+
+                    // 🚀 PERFORMANCE: In-place update and removal (avoid filter)
+                    let writeIdx = 0;
+                    for (let i = 0; i < gameState.enemies.length; i++) {
+                        const enemy = gameState.enemies[i];
                         if (enemy && enemy.active && typeof enemy.update === 'function') {
                             enemy.update();
-                            
+
                             // 🎯 ADD LASER TARGETING TO ENEMIES (reduced frequency)
-                            if (laserTargeting && Math.random() < 0.005) { // Reduced from 0.02
+                            if (laserTargeting && Math.random() < 0.005) {
                                 laserTargeting.addTarget(enemy.x, enemy.y, enemy.type);
                             }
-                            
-                            return true;
+
+                            gameState.enemies[writeIdx++] = enemy;
                         }
-                        return false;
-                    });
+                    }
+                    gameState.enemies.length = writeIdx;
                 }
                 
                 if (gameState.boss && gameState.boss.active && timeScale === 1) {
@@ -10195,46 +10221,54 @@ let hazardManager = null;
                     }
                 }
                 
-                // 🚀 PERFORMANCE: Optimize particle updates with batching
+                // 🚀 PERFORMANCE: Optimize particle updates with in-place removal
                 if (gameState.particles && gameState.particles.length > 0) {
-                    // Limit particle processing per frame
                     const maxParticlesPerFrame = 30;
-                    const particlesToProcess = Math.min(gameState.particles.length, maxParticlesPerFrame);
-                    
-                    for (let i = 0; i < particlesToProcess; i++) {
+                    const len = Math.min(gameState.particles.length, maxParticlesPerFrame);
+                    let writeIdx = 0;
+                    let hasInactive = false;
+
+                    for (let i = 0; i < len; i++) {
                         const p = gameState.particles[i];
                         try {
                             if (p && typeof p.update === 'function') {
                                 p.update();
-                                if (p.active === false) {
-                                    gameState.particles.splice(i, 1);
-                                    i--;
-                                    break; // Only remove one per frame to avoid hitching
-                                }
+                            }
+                            if (p && p.active !== false && (p.life === undefined || p.life > 0)) {
+                                gameState.particles[writeIdx++] = p;
+                            } else {
+                                hasInactive = true;
                             }
                         } catch (err) {
-                            console.warn('Particle update error:', err);
-                            gameState.particles.splice(i, 1);
-                            i--;
+                            hasInactive = true;
                         }
                     }
-                    
-                    // Clean up expired particles periodically
-                    if (frameStart % 120 === 0) { // Every 2 seconds
-                        gameState.particles = gameState.particles.filter(p => 
-                            p && p.active !== false && (p.life === undefined || p.life > 0)
-                        );
+
+                    // Copy remaining unprocessed particles
+                    for (let i = len; i < gameState.particles.length; i++) {
+                        gameState.particles[writeIdx++] = gameState.particles[i];
+                    }
+                    gameState.particles.length = writeIdx;
+
+                    // Hard cap at 100 particles
+                    if (gameState.particles.length > 100) {
+                        gameState.particles.length = 100;
                     }
                 }
-                
-                if (gameState.powerUps) {
-                    gameState.powerUps = gameState.powerUps.filter(p => {
+
+                // 🚀 PERFORMANCE: In-place powerUp update
+                if (gameState.powerUps && gameState.powerUps.length > 0) {
+                    let writeIdx = 0;
+                    for (let i = 0; i < gameState.powerUps.length; i++) {
+                        const p = gameState.powerUps[i];
                         if (p && typeof p.update === 'function') {
                             p.update();
-                            return p.active;
+                            if (p.active) {
+                                gameState.powerUps[writeIdx++] = p;
+                            }
                         }
-                        return false;
-                    });
+                    }
+                    gameState.powerUps.length = writeIdx;
                 }
                 
                 if (waveManager && timeScale === 1) waveManager.update(1);
@@ -10324,7 +10358,7 @@ let hazardManager = null;
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; // Reduced from 0.8
                     for (let i = 0; i < 100; i++) {
                         const x = Math.random() * config.width;
-                        const y = (Math.random() * config.height + Date.now() * 0.1) % (config.height + 50) - 50;
+                        const y = (Math.random() * config.height + frameTime * 0.1) % (config.height + 50) - 50;
                         const size = Math.random() * 1.5; // Reduced from 2
                         ctx.beginPath();
                         ctx.arc(x, y, size, 0, Math.PI * 2);
@@ -10416,7 +10450,7 @@ let hazardManager = null;
                 }
                 
                 if (gameState.player && gameState.player.isAlive) {
-                    if (!gameState.player.invulnerable || Math.floor(Date.now() / 100) % 2) {
+                    if (!gameState.player.invulnerable || Math.floor(frameTime / 100) % 2) {
                         gameState.player.draw(ctx);
                     }
                 }
@@ -10469,7 +10503,7 @@ let hazardManager = null;
                                 font: 'bold 20px ' + (terminalFonts ? terminalFonts.primary : 'Courier New'),
                                 color: '#ffff00',
                                 align: 'center',
-                                flicker: Math.sin(Date.now() * 0.008) > 0,
+                                flicker: Math.sin(frameTime * 0.008) > 0,
                                 shadowBlur: 25
                             });
                         }
@@ -10480,27 +10514,27 @@ let hazardManager = null;
                         ctx.fillStyle = '#00ffff';
                         ctx.shadowBlur = 20;
                         ctx.shadowColor = '#00ffff';
-                        ctx.globalAlpha = 0.8 + Math.sin(Date.now() * 0.005) * 0.2;
+                        ctx.globalAlpha = 0.8 + Math.sin(frameTime * 0.005) * 0.2;
                         ctx.fillText(
-                            gameState.promoTexts[gameState.currentPromoIndex], 
-                            config.width / 2, 
+                            gameState.promoTexts[gameState.currentPromoIndex],
+                            config.width / 2,
                             config.height * 0.85
                         );
-                        
+
                         ctx.font = 'bold 16px Courier New';
                         ctx.fillStyle = '#ff00ff';
                         ctx.shadowBlur = 15;
                         ctx.shadowColor = '#ff00ff';
-                        ctx.globalAlpha = 0.6 + Math.sin(Date.now() * 0.01) * 0.4;
+                        ctx.globalAlpha = 0.6 + Math.sin(frameTime * 0.01) * 0.4;
                         ctx.fillText('DEMO MODE', config.width / 2, 30);
-                        
-                        if (gameState.promoTexts[gameState.currentPromoIndex].includes('PRESS ANY KEY') || 
+
+                        if (gameState.promoTexts[gameState.currentPromoIndex].includes('PRESS ANY KEY') ||
                             gameState.promoTexts[gameState.currentPromoIndex].includes('PRESS C TO INSERT')) {
                             ctx.font = 'bold 20px Courier New';
                             ctx.fillStyle = '#ffff00';
                             ctx.shadowBlur = 25;
                             ctx.shadowColor = '#ffff00';
-                            ctx.globalAlpha = Math.sin(Date.now() * 0.008) > 0 ? 1 : 0.3;
+                            ctx.globalAlpha = Math.sin(frameTime * 0.008) > 0 ? 1 : 0.3;
                             ctx.fillText('PRESS C TO INSERT COIN', config.width / 2, config.height * 0.92);
                         }
                     }
@@ -10551,7 +10585,7 @@ let hazardManager = null;
                         textGradient.addColorStop(1, '#ff00ff');
                         
                         ctx.fillStyle = textGradient;
-                        ctx.globalAlpha = 0.9 + Math.sin(Date.now() * 0.01) * 0.1;
+                        ctx.globalAlpha = 0.9 + Math.sin(frameTime * 0.01) * 0.1;
                         
                         const comboText = `${gameState.combo}x COMBO`;
                         ctx.fillText(comboText, config.width / 2, meterY - 15);
@@ -10588,7 +10622,7 @@ let hazardManager = null;
                         ctx.textBaseline = 'middle';
                         ctx.shadowBlur = 30;
                         ctx.shadowColor = '#ff0000';
-                        ctx.globalAlpha = 0.8 + Math.sin(Date.now() * 0.01) * 0.2;
+                        ctx.globalAlpha = 0.8 + Math.sin(frameTime * 0.01) * 0.2;
                         ctx.fillText('GAME OVER', config.width / 2, config.height / 2);
                     }
                     
@@ -10641,17 +10675,17 @@ let hazardManager = null;
             
             ctx.save();
             
-            const pulse = Math.sin(Date.now() * 0.001) * 0.3 + 0.7;
-            const colorShift = Math.sin(Date.now() * 0.0005) * 30;
-            
+            const pulse = Math.sin(frameTime * 0.001) * 0.3 + 0.7;
+            const colorShift = Math.sin(frameTime * 0.0005) * 30;
+
             const hue = theme.gridHue + colorShift;
             ctx.strokeStyle = `hsla(${hue}, 100%, 50%, ${0.15 * pulse})`;
             ctx.lineWidth = 1;
             ctx.shadowBlur = 8 * pulse;
             ctx.shadowColor = `hsla(${hue}, 100%, 50%, 0.4)`;
-            
+
             const gridSize = 60;
-            const offset = (Date.now() * 0.02) % gridSize;
+            const offset = (frameTime * 0.02) % gridSize;
             
             // Vertical grid lines with perspective
             for (let x = -gridSize; x < config.width + gridSize; x += gridSize) {
@@ -11095,9 +11129,20 @@ let hazardManager = null;
                     }
                 }
                 
+                // 🚀 PERFORMANCE: Cache DOM references once at startup
+                cachedUI.score = document.getElementById('scoreDisplay');
+                cachedUI.wave = document.getElementById('waveDisplay');
+                cachedUI.lives = document.getElementById('livesDisplay');
+                cachedUI.bombs = document.getElementById('bombsDisplay');
+                cachedUI.highScore = document.getElementById('highScoreDisplay');
+                cachedUI.menuScreen = document.getElementById('menuScreen');
+                cachedUI.gameUI = document.getElementById('gameUI');
+                cachedUI.gameOverScreen = document.getElementById('gameOverScreen');
+                console.log('🚀 DOM references cached for performance');
+
                 const highScores = getHighScores();
                 const topScore = highScores.length > 0 ? highScores[0].score : 0;
-                document.getElementById('highScoreDisplay').textContent = topScore.toLocaleString();
+                if (cachedUI.highScore) cachedUI.highScore.textContent = topScore.toLocaleString();
                 
                 soundSystem = new SoundSystem();
                 
