@@ -4,7 +4,6 @@
  */
 
 import { CONFIG, getCurrentTheme } from '../config.js';
-import { config, gameState } from '../globals.js';
 
 /**
  * Particle Class
@@ -363,8 +362,8 @@ export class ParticleSystem {
     /**
      * Create bomb explosion effect
      */
-    bombExplosion(x, y, radius = 150) {
-        const theme = getCurrentTheme(gameState?.wave || 1);
+    bombExplosion(x, y, radius = 150, wave = 1) {
+        const theme = getCurrentTheme(wave);
 
         // Massive ring expansion
         for (let ring = 0; ring < 3; ring++) {

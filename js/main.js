@@ -19,6 +19,7 @@ import { VHSEffect } from './effects/VHSEffect.js';
 import { SoundSystem } from './systems/SoundSystem.js';
 import { HUD } from './ui/HUD.js';
 import { drawThemedGrid, drawBackground } from './rendering/GridRenderer.js';
+import { initCachedUI } from './globals.js';
 
 // === GLOBAL STATE ===
 let canvas, ctx;
@@ -90,6 +91,9 @@ function init() {
 
     // Initialize input
     initInput();
+
+    // Initialize cached UI elements
+    initCachedUI();
 
     // Initialize sound system (needs user interaction to fully activate)
     soundSystem = new SoundSystem();
