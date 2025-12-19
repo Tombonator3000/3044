@@ -68,6 +68,24 @@ export class Player {
         // Mirror ship properties
         this.mirrorX = x;
         this.mirrorY = y;
+
+        // Screen wrap mode (Asteroids-style)
+        this.screenWrap = true;
+
+        // Ship customization (for unlockable ships)
+        this.shipId = 'neonFalcon';
+        this.shipColor = config.colors.player;
+        this.shipSpecial = null;
+        this.damageMultiplier = 1.0;
+
+        // Dash ability (for speedster ship)
+        this.dashCooldown = 0;
+
+        // Phase shift timer (for phantom ship)
+        this.phaseTimer = 0;
+
+        // Shield cooldown (for tank ship auto-shield)
+        this.shieldCooldown = 0;
     }
 
     update(keys, canvas, bulletPool, gameState, touchJoystick, touchButtons, particleSystem, soundSystem) {
@@ -109,9 +127,29 @@ export class Player {
             dy *= 0.707;
         }
 
-        // Apply movement with bounds
-        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x + dx));
-        this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y + dy));
+        // Apply movement with screen wrap (Asteroids-style) or bounded
+        if (this.screenWrap) {
+            this.x += dx;
+            this.y += dy;
+
+            // Wrap horizontally
+            if (this.x < -this.size) {
+                this.x = canvas.width + this.size;
+            } else if (this.x > canvas.width + this.size) {
+                this.x = -this.size;
+            }
+
+            // Wrap vertically
+            if (this.y < -this.size) {
+                this.y = canvas.height + this.size;
+            } else if (this.y > canvas.height + this.size) {
+                this.y = -this.size;
+            }
+        } else {
+            // Standard bounded movement
+            this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x + dx));
+            this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y + dy));
+        }
 
         // Update mirror ship
         if (this.mirrorShip > 0) {
