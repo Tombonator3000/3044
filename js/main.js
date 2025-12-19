@@ -13,7 +13,7 @@ import {
     setGameState, setParticleSystem, setBulletPool,
     setEnemyBulletPool, setWaveManager, setSoundSystem,
     setStarfield, setVhsGlitch, setWeaponManager,
-    gameStarting, setGameStarting
+    gameStarting, setGameStarting, setKeys
 } from './globals.js';
 
 // Entity modules
@@ -838,6 +838,13 @@ function startGame() {
             () => new FallbackInputHandler()
         );
 
+        // CRITICAL: Connect InputHandler keys to global keys
+        // This allows Player.js to read input via the global keys object
+        if (inputHandler && inputHandler.keys) {
+            setKeys(inputHandler.keys);
+            console.log('✅ InputHandler keys connected to global keys');
+        }
+
         // Collision System
         collisionSystem = safeInit('CollisionSystem',
             () => new CollisionSystem({
@@ -872,6 +879,13 @@ function startGame() {
             () => new FallbackWaveManager()
         );
         setWaveManager(waveManager);
+
+        // CRITICAL: Connect WaveManager enemies array to gameState
+        // This ensures spawned enemies are rendered by GameLoop
+        if (waveManager && waveManager.setEnemiesArray) {
+            waveManager.setEnemiesArray(gameStateInstance.enemies);
+            console.log('✅ WaveManager enemies array connected to gameState');
+        }
 
         // VHS Glitch Effect
         vhsGlitch = safeInit('VHSGlitch',
