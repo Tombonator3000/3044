@@ -4285,7 +4285,7 @@
                 this.role = 'elite';
                 this.sineTimer = Math.random() * Math.PI * 2;
                 this.amplitude = 60 + Math.random() * 40;
-                this.centerX = x;
+                this.centerX = this.x; // Fixed: was 'x' which was undefined
                 this.canTeleport = intelligence >= 4;
                 this.teleportCooldown = 0;
             }
@@ -4318,26 +4318,29 @@
                     }
                 }
                 
-                // Generate smoke trail for dive bombers
-                if (this.isDiveBomber && Math.random() < 0.7) {
+                // Generate smoke trail for dive bombers (with limit)
+                if (this.isDiveBomber && Math.random() < 0.5 && this.smokeTrail.length < 20) {
                     this.smokeTrail.push({
                         x: this.x + (Math.random() - 0.5) * 10,
                         y: this.y + (Math.random() - 0.5) * 10,
-                        life: 60,
+                        life: 40,
                         size: Math.random() * 4 + 2,
                         vx: (Math.random() - 0.5) * 2,
                         vy: Math.random() * 3 + 1
                     });
                 }
-                
-                // Update smoke trail
-                this.smokeTrail = this.smokeTrail.filter(smoke => {
+
+                // Update smoke trail (optimized)
+                for (let i = this.smokeTrail.length - 1; i >= 0; i--) {
+                    const smoke = this.smokeTrail[i];
                     smoke.x += smoke.vx;
                     smoke.y += smoke.vy;
                     smoke.life--;
-                    smoke.vy += 0.1; // Gravity
-                    return smoke.life > 0;
-                });
+                    smoke.vy += 0.1;
+                    if (smoke.life <= 0) {
+                        this.smokeTrail.splice(i, 1);
+                    }
+                }
                 
                 // 🌈 FEVER MODE - enemies flee!
                 if (this.behavior === 'flee' && gameState && gameState.player) {
@@ -5400,23 +5403,26 @@
             }
             
             updatePhoenix() {
-                // Generate flame trail
-                if (Math.random() < 0.8) {
+                // Generate flame trail (with limit for performance)
+                if (Math.random() < 0.6 && this.flameTrail.length < 30) {
                     this.flameTrail.push({
                         x: this.x + (Math.random() - 0.5) * this.size,
                         y: this.y + (Math.random() - 0.5) * this.size,
-                        life: 40,
+                        life: 30,
                         size: Math.random() * 8 + 4,
                         color: Math.random() > 0.5 ? '#ff6600' : '#ff3300'
                     });
                 }
-                
-                // Update flame trail
-                this.flameTrail = this.flameTrail.filter(flame => {
+
+                // Update flame trail (optimized)
+                for (let i = this.flameTrail.length - 1; i >= 0; i--) {
+                    const flame = this.flameTrail[i];
                     flame.life--;
                     flame.y += 2;
-                    return flame.life > 0;
-                });
+                    if (flame.life <= 0) {
+                        this.flameTrail.splice(i, 1);
+                    }
+                }
                 
                 if (!this.isDiving) {
                     this.x += Math.sin(this.phaseTimer * 0.04) * this.speed * 2;
@@ -9873,33 +9879,27 @@
                 
                 // 🚀 PERFORMANCE: Optimize particle updates with batching
                 if (gameState.particles && gameState.particles.length > 0) {
-                    // Limit particle processing per frame
-                    const maxParticlesPerFrame = 30;
-                    const particlesToProcess = Math.min(gameState.particles.length, maxParticlesPerFrame);
-                    
-                    for (let i = 0; i < particlesToProcess; i++) {
+                    // Hard limit on gameState particles to prevent memory issues
+                    const maxGameParticles = 50;
+                    if (gameState.particles.length > maxGameParticles) {
+                        gameState.particles = gameState.particles.slice(-maxGameParticles);
+                    }
+
+                    // Update all particles and remove inactive ones
+                    for (let i = gameState.particles.length - 1; i >= 0; i--) {
                         const p = gameState.particles[i];
                         try {
                             if (p && typeof p.update === 'function') {
                                 p.update();
-                                if (p.active === false) {
+                                if (p.active === false || (p.life !== undefined && p.life <= 0)) {
                                     gameState.particles.splice(i, 1);
-                                    i--;
-                                    break; // Only remove one per frame to avoid hitching
                                 }
+                            } else if (!p) {
+                                gameState.particles.splice(i, 1);
                             }
                         } catch (err) {
-                            console.warn('Particle update error:', err);
                             gameState.particles.splice(i, 1);
-                            i--;
                         }
-                    }
-                    
-                    // Clean up expired particles periodically
-                    if (frameStart % 120 === 0) { // Every 2 seconds
-                        gameState.particles = gameState.particles.filter(p => 
-                            p && p.active !== false && (p.life === undefined || p.life > 0)
-                        );
                     }
                 }
                 
