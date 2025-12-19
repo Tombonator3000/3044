@@ -94,30 +94,11 @@ export class MenuManager {
         GameSettings.load();
 
         // Bind start button (with guard against multiple clicks)
+        // NOTE: We do NOT clone the button or add click handlers here.
+        // The start button handler is managed by setupMenu() in main.js
+        // to avoid duplicate event listeners and ensure proper game start flow.
         if (cachedUI.startGameBtn) {
-            console.log('  - Start button found, binding click event');
-            // Remove any existing handlers by cloning and replacing
-            const newBtn = cachedUI.startGameBtn.cloneNode(true);
-            cachedUI.startGameBtn.parentNode.replaceChild(newBtn, cachedUI.startGameBtn);
-            cachedUI.startGameBtn = newBtn;
-
-            cachedUI.startGameBtn.addEventListener('click', () => {
-                console.log('🔘 START GAME button clicked!');
-
-                // Guard against multiple calls
-                if (gameStarting) {
-                    console.log('  - Game already starting, ignoring click');
-                    return;
-                }
-
-                console.log('  - onStartGame callback:', this.onStartGame ? '✅ set' : '❌ not set');
-                if (this.onStartGame) {
-                    console.log('  - Calling onStartGame()...');
-                    this.onStartGame();
-                } else {
-                    console.error('  - ERROR: onStartGame callback not set!');
-                }
-            });
+            console.log('  - Start button found in cachedUI');
         } else {
             console.error('❌ Start button NOT found in cachedUI!');
         }
