@@ -216,6 +216,7 @@ export class PlasmaBeam {
 
         const endX = player.x + Math.cos(this.angle) * this.length;
         const endY = player.y + Math.sin(this.angle) * this.length;
+        const time = Date.now() * 0.01;
 
         ctx.save();
 
@@ -223,10 +224,10 @@ export class PlasmaBeam {
         const pulse = 1 + Math.sin(this.pulsePhase) * 0.3;
         const width = PLASMA_BEAM.beamWidth * pulse;
 
-        // Outer glow
-        ctx.strokeStyle = 'rgba(255, 0, 255, 0.3)';
-        ctx.lineWidth = width * 4;
-        ctx.shadowBlur = 40;
+        // Heat distortion background effect
+        ctx.strokeStyle = 'rgba(255, 100, 200, 0.08)';
+        ctx.lineWidth = width * 8;
+        ctx.shadowBlur = 60;
         ctx.shadowColor = '#ff00ff';
         ctx.lineCap = 'round';
 
@@ -235,48 +236,159 @@ export class PlasmaBeam {
         ctx.lineTo(endX, endY);
         ctx.stroke();
 
-        // Main beam
+        // Outer plasma field
+        ctx.strokeStyle = 'rgba(255, 0, 255, 0.2)';
+        ctx.lineWidth = width * 5;
+        ctx.shadowBlur = 50;
+        ctx.stroke();
+
+        // Secondary glow layer
+        ctx.strokeStyle = 'rgba(255, 50, 255, 0.4)';
+        ctx.lineWidth = width * 3;
+        ctx.shadowBlur = 35;
+        ctx.stroke();
+
+        // Main beam with animated gradient
         const gradient = ctx.createLinearGradient(player.x, player.y, endX, endY);
+        const colorShift = Math.sin(time * 2) * 0.5 + 0.5;
         gradient.addColorStop(0, '#ff00ff');
-        gradient.addColorStop(0.5, '#ff44ff');
+        gradient.addColorStop(0.25 + colorShift * 0.1, '#ff44ff');
+        gradient.addColorStop(0.5, '#ff88ff');
+        gradient.addColorStop(0.75 - colorShift * 0.1, '#ff44ff');
         gradient.addColorStop(1, '#ff00ff');
 
         ctx.strokeStyle = gradient;
         ctx.lineWidth = width * 2;
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = '#ff00ff';
         ctx.stroke();
 
-        // White core
-        ctx.strokeStyle = `rgba(255, 255, 255, ${0.7 + Math.sin(this.pulsePhase * 2) * 0.3})`;
-        ctx.lineWidth = width * 0.5;
+        // Energy core with pulsing
+        const coreAlpha = 0.7 + Math.sin(this.pulsePhase * 2) * 0.3;
+        ctx.strokeStyle = `rgba(255, 200, 255, ${coreAlpha})`;
+        ctx.lineWidth = width;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#ffaaff';
+        ctx.stroke();
+
+        // White hot center
+        ctx.strokeStyle = `rgba(255, 255, 255, ${coreAlpha})`;
+        ctx.lineWidth = width * 0.4;
         ctx.shadowBlur = 10;
         ctx.shadowColor = '#ffffff';
         ctx.stroke();
 
-        // Draw particles
+        // Draw energy rings along the beam
+        const ringCount = Math.floor(this.length / 40);
+        for (let i = 0; i < ringCount; i++) {
+            const t = (i + 1) / (ringCount + 1);
+            const ringX = player.x + Math.cos(this.angle) * this.length * t;
+            const ringY = player.y + Math.sin(this.angle) * this.length * t;
+            const ringPhase = time * 3 + i * 0.5;
+            const ringSize = width * (1.5 + Math.sin(ringPhase) * 0.5);
+            const ringAlpha = 0.4 + Math.sin(ringPhase) * 0.2;
+
+            // Ring glow
+            ctx.strokeStyle = `rgba(255, 100, 255, ${ringAlpha})`;
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ff00ff';
+            ctx.beginPath();
+            ctx.arc(ringX, ringY, ringSize, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Inner ring
+            ctx.strokeStyle = `rgba(255, 200, 255, ${ringAlpha * 0.7})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(ringX, ringY, ringSize * 0.6, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Draw particles with trails
         for (const p of this.particles) {
             const alpha = p.life / p.maxLife;
-            ctx.fillStyle = p.color;
-            ctx.globalAlpha = alpha;
+
+            // Particle glow
+            const particleGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2);
+            particleGrad.addColorStop(0, `rgba(255, 200, 255, ${alpha})`);
+            particleGrad.addColorStop(0.5, `rgba(255, 0, 255, ${alpha * 0.5})`);
+            particleGrad.addColorStop(1, 'rgba(255, 0, 255, 0)');
+
+            ctx.fillStyle = particleGrad;
             ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, p.size * 2, 0, Math.PI * 2);
             ctx.fill();
+
+            // Particle core
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * 0.5 * alpha, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Enhanced muzzle flare with multiple layers
+        const muzzleSize = width * 2;
+
+        // Outer flare
+        const muzzleGrad = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, muzzleSize * 2);
+        muzzleGrad.addColorStop(0, `rgba(255, 255, 255, ${0.9 + Math.sin(this.pulsePhase * 3) * 0.1})`);
+        muzzleGrad.addColorStop(0.3, 'rgba(255, 150, 255, 0.7)');
+        muzzleGrad.addColorStop(0.6, 'rgba(255, 0, 255, 0.4)');
+        muzzleGrad.addColorStop(1, 'rgba(255, 0, 255, 0)');
+
+        ctx.fillStyle = muzzleGrad;
+        ctx.shadowBlur = 40;
+        ctx.shadowColor = '#ff00ff';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, muzzleSize * 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Muzzle rays
+        ctx.globalAlpha = 0.6;
+        for (let i = 0; i < 8; i++) {
+            const rayAngle = this.angle + (i / 8) * Math.PI * 2;
+            const rayLen = muzzleSize * (1 + Math.sin(time * 5 + i) * 0.3);
+
+            ctx.strokeStyle = 'rgba(255, 200, 255, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(player.x, player.y);
+            ctx.lineTo(
+                player.x + Math.cos(rayAngle) * rayLen,
+                player.y + Math.sin(rayAngle) * rayLen
+            );
+            ctx.stroke();
         }
         ctx.globalAlpha = 1;
 
-        // Muzzle flare
-        ctx.globalAlpha = 0.8 + Math.sin(this.pulsePhase * 3) * 0.2;
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowBlur = 30;
-        ctx.shadowColor = '#ff00ff';
+        // Beam end impact effect
+        const impactGrad = ctx.createRadialGradient(endX, endY, 0, endX, endY, width * 3);
+        impactGrad.addColorStop(0, `rgba(255, 255, 255, 0.8)`);
+        impactGrad.addColorStop(0.4, 'rgba(255, 100, 255, 0.5)');
+        impactGrad.addColorStop(1, 'rgba(255, 0, 255, 0)');
+
+        ctx.fillStyle = impactGrad;
         ctx.beginPath();
-        ctx.arc(player.x, player.y, width * 1.5, 0, Math.PI * 2);
+        ctx.arc(endX, endY, width * 3, 0, Math.PI * 2);
         ctx.fill();
 
-        // Duration bar
+        // Duration bar with glow
         const durationPercent = this.duration / PLASMA_BEAM.duration;
-        ctx.globalAlpha = 0.8;
-        ctx.fillStyle = '#ff00ff';
+        ctx.globalAlpha = 0.9;
+
+        // Bar background
+        ctx.fillStyle = 'rgba(100, 0, 100, 0.5)';
+        ctx.fillRect(player.x - 26, player.y + 29, 52, 6);
+
+        // Bar fill with gradient
+        const barGrad = ctx.createLinearGradient(player.x - 25, 0, player.x + 25, 0);
+        barGrad.addColorStop(0, '#ff00ff');
+        barGrad.addColorStop(0.5, '#ff88ff');
+        barGrad.addColorStop(1, '#ff00ff');
+        ctx.fillStyle = barGrad;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#ff00ff';
         ctx.fillRect(player.x - 25, player.y + 30, 50 * durationPercent, 4);
 
         ctx.restore();

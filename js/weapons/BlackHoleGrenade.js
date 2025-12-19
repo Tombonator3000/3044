@@ -203,16 +203,43 @@ export class BlackHoleGrenade {
     draw(ctx) {
         if (this.grenades.length === 0) return;
 
+        const time = Date.now() * 0.01;
         ctx.save();
 
         for (const grenade of this.grenades) {
             if (grenade.phase === 'flying') {
-                // Flying grenade
-                ctx.fillStyle = BLACK_HOLE.color;
-                ctx.shadowBlur = 15;
+                // Flying grenade with trail
+                const trailLen = 5;
+                for (let i = 0; i < trailLen; i++) {
+                    const t = i / trailLen;
+                    const trailX = grenade.x - grenade.vx * t * 3;
+                    const trailY = grenade.y - grenade.vy * t * 3;
+
+                    ctx.fillStyle = `rgba(68, 0, 170, ${(1 - t) * 0.5})`;
+                    ctx.beginPath();
+                    ctx.arc(trailX, trailY, 6 * (1 - t * 0.5), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Grenade body glow
+                const grenadeGrad = ctx.createRadialGradient(grenade.x, grenade.y, 0, grenade.x, grenade.y, 12);
+                grenadeGrad.addColorStop(0, '#aa44ff');
+                grenadeGrad.addColorStop(0.5, BLACK_HOLE.color);
+                grenadeGrad.addColorStop(1, 'rgba(68, 0, 170, 0)');
+
+                ctx.fillStyle = grenadeGrad;
+                ctx.shadowBlur = 20;
                 ctx.shadowColor = BLACK_HOLE.ringColor;
                 ctx.beginPath();
-                ctx.arc(grenade.x, grenade.y, 8, 0, Math.PI * 2);
+                ctx.arc(grenade.x, grenade.y, 12, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Core
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(grenade.x, grenade.y, 3, 0, Math.PI * 2);
                 ctx.fill();
 
             } else if (grenade.phase === 'pulling') {
@@ -220,46 +247,149 @@ export class BlackHoleGrenade {
                 const progress = 1 - (grenade.timer / BLACK_HOLE.duration);
                 const size = 20 + progress * 30;
 
-                // Event horizon (black center)
-                ctx.fillStyle = '#000000';
+                // Gravitational lensing effect (distortion rings)
+                for (let i = 5; i >= 1; i--) {
+                    const lensRadius = size + i * 15;
+                    const lensAlpha = 0.1 / i;
+
+                    const lensGrad = ctx.createRadialGradient(
+                        grenade.x, grenade.y, lensRadius - 5,
+                        grenade.x, grenade.y, lensRadius + 5
+                    );
+                    lensGrad.addColorStop(0, `rgba(100, 0, 200, 0)`);
+                    lensGrad.addColorStop(0.5, `rgba(100, 0, 200, ${lensAlpha})`);
+                    lensGrad.addColorStop(1, `rgba(100, 0, 200, 0)`);
+
+                    ctx.fillStyle = lensGrad;
+                    ctx.beginPath();
+                    ctx.arc(grenade.x, grenade.y, lensRadius + 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Event horizon gradient
+                const horizonGrad = ctx.createRadialGradient(
+                    grenade.x, grenade.y, 0,
+                    grenade.x, grenade.y, size
+                );
+                horizonGrad.addColorStop(0, '#000000');
+                horizonGrad.addColorStop(0.7, '#000000');
+                horizonGrad.addColorStop(0.85, '#110022');
+                horizonGrad.addColorStop(1, '#220044');
+
+                ctx.fillStyle = horizonGrad;
                 ctx.beginPath();
                 ctx.arc(grenade.x, grenade.y, size, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Accretion disk rings
-                for (let i = 0; i < 3; i++) {
-                    const ringRadius = size + 20 + i * 25;
-                    const alpha = 0.6 - i * 0.15;
+                // Photon sphere (bright ring at event horizon edge)
+                ctx.strokeStyle = `rgba(200, 100, 255, ${0.5 + Math.sin(time * 4) * 0.2})`;
+                ctx.lineWidth = 2;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#cc66ff';
+                ctx.beginPath();
+                ctx.arc(grenade.x, grenade.y, size + 2, 0, Math.PI * 2);
+                ctx.stroke();
 
-                    ctx.strokeStyle = `rgba(136, 0, 255, ${alpha})`;
-                    ctx.lineWidth = 3 - i;
-                    ctx.shadowBlur = 20;
-                    ctx.shadowColor = '#8800ff';
+                // Accretion disk - multiple layers
+                for (let layer = 0; layer < 4; layer++) {
+                    const layerOffset = layer * 0.3;
 
-                    ctx.beginPath();
-                    ctx.arc(grenade.x, grenade.y, ringRadius,
-                            grenade.rotation + i,
-                            grenade.rotation + i + Math.PI * 1.5);
-                    ctx.stroke();
+                    for (let i = 0; i < 3; i++) {
+                        const ringRadius = size + 15 + i * 20 + layer * 5;
+                        const alpha = (0.7 - i * 0.15 - layer * 0.1);
+                        const ringWidth = 4 - i - layer * 0.5;
+
+                        // Color shifts from purple to pink
+                        const hue = 280 + i * 20 + Math.sin(time + i) * 10;
+
+                        ctx.strokeStyle = `hsla(${hue}, 100%, 50%, ${alpha})`;
+                        ctx.lineWidth = Math.max(1, ringWidth);
+                        ctx.shadowBlur = 25;
+                        ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
+
+                        ctx.beginPath();
+                        ctx.arc(grenade.x, grenade.y, ringRadius,
+                                grenade.rotation + i + layerOffset,
+                                grenade.rotation + i + layerOffset + Math.PI * 1.6);
+                        ctx.stroke();
+                    }
                 }
 
-                // Spiral particles
+                // Inner accretion glow
+                const innerGlowGrad = ctx.createRadialGradient(
+                    grenade.x, grenade.y, size,
+                    grenade.x, grenade.y, size + 30
+                );
+                innerGlowGrad.addColorStop(0, 'rgba(255, 100, 255, 0.3)');
+                innerGlowGrad.addColorStop(0.5, 'rgba(136, 0, 255, 0.15)');
+                innerGlowGrad.addColorStop(1, 'rgba(68, 0, 170, 0)');
+
+                ctx.fillStyle = innerGlowGrad;
+                ctx.beginPath();
+                ctx.arc(grenade.x, grenade.y, size + 30, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Spiral particles with trails
                 for (const p of grenade.particles) {
                     const alpha = p.life / 30;
-                    ctx.fillStyle = `rgba(255, 0, 255, ${alpha})`;
+
+                    // Particle trail
+                    const trailGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 8);
+                    trailGrad.addColorStop(0, `rgba(255, 150, 255, ${alpha})`);
+                    trailGrad.addColorStop(0.5, `rgba(255, 0, 255, ${alpha * 0.5})`);
+                    trailGrad.addColorStop(1, 'rgba(136, 0, 255, 0)');
+
+                    ctx.fillStyle = trailGrad;
                     ctx.beginPath();
-                    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                    ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Particle core
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                    ctx.shadowBlur = 5;
+                    ctx.shadowColor = '#ff88ff';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
                     ctx.fill();
                 }
 
-                // Pull radius indicator
-                ctx.strokeStyle = 'rgba(136, 0, 255, 0.2)';
+                // Energy jets (top and bottom)
+                const jetAlpha = 0.3 + Math.sin(time * 5) * 0.1;
+                for (let dir = -1; dir <= 1; dir += 2) {
+                    const jetGrad = ctx.createLinearGradient(
+                        grenade.x, grenade.y,
+                        grenade.x, grenade.y + dir * 80
+                    );
+                    jetGrad.addColorStop(0, `rgba(200, 100, 255, ${jetAlpha})`);
+                    jetGrad.addColorStop(0.5, `rgba(136, 0, 255, ${jetAlpha * 0.5})`);
+                    jetGrad.addColorStop(1, 'rgba(68, 0, 170, 0)');
+
+                    ctx.fillStyle = jetGrad;
+                    ctx.beginPath();
+                    ctx.moveTo(grenade.x - 5, grenade.y);
+                    ctx.lineTo(grenade.x, grenade.y + dir * 80);
+                    ctx.lineTo(grenade.x + 5, grenade.y);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                // Pull radius indicator with animation
+                const dashOffset = time * 10;
+                ctx.strokeStyle = `rgba(136, 0, 255, ${0.2 + Math.sin(time * 2) * 0.1})`;
                 ctx.lineWidth = 1;
-                ctx.setLineDash([5, 10]);
+                ctx.setLineDash([8, 12]);
+                ctx.lineDashOffset = dashOffset;
                 ctx.beginPath();
                 ctx.arc(grenade.x, grenade.y, BLACK_HOLE.pullRadius, 0, Math.PI * 2);
                 ctx.stroke();
                 ctx.setLineDash([]);
+
+                // Timer indicator
+                const timerPercent = grenade.timer / BLACK_HOLE.duration;
+                ctx.fillStyle = `rgba(136, 0, 255, 0.8)`;
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = '#8800ff';
+                ctx.fillRect(grenade.x - 30, grenade.y + size + 20, 60 * timerPercent, 4);
             }
         }
 
