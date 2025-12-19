@@ -187,6 +187,56 @@ export class SoundSystem {
         // Coin insert
         this.sounds.coin = this.createArpeggioSound([880, 1108], 0.1);
 
+        // Boss appear sound
+        this.sounds.boss = this.createSynthSound({
+            type: 'sawtooth',
+            frequency: 80,
+            duration: 0.8,
+            attack: 0.1,
+            decay: 0.7,
+            pitchDecay: 0.3
+        });
+
+        // Combo sound
+        this.sounds.combo = this.createSynthSound({
+            type: 'sine',
+            frequency: 600,
+            duration: 0.15,
+            attack: 0.01,
+            decay: 0.14,
+            pitchDecay: -0.5
+        });
+
+        // Shield sound
+        this.sounds.shield = this.createSynthSound({
+            type: 'triangle',
+            frequency: 300,
+            duration: 0.2,
+            attack: 0.02,
+            decay: 0.18,
+            pitchDecay: -0.3
+        });
+
+        // Fever beat
+        this.sounds.fever = this.createSynthSound({
+            type: 'sine',
+            frequency: 500,
+            duration: 0.1,
+            attack: 0.01,
+            decay: 0.09,
+            pitchDecay: -0.2
+        });
+
+        // Laser sound
+        this.sounds.laser = this.createSynthSound({
+            type: 'sawtooth',
+            frequency: 1500,
+            duration: 0.15,
+            attack: 0.01,
+            decay: 0.14,
+            pitchDecay: 0.8
+        });
+
         console.log('🎵 Procedural sounds generated');
     }
 
@@ -519,4 +569,26 @@ export class SoundSystem {
             musicEnabled: this.musicEnabled
         };
     }
+
+    // ============================================
+    // CONVENIENCE METHODS
+    // ============================================
+
+    playShoot() { this.play('playerShoot', 0.5); }
+    playExplosion() { this.play('explosionSmall', 0.8); }
+    playExplosionLarge() { this.play('explosionLarge', 1.0); }
+    playPowerUp(tier = 1) { this.play('powerUp', 0.5 + tier * 0.1); }
+    playHit() { this.play('hit', 0.4); }
+    playBomb() { this.play('bomb', 1.0); }
+    playCoin() { this.play('coin', 0.6); }
+    playGameOver() { this.play('playerDeath', 1.0); }
+    playBossAppear() { this.play('boss', 1.0); }
+    playCombo() { this.play('combo', 0.7); }
+    playShield() { this.play('shield', 0.5); }
+    playFeverBeat() { this.play('fever', 0.4); }
+    playLaser() { this.play('laser', 0.6); }
+    playPlayerDeath() { this.play('playerDeath', 1.0); }
+    playWaveComplete() { this.play('waveComplete', 0.8); }
+    playMenuSelect() { this.play('menuSelect', 0.6); }
+    playMenuHover() { this.play('menuHover', 0.4); }
 }
