@@ -21,6 +21,7 @@ import { HUD } from './ui/HUD.js';
 import { drawWavingGrid, drawBackground, addGridImpact } from './rendering/GridRenderer.js';
 import { initCachedUI } from './globals.js';
 import { MenuManager, GameSettings } from './ui/MenuManager.js';
+import { MobileControls } from './ui/MobileControls.js';
 
 // New gameplay systems
 import { GrazingSystem } from './systems/GrazingSystem.js';
@@ -54,6 +55,11 @@ let soundSystem = null;
 let hud = null;
 let powerUpManager = null;
 let menuManager = null;
+let mobileControls = null;
+
+// === LAYOUT STATE ===
+let isPcLayout = false;
+let isMobileDevice = false;
 
 // === NEW GAMEPLAY SYSTEMS ===
 let grazingSystem = null;
@@ -144,6 +150,10 @@ function init() {
     canvas.logicalWidth = LOGICAL_CANVAS_SIZE;
     canvas.logicalHeight = LOGICAL_CANVAS_SIZE;
 
+    // Detect layout type
+    detectLayoutType();
+    window.addEventListener('resize', detectLayoutType);
+
     // Set canvas size
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
@@ -173,7 +183,10 @@ function init() {
     hud = new HUD();
     hud.resize(canvas.logicalWidth, canvas.logicalHeight);
 
-    // Initialize DOM touch controls
+    // Initialize mobile controls (canvas-based joystick for touch devices)
+    mobileControls = new MobileControls(canvas);
+
+    // Initialize DOM touch controls as fallback
     initDomTouchControls();
 
     // Initialize new gameplay systems
@@ -189,6 +202,7 @@ function init() {
     setupMenu();
 
     console.log('🎮 New systems initialized: Grazing, Risk/Reward, SlowMo, Zones, Ships, Modes, Achievements');
+    console.log(`📱 Layout: ${isPcLayout ? 'PC (3-part)' : 'Mobile'}, Touch: ${isMobileDevice}`);
 
     // Start menu animation
     requestAnimationFrame(menuLoop);
@@ -201,22 +215,70 @@ function init() {
     console.log('💡 Press START GAME to play');
 }
 
+function detectLayoutType() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const aspectRatio = width / height;
+
+    // PC layout if wide screen (16:9 or wider) and min width 901px
+    isPcLayout = width >= 901 && aspectRatio >= 4/3;
+
+    // Mobile if touch device or narrow screen
+    isMobileDevice = 'ontouchstart' in window ||
+                     navigator.maxTouchPoints > 0 ||
+                     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    // Update visibility based on game state
+    const pcLayout = document.getElementById('pcLayout');
+    const mobileHudLayer = document.getElementById('mobileHudLayer');
+
+    if (gameState?.running) {
+        // During gameplay
+        if (pcLayout) {
+            pcLayout.style.display = isPcLayout ? 'flex' : 'none';
+        }
+        if (mobileHudLayer) {
+            mobileHudLayer.style.display = isPcLayout ? 'none' : 'block';
+        }
+    }
+}
+
 function resizeCanvas() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const gameArea = document.getElementById('gameContainer');
-    const rect = (gameArea || canvas).getBoundingClientRect();
     canvas.logicalWidth = LOGICAL_CANVAS_SIZE;
     canvas.logicalHeight = LOGICAL_CANVAS_SIZE;
     canvas.width = canvas.logicalWidth * dpr;
     canvas.height = canvas.logicalHeight * dpr;
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
+
+    if (isPcLayout) {
+        // PC Layout: Canvas fits in center area, maintaining aspect ratio
+        const centerArea = document.getElementById('centerGameArea');
+        if (centerArea) {
+            const areaRect = centerArea.getBoundingClientRect();
+            const size = Math.min(areaRect.width, areaRect.height);
+            canvas.style.width = `${size}px`;
+            canvas.style.height = `${size}px`;
+        } else {
+            // Fallback to window height
+            const size = Math.min(window.innerHeight, window.innerWidth - 360);
+            canvas.style.width = `${size}px`;
+            canvas.style.height = `${size}px`;
+        }
+    } else {
+        // Mobile/tablet: Canvas fills container
+        const gameArea = document.getElementById('gameContainer');
+        const rect = (gameArea || canvas).getBoundingClientRect();
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+    }
+
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     updateConfig(canvas.logicalWidth, canvas.logicalHeight);
 
     if (starfield) starfield.resize(canvas.logicalWidth, canvas.logicalHeight);
     if (hud) hud.resize(canvas.logicalWidth, canvas.logicalHeight);
+    if (mobileControls) mobileControls.resize(canvas.logicalWidth, canvas.logicalHeight);
 }
 
 // ============================================
@@ -1068,13 +1130,12 @@ window.startGame = function() {
         attractModeAI = null;
     }
 
-    // Hide menu, show game
+    // Hide menu, show game UI elements
     const menuScreen = document.getElementById('menuScreen');
-    const gameUI = document.getElementById('gameUI');
-
     if (menuScreen) menuScreen.style.display = 'none';
-    // Canvas-based HUD is now used instead of DOM elements
-    // if (gameUI) gameUI.style.display = 'block';
+
+    // Setup layout for gameplay
+    setupGameplayLayout();
 
     // Initialize game
     initGame(false);
@@ -1096,6 +1157,58 @@ window.startGame = function() {
 
     console.log('🎮 Game started!');
 };
+
+function setupGameplayLayout() {
+    // Detect layout type
+    detectLayoutType();
+
+    const pcLayout = document.getElementById('pcLayout');
+    const centerGameArea = document.getElementById('centerGameArea');
+    const mobileHudLayer = document.getElementById('mobileHudLayer');
+    const gameContainer = document.getElementById('gameContainer');
+
+    if (isPcLayout) {
+        // PC Layout: Move canvas to center area
+        if (pcLayout) {
+            pcLayout.style.display = 'flex';
+            pcLayout.classList.add('game-active');
+        }
+        if (centerGameArea && canvas) {
+            centerGameArea.appendChild(canvas);
+        }
+        if (mobileHudLayer) mobileHudLayer.style.display = 'none';
+
+        // Disable canvas-based mobile controls on PC
+        if (mobileControls) {
+            mobileControls.disable();
+            mobileControls.setVisible(false);
+        }
+
+        console.log('🖥️ PC Layout active - 3-part view');
+    } else {
+        // Mobile Layout
+        if (pcLayout) {
+            pcLayout.style.display = 'none';
+            pcLayout.classList.remove('game-active');
+        }
+        // Keep canvas in gameContainer for mobile
+        if (gameContainer && canvas && canvas.parentNode !== gameContainer) {
+            gameContainer.appendChild(canvas);
+        }
+        if (mobileHudLayer) mobileHudLayer.style.display = 'block';
+
+        // Enable canvas-based mobile controls on touch devices
+        if (isMobileDevice && mobileControls) {
+            mobileControls.enable();
+            mobileControls.setVisible(true);
+        }
+
+        console.log('📱 Mobile Layout active');
+    }
+
+    // Resize canvas for new layout
+    resizeCanvas();
+}
 
 function initGame(isAttractMode = false) {
     // Clear previous state
@@ -1477,6 +1590,31 @@ function update(deltaTime) {
         hud.updatePerformanceEntityCounts(bulletPool, enemyBulletPool, particleSystem);
     }
 
+    // Update mobile controls (canvas-based)
+    if (mobileControls && mobileControls.enabled) {
+        mobileControls.update(deltaTime);
+
+        // Get input from mobile controls
+        const movement = mobileControls.getMovement();
+        if (movement.x !== 0 || movement.y !== 0) {
+            touchJoystick.active = true;
+            touchJoystick.currentX = touchJoystick.startX + movement.x * 50;
+            touchJoystick.currentY = touchJoystick.startY + movement.y * 50;
+        }
+
+        touchButtons.fire = mobileControls.isFiring();
+        if (mobileControls.isBombing() && !bombPressedLastFrame) {
+            touchButtons.bomb = true;
+        }
+    }
+
+    // Update PC HUD elements
+    if (isPcLayout) {
+        updatePcHud();
+    } else {
+        updateMobileHud();
+    }
+
     // Extra life at 100000 points
     const extraLifeThreshold = 100000;
     const currentExtraLives = Math.floor(gameState.score / extraLifeThreshold);
@@ -1592,6 +1730,11 @@ function render() {
             drawModeHUD(ctx, modeInfo);
         }
     }
+
+    // Draw mobile controls (on top of everything for visibility)
+    if (mobileControls && mobileControls.enabled && mobileControls.visible) {
+        mobileControls.draw(ctx);
+    }
 }
 
 // Draw game mode specific HUD
@@ -1620,6 +1763,106 @@ function drawModeHUD(ctx, modeInfo) {
     }
 
     ctx.restore();
+}
+
+// ============================================
+// PC/MOBILE HUD UPDATES
+// ============================================
+
+function updatePcHud() {
+    if (!gameState) return;
+
+    // Left panel elements
+    const livesEl = document.getElementById('pcLivesDisplay');
+    const bombsEl = document.getElementById('pcBombsDisplay');
+    const weaponEl = document.getElementById('pcWeaponDisplay');
+    const comboEl = document.getElementById('pcComboDisplay');
+
+    // Right panel elements
+    const scoreEl = document.getElementById('pcScoreDisplay');
+    const highScoreEl = document.getElementById('pcHighScoreDisplay');
+    const waveEl = document.getElementById('pcWaveDisplay');
+    const multiplierEl = document.getElementById('pcMultiplierDisplay');
+    const bossSection = document.getElementById('pcBossSection');
+    const bossHealthFill = document.getElementById('pcBossHealthFill');
+
+    // Update left panel
+    if (livesEl) livesEl.textContent = gameState.lives || 0;
+    if (bombsEl) bombsEl.textContent = gameState.bombs || 0;
+    if (weaponEl) {
+        const weaponName = player?.currentWeapon?.name || 'STANDARD';
+        weaponEl.textContent = weaponName.toUpperCase();
+    }
+    if (comboEl) {
+        const combo = gameState.combo || 0;
+        comboEl.textContent = combo > 1 ? `x${combo}` : 'x1';
+    }
+
+    // Update right panel
+    if (scoreEl) scoreEl.textContent = Math.floor(gameState.score || 0).toLocaleString();
+    if (highScoreEl) highScoreEl.textContent = Math.floor(gameState.highScore || 0).toLocaleString();
+    if (waveEl) waveEl.textContent = gameState.wave || 1;
+
+    // Calculate multiplier from combo
+    const multiplier = 1 + (gameState.combo || 0) * 0.1;
+    if (multiplierEl) multiplierEl.textContent = `x${multiplier.toFixed(1)}`;
+
+    // Boss health bar
+    if (bossSection && bossHealthFill) {
+        if (gameState.boss && gameState.boss.active) {
+            bossSection.classList.add('visible');
+            const healthPercent = (gameState.boss.health / gameState.boss.maxHealth) * 100;
+            bossHealthFill.style.width = `${healthPercent}%`;
+        } else {
+            bossSection.classList.remove('visible');
+        }
+    }
+
+    // Update power-up slots
+    updatePcPowerUpSlots();
+}
+
+function updatePcPowerUpSlots() {
+    const slotsContainer = document.getElementById('pcPowerUpSlots');
+    if (!slotsContainer || !powerUpManager) return;
+
+    const activePowerUps = powerUpManager.getActivePowerUps ? powerUpManager.getActivePowerUps() : [];
+
+    // Create slots if needed
+    if (slotsContainer.children.length === 0) {
+        for (let i = 0; i < 3; i++) {
+            const slot = document.createElement('div');
+            slot.className = 'power-up-slot';
+            slot.textContent = '-';
+            slotsContainer.appendChild(slot);
+        }
+    }
+
+    // Update slots
+    for (let i = 0; i < 3; i++) {
+        const slot = slotsContainer.children[i];
+        if (slot) {
+            if (activePowerUps[i]) {
+                slot.className = 'power-up-slot active';
+                slot.textContent = activePowerUps[i].name || activePowerUps[i].type || 'PWR';
+            } else {
+                slot.className = 'power-up-slot';
+                slot.textContent = '-';
+            }
+        }
+    }
+}
+
+function updateMobileHud() {
+    if (!gameState) return;
+
+    const scoreEl = document.getElementById('mobileScoreDisplay');
+    const livesEl = document.getElementById('mobileLivesDisplay');
+    const waveEl = document.getElementById('mobileWaveDisplay');
+
+    if (scoreEl) scoreEl.textContent = Math.floor(gameState.score || 0).toLocaleString();
+    if (livesEl) livesEl.textContent = gameState.lives || 0;
+    if (waveEl) waveEl.textContent = gameState.wave || 1;
 }
 
 // ============================================
@@ -1991,6 +2234,9 @@ function returnToMenu() {
     gameState = null;
     player = null;
 
+    // Reset layout - move canvas back to gameContainer
+    resetMenuLayout();
+
     // Show menu
     const menuScreen = document.getElementById('menuScreen');
     const gameUI = document.getElementById('gameUI');
@@ -2009,6 +2255,35 @@ function returnToMenu() {
     requestAnimationFrame(menuLoop);
 
     resetAttractModeTimeout();
+}
+
+function resetMenuLayout() {
+    const pcLayout = document.getElementById('pcLayout');
+    const mobileHudLayer = document.getElementById('mobileHudLayer');
+    const touchControlsLayer = document.getElementById('touchControlsLayer');
+    const gameContainer = document.getElementById('gameContainer');
+
+    // Hide PC layout and HUD layers
+    if (pcLayout) {
+        pcLayout.style.display = 'none';
+        pcLayout.classList.remove('game-active');
+    }
+    if (mobileHudLayer) mobileHudLayer.style.display = 'none';
+    if (touchControlsLayer) touchControlsLayer.style.display = 'none';
+
+    // Move canvas back to gameContainer
+    if (gameContainer && canvas && canvas.parentNode !== gameContainer) {
+        gameContainer.appendChild(canvas);
+    }
+
+    // Disable mobile controls
+    if (mobileControls) {
+        mobileControls.disable();
+        mobileControls.setVisible(false);
+    }
+
+    // Resize canvas for menu
+    resizeCanvas();
 }
 
 // ============================================
