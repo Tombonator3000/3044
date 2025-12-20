@@ -40,44 +40,113 @@ body {
     background: #000;
 }
 
+/* ============================================
+   MENU SCREEN - Main Container
+   ============================================ */
 #menuScreen {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background:
-        linear-gradient(180deg, rgba(26, 0, 51, 0.95) 0%, rgba(51, 0, 102, 0.9) 30%, rgba(102, 0, 153, 0.8) 60%, rgba(0, 0, 51, 0.95) 100%),
-        repeating-linear-gradient(
-            90deg,
-            transparent,
-            transparent 98px,
-            rgba(255, 0, 150, 0.03) 100px
-        );
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    padding-top: 80px;
     z-index: 10;
     overflow: hidden;
+}
+
+/* ============================================
+   LAYER 1: RETRO BACKGROUND
+   Helt statisk - UI skal ALDRI påvirke dette
+   ============================================ */
+.retro-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    /* Mørk lilla himmel-gradient */
+    background: linear-gradient(
+        180deg,
+        #0a0015 0%,
+        #1a0033 20%,
+        #2d0055 40%,
+        #4a0080 55%,
+        #1a0033 70%,
+        #0a0015 100%
+    );
+    overflow: hidden;
+}
+
+/* Stjernefelt */
+.starfield {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 40%;
+    z-index: 1;
+    background-image:
+        radial-gradient(1px 1px at 10% 10%, #ffffff 100%, transparent),
+        radial-gradient(1px 1px at 20% 25%, #ffffff 100%, transparent),
+        radial-gradient(1.5px 1.5px at 30% 5%, #00ffff 100%, transparent),
+        radial-gradient(1px 1px at 40% 35%, #ffffff 100%, transparent),
+        radial-gradient(1px 1px at 50% 15%, #ffffff 100%, transparent),
+        radial-gradient(1.5px 1.5px at 60% 30%, #ff00ff 100%, transparent),
+        radial-gradient(1px 1px at 70% 8%, #ffffff 100%, transparent),
+        radial-gradient(1px 1px at 80% 40%, #ffffff 100%, transparent),
+        radial-gradient(1px 1px at 90% 20%, #ffffff 100%, transparent),
+        radial-gradient(1px 1px at 15% 45%, #ffffff 100%, transparent),
+        radial-gradient(1.5px 1.5px at 25% 12%, #ffff00 100%, transparent),
+        radial-gradient(1px 1px at 35% 38%, #ffffff 100%, transparent),
+        radial-gradient(1px 1px at 45% 22%, #ffffff 100%, transparent),
+        radial-gradient(1px 1px at 55% 42%, #ffffff 100%, transparent),
+        radial-gradient(1.5px 1.5px at 65% 18%, #00ffff 100%, transparent),
+        radial-gradient(1px 1px at 75% 33%, #ffffff 100%, transparent),
+        radial-gradient(1px 1px at 85% 7%, #ffffff 100%, transparent),
+        radial-gradient(1px 1px at 95% 28%, #ffffff 100%, transparent),
+        radial-gradient(1px 1px at 5% 32%, #ffffff 100%, transparent),
+        radial-gradient(1.5px 1.5px at 12% 48%, #ff00ff 100%, transparent);
+    animation: twinkle 4s ease-in-out infinite alternate;
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+}
+
+/* ============================================
+   LAYER 2: UI CONTAINER
+   Ligger over bakgrunnen, påvirker IKKE solen
+   ============================================ */
+.ui-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 40px 20px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.ui-container > * {
+    pointer-events: auto;
+}
+
+/* Spacer for å holde avstand mellom tittel og knapper */
+.spacer {
+    flex: 1;
+    min-height: 100px;
 }
 
 /* ============================================
    ATTRACT MODE - Initial "Press Start" screen
    ============================================ */
 .attract-mode {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding-top: 60px;
-    z-index: 10;
     transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
@@ -88,16 +157,22 @@ body {
 }
 
 .attract-high-score {
-    margin-top: auto;
-    margin-bottom: 20px;
+    font-size: 1.3em;
+    font-weight: 700;
+    color: #ffff00;
+    text-transform: uppercase;
+    text-shadow: 0 0 15px #ffff00, 0 0 30px rgba(255, 255, 0, 0.5);
+    letter-spacing: 0.15em;
+    margin-top: 20px;
 }
 
 .attract-hint {
     font-size: 1em;
     color: #ffff00;
-    opacity: 0.7;
-    margin-top: 10px;
-    letter-spacing: 0.2em;
+    opacity: 0.8;
+    margin-top: 15px;
+    letter-spacing: 0.25em;
+    text-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
 }
 
 /* ============================================
@@ -105,16 +180,6 @@ body {
    ============================================ */
 .full-menu {
     display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding-top: 40px;
-    z-index: 10;
     opacity: 0;
     transform: translateY(20px);
     transition: opacity 0.5s ease, transform 0.5s ease;
@@ -126,63 +191,322 @@ body {
     transform: translateY(0);
 }
 
-/* Smaller logo for full menu */
-.logo-small {
-    font-size: 2.5em !important;
-    margin-bottom: 0.3em !important;
+/* ============================================
+   GAME TITLE - Metallisk med neon-glød
+   ============================================ */
+.game-title {
+    font-size: 5em;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    text-align: center;
+    margin-bottom: 10px;
+    /* Metallisk gradient */
+    background: linear-gradient(
+        180deg,
+        #ffffff 0%,
+        #e0e0e0 20%,
+        #a0a0a0 40%,
+        #c0c0c0 60%,
+        #ffffff 80%,
+        #d0d0d0 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    /* Rosa/lilla neon-glød */
+    filter: drop-shadow(0 0 10px rgba(255, 0, 128, 0.8))
+            drop-shadow(0 0 20px rgba(255, 0, 128, 0.6))
+            drop-shadow(0 0 40px rgba(255, 0, 128, 0.4))
+            drop-shadow(0 4px 8px rgba(0, 0, 0, 0.8));
+    position: relative;
 }
 
-/* Menu content container - DEPRECATED, kept for compatibility */
-.menu-content {
+.game-title-small {
+    font-size: 3em !important;
+    margin-bottom: 5px !important;
+}
+
+/* Årstallet - mer rosa */
+.title-year {
+    display: block;
+    font-size: 0.45em;
+    letter-spacing: 0.5em;
+    margin-top: -5px;
+    background: linear-gradient(90deg, #ff0080, #ff40a0, #ff80c0, #ff40a0, #ff0080);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 8px rgba(255, 0, 128, 1))
+            drop-shadow(0 0 16px rgba(255, 0, 128, 0.8));
+    animation: year-pulse 3s ease-in-out infinite;
+}
+
+@keyframes year-pulse {
+    0%, 100% {
+        filter: drop-shadow(0 0 8px rgba(255, 0, 128, 1))
+                drop-shadow(0 0 16px rgba(255, 0, 128, 0.8));
+    }
+    50% {
+        filter: drop-shadow(0 0 12px rgba(255, 0, 128, 1))
+                drop-shadow(0 0 24px rgba(255, 0, 128, 1))
+                drop-shadow(0 0 40px rgba(255, 0, 128, 0.6));
+    }
+}
+
+/* ============================================
+   MAIN MENU NAVIGATION
+   Mørke semi-transparente knapper med neon-kanter
+   ============================================ */
+.main-menu {
+    margin-top: auto;
+    margin-bottom: 20px;
+    z-index: 10;
+}
+
+.main-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
     display: flex;
     flex-direction: column;
+    gap: 12px;
     align-items: center;
-    justify-content: flex-start;
-    gap: 15px;
+}
+
+.main-menu li {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+/* Menyknapper - Mørk bakgrunn med neon cyan kant */
+.menu-btn {
+    width: 420px;
+    padding: 16px 40px;
+    font-size: 1.1em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+
+    /* MØRK SEMI-TRANSPARENT BAKGRUNN */
+    background: rgba(20, 0, 40, 0.75);
+
+    /* CYAN NEON TEKST */
+    color: #00ffff;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+
+    /* CYAN NEON KANT */
+    border: 2px solid #00ffff;
+    border-radius: 4px;
+
+    /* GLØD-EFFEKT */
+    box-shadow:
+        0 0 15px rgba(0, 255, 255, 0.4),
+        0 0 30px rgba(0, 255, 255, 0.2),
+        inset 0 0 20px rgba(0, 255, 255, 0.05);
+
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     position: relative;
+    overflow: hidden;
+}
+
+/* Hover-effekt - lysere bakgrunn, sterkere glød */
+.menu-btn:hover {
+    background: rgba(40, 10, 60, 0.85);
+    color: #ffffff;
+    text-shadow:
+        0 0 15px rgba(255, 255, 255, 0.9),
+        0 0 30px rgba(0, 255, 255, 0.8);
+    border-color: #40ffff;
+    box-shadow:
+        0 0 25px rgba(0, 255, 255, 0.6),
+        0 0 50px rgba(0, 255, 255, 0.4),
+        0 0 80px rgba(255, 0, 150, 0.3),
+        inset 0 0 30px rgba(0, 255, 255, 0.1);
+    transform: translateY(-2px) scale(1.02);
+}
+
+/* Glans-effekt på hover */
+.menu-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.15),
+        transparent
+    );
+    transition: left 0.5s;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.menu-btn:hover::before {
+    left: 100%;
+}
+
+/* Toppkant-highlight */
+.menu-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    pointer-events: none;
+}
+
+/* Primær knapp (START GAME) - Grønn */
+.menu-btn-primary {
+    border-color: #00ff00;
+    color: #00ff00;
+    text-shadow: 0 0 15px rgba(0, 255, 0, 0.9);
+    box-shadow:
+        0 0 20px rgba(0, 255, 0, 0.5),
+        0 0 40px rgba(0, 255, 0, 0.3),
+        inset 0 0 20px rgba(0, 255, 0, 0.05);
+    animation: primary-btn-pulse 2s ease-in-out infinite;
+}
+
+.menu-btn-primary:hover {
+    border-color: #40ff40;
+    color: #ffffff;
+    text-shadow:
+        0 0 20px rgba(255, 255, 255, 1),
+        0 0 40px rgba(0, 255, 0, 0.9);
+    box-shadow:
+        0 0 35px rgba(0, 255, 0, 0.7),
+        0 0 70px rgba(0, 255, 0, 0.5),
+        0 0 100px rgba(0, 255, 0, 0.3),
+        inset 0 0 30px rgba(0, 255, 0, 0.1);
+}
+
+@keyframes primary-btn-pulse {
+    0%, 100% {
+        box-shadow:
+            0 0 20px rgba(0, 255, 0, 0.5),
+            0 0 40px rgba(0, 255, 0, 0.3),
+            inset 0 0 20px rgba(0, 255, 0, 0.05);
+    }
+    50% {
+        box-shadow:
+            0 0 30px rgba(0, 255, 0, 0.7),
+            0 0 60px rgba(0, 255, 0, 0.4),
+            inset 0 0 30px rgba(0, 255, 0, 0.08);
+    }
+}
+
+/* ============================================
+   FOOTER INFO - Credits og INSERT COIN
+   ============================================ */
+.footer-info {
+    margin-top: auto;
+    margin-bottom: 30px;
+    text-align: center;
     z-index: 10;
-    margin-top: 80px;
 }
 
-#menuScreen::before {
-    content: '';
+.footer-info .credits {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: #00ff00;
+    text-transform: uppercase;
+    text-shadow: 0 0 15px #00ff00, 0 0 30px rgba(0, 255, 0, 0.5);
+    letter-spacing: 0.15em;
+    margin-bottom: 15px;
+}
+
+.footer-info .insert-coin {
+    font-size: 1.2em;
+    font-weight: 700;
+    color: #ff00ff;
+    text-transform: uppercase;
+    text-shadow: 0 0 15px #ff00ff, 0 0 30px rgba(255, 0, 255, 0.5);
+    letter-spacing: 0.2em;
+}
+
+/* Blink-animasjon for INSERT COIN */
+.blink {
+    animation: coin-blink 1.5s ease-in-out infinite;
+}
+
+@keyframes coin-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* ============================================
+   LAYER 3: OVERLAY EFFEKTER
+   Retro TV-effekter over absolutt alt
+   ============================================ */
+
+/* Scanlines - horisontal linje-effekt */
+.scanlines-overlay {
     position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     bottom: 0;
-    left: 0;
-    right: 0;
-    height: 50%;
-    background:
-        repeating-linear-gradient(
-            0deg,
-            transparent 0px,
-            rgba(255, 0, 150, 0.1) 2px,
-            transparent 4px,
-            transparent 40px
-        ),
-        repeating-linear-gradient(
-            90deg,
-            transparent 0px,
-            rgba(255, 0, 150, 0.15) 1px,
-            transparent 2px,
-            transparent 50px
-        );
-    transform: perspective(200px) rotateX(45deg);
-    z-index: -1;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        transparent 2px,
+        rgba(0, 0, 0, 0.15) 2px,
+        rgba(0, 0, 0, 0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
 }
 
-#menuScreen::after {
-    content: '';
+/* Vignette - Mørke hjørner */
+.vignette-overlay {
     position: absolute;
-    top: 10%;
+    top: 0;
     left: 0;
     right: 0;
-    height: 40%;
-    background:
-        radial-gradient(ellipse 50% 20% at 20% 80%, rgba(102, 0, 153, 0.4) 0%, transparent 50%),
-        radial-gradient(ellipse 50% 20% at 80% 70%, rgba(255, 0, 150, 0.3) 0%, transparent 50%),
-        radial-gradient(ellipse 30% 15% at 60% 85%, rgba(0, 255, 255, 0.2) 0%, transparent 50%);
-    z-index: -1;
-    filter: blur(2px);
+    bottom: 0;
+    background: radial-gradient(
+        ellipse 70% 60% at 50% 50%,
+        transparent 0%,
+        transparent 50%,
+        rgba(0, 0, 0, 0.4) 80%,
+        rgba(0, 0, 0, 0.8) 100%
+    );
+    pointer-events: none;
+    z-index: 101;
+}
+
+/* CRT flicker effekt */
+.crt-flicker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0);
+    pointer-events: none;
+    z-index: 102;
+    animation: crt-flicker-anim 0.15s infinite;
+    opacity: 0.03;
+}
+
+@keyframes crt-flicker-anim {
+    0% { background: rgba(255, 255, 255, 0.02); }
+    50% { background: rgba(0, 0, 0, 0); }
+    100% { background: rgba(255, 255, 255, 0.01); }
 }
 
 /* ============================================
@@ -462,104 +786,9 @@ body {
     box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
 }
 
-/* ENHANCED MENU EFFECTS */
-.menu-particle-system {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-    overflow: hidden;
-    z-index: 1;
-}
+/* Old menu-particle-system - particles now handled differently */
 
-.neon-particle {
-    position: absolute;
-    width: 2px;
-    height: 2px;
-    background: #00ffff;
-    box-shadow: 0 0 10px currentColor;
-    animation: fall-particle 8s linear infinite;
-    opacity: 0;
-}
-
-.neon-particle:nth-child(odd) { background: #ff00ff; }
-.neon-particle:nth-child(3n) { background: #ffff00; }
-.neon-particle:nth-child(5n) { background: #00ff00; }
-
-@keyframes fall-particle {
-    0% {
-        opacity: 0;
-        transform: translateY(-100vh) translateX(0) scale(0);
-    }
-    5% {
-        opacity: 1;
-        transform: translateY(-90vh) translateX(10px) scale(1);
-    }
-    95% {
-        opacity: 1;
-        transform: translateY(100vh) translateX(-10px) scale(0.5);
-    }
-    100% {
-        opacity: 0;
-        transform: translateY(110vh) translateX(0) scale(0);
-    }
-}
-
-.floating-geometry {
-    position: absolute;
-    border: 2px solid;
-    background: transparent;
-    animation: float-rotate 15s linear infinite;
-    opacity: 0.1;
-}
-
-.floating-geometry:nth-child(even) {
-    animation: float-rotate-reverse 20s linear infinite;
-    opacity: 0.15;
-}
-
-@keyframes float-rotate {
-    0% {
-        transform: translateY(100vh) rotate(0deg);
-    }
-    100% {
-        transform: translateY(-200px) rotate(360deg);
-    }
-}
-
-@keyframes float-rotate-reverse {
-    0% {
-        transform: translateY(100vh) rotate(360deg);
-    }
-    100% {
-        transform: translateY(-200px) rotate(0deg);
-    }
-}
-
-.menu-scanlines {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0, 255, 255, 0.03) 2px,
-        rgba(0, 255, 255, 0.03) 4px
-    );
-    pointer-events: none;
-    z-index: 8;
-    animation: scanline-drift 3s ease-in-out infinite alternate;
-}
-
-@keyframes scanline-drift {
-    0% { transform: translateY(0px); }
-    100% { transform: translateY(4px); }
-}
+/* Old menu-scanlines - replaced by scanlines-overlay */
 
 .digital-rain {
     position: absolute;
@@ -589,172 +818,215 @@ body {
     }
 }
 
-.holographic-interference {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background:
-        linear-gradient(90deg,
-            transparent 0%,
-            rgba(0, 255, 255, 0.02) 25%,
-            transparent 50%,
-            rgba(255, 0, 255, 0.02) 75%,
-            transparent 100%);
-    animation: interference-sweep 4s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 2;
-}
-
-@keyframes interference-sweep {
-    0%, 100% { transform: translateX(-100%); }
-    50% { transform: translateX(100%); }
-}
-
-.neon-streak {
-    position: absolute;
-    height: 1px;
-    background: linear-gradient(90deg,
-        transparent,
-        #00ffff,
-        #ff00ff,
-        #ffff00,
-        transparent);
-    box-shadow: 0 0 10px currentColor;
-    animation: streak-across 3s ease-in-out infinite;
-    opacity: 0;
-}
-
-@keyframes streak-across {
-    0% {
-        opacity: 0;
-        transform: translateX(-100vw) scaleX(0.5);
-    }
-    5% {
-        opacity: 1;
-        transform: translateX(-50vw) scaleX(1);
-    }
-    95% {
-        opacity: 1;
-        transform: translateX(150vw) scaleX(1);
-    }
-    100% {
-        opacity: 0;
-        transform: translateX(200vw) scaleX(0.5);
-    }
-}
-
-.cyber-grid-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image:
-        repeating-linear-gradient(
-            90deg,
-            transparent 0px,
-            transparent 99px,
-            rgba(0, 255, 255, 0.05) 100px,
-            rgba(0, 255, 255, 0.05) 101px
-        ),
-        repeating-linear-gradient(
-            0deg,
-            transparent 0px,
-            transparent 99px,
-            rgba(255, 0, 255, 0.05) 100px,
-            rgba(255, 0, 255, 0.05) 101px
-        );
-    animation: grid-pulse 6s ease-in-out infinite alternate;
-    pointer-events: none;
-    z-index: 1;
-}
-
-@keyframes grid-pulse {
-    0% { opacity: 0.3; }
-    100% { opacity: 0.7; }
-}
+/* Old holographic-interference and cyber-grid-overlay - no longer used */
 
 /* ============================================
-   SYNTHWAVE SUN - Larger and more prominent
+   SYNTHWAVE SUN - Stor retro-sol
+   Plassert i bakgrunnen, UPÅVIRKET av UI
    ============================================ */
 .synthwave-sun {
     position: absolute;
-    top: 8%;
+    top: 15%;
     left: 50%;
     transform: translateX(-50%);
-    width: 280px;
-    height: 280px;
+    width: 320px;
+    height: 320px;
     border-radius: 50%;
-    /* Gradient sun with horizontal stripes */
+    /* Gradient sol med horisontale striper (80-talls stil) */
     background:
+        /* Horisontale striper */
         repeating-linear-gradient(
             0deg,
             transparent 0px,
-            transparent 8px,
-            rgba(0, 0, 0, 0.3) 8px,
-            rgba(0, 0, 0, 0.3) 12px
+            transparent 12px,
+            rgba(0, 0, 20, 0.4) 12px,
+            rgba(0, 0, 20, 0.4) 16px
         ),
-        radial-gradient(circle at 50% 30%, #ffee00 0%, #ff9500 30%, #ff0080 70%, #660066 100%);
+        /* Sol-gradient fra gul til rosa */
+        radial-gradient(
+            circle at 50% 40%,
+            #ffee00 0%,
+            #ffcc00 15%,
+            #ff9500 35%,
+            #ff6600 50%,
+            #ff0080 70%,
+            #cc0066 85%,
+            #660033 100%
+        );
     box-shadow:
-        0 0 60px rgba(255, 150, 0, 0.8),
-        0 0 120px rgba(255, 0, 128, 0.6),
-        0 0 200px rgba(255, 0, 128, 0.3),
-        inset 0 0 60px rgba(255, 255, 255, 0.2);
-    animation: sun-glow 4s ease-in-out infinite alternate;
-    z-index: 1;
+        0 0 80px rgba(255, 150, 0, 0.9),
+        0 0 150px rgba(255, 100, 0, 0.7),
+        0 0 250px rgba(255, 0, 128, 0.5),
+        0 0 400px rgba(255, 0, 128, 0.3),
+        inset 0 0 80px rgba(255, 255, 200, 0.3);
+    animation: sun-glow 5s ease-in-out infinite alternate;
+    z-index: 2;
     pointer-events: none;
-    /* Clip bottom half to create setting sun effect */
-    clip-path: polygon(0 0, 100% 0, 100% 85%, 0 85%);
+    /* Klipp bunnen for setting-sun effekt */
+    clip-path: polygon(0 0, 100% 0, 100% 80%, 0 80%);
 }
 
+/* Sol-refleksjon/glød ring */
 .synthwave-sun::before {
     content: '';
     position: absolute;
-    top: -10px;
-    left: -10px;
-    right: -10px;
-    bottom: -10px;
+    top: -20px;
+    left: -20px;
+    right: -20px;
+    bottom: -20px;
     border-radius: 50%;
-    background: linear-gradient(45deg, transparent, rgba(255, 0, 128, 0.3), transparent);
-    animation: sun-rotate 10s linear infinite;
-}
-
-.synthwave-mountains {
-    position: absolute;
-    bottom: 35%;
-    left: 0;
-    right: 0;
-    height: 150px;
-    background:
-        linear-gradient(to right, transparent 0%, rgba(102, 0, 153, 0.6) 20%, rgba(102, 0, 153, 0.8) 40%, rgba(102, 0, 153, 0.6) 60%, transparent 80%),
-        linear-gradient(45deg, transparent 40%, rgba(51, 0, 102, 0.8) 45%, rgba(51, 0, 102, 0.9) 55%, transparent 60%);
-    clip-path: polygon(0% 100%, 10% 70%, 20% 85%, 30% 60%, 40% 75%, 50% 45%, 60% 65%, 70% 40%, 80% 55%, 90% 75%, 100% 100%);
-    z-index: 2;
-    pointer-events: none;
+    background: radial-gradient(
+        circle,
+        rgba(255, 150, 0, 0.2) 0%,
+        rgba(255, 0, 128, 0.1) 50%,
+        transparent 70%
+    );
+    animation: sun-pulse 4s ease-in-out infinite;
 }
 
 @keyframes sun-glow {
     0% {
         box-shadow:
-            0 0 50px rgba(255, 107, 0, 0.6),
-            0 0 100px rgba(255, 0, 128, 0.4),
-            inset 0 0 50px rgba(255, 255, 255, 0.1);
+            0 0 60px rgba(255, 150, 0, 0.8),
+            0 0 120px rgba(255, 100, 0, 0.6),
+            0 0 200px rgba(255, 0, 128, 0.4),
+            inset 0 0 60px rgba(255, 255, 200, 0.2);
         filter: brightness(1);
     }
     100% {
         box-shadow:
-            0 0 70px rgba(255, 107, 0, 0.8),
-            0 0 120px rgba(255, 0, 128, 0.6),
-            inset 0 0 60px rgba(255, 255, 255, 0.2);
-        filter: brightness(1.2);
+            0 0 100px rgba(255, 150, 0, 1),
+            0 0 180px rgba(255, 100, 0, 0.8),
+            0 0 300px rgba(255, 0, 128, 0.6),
+            inset 0 0 80px rgba(255, 255, 200, 0.4);
+        filter: brightness(1.15);
     }
 }
 
-@keyframes sun-rotate {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+@keyframes sun-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+}
+
+/* Fjell/silhuett i horisonten */
+.synthwave-mountains {
+    position: absolute;
+    bottom: 42%;
+    left: 0;
+    right: 0;
+    height: 120px;
+    background: linear-gradient(
+        to bottom,
+        #1a0033 0%,
+        #0a0015 100%
+    );
+    clip-path: polygon(
+        0% 100%,
+        0% 80%,
+        5% 70%,
+        10% 75%,
+        15% 55%,
+        20% 65%,
+        25% 45%,
+        30% 55%,
+        35% 35%,
+        40% 50%,
+        45% 30%,
+        50% 45%,
+        55% 25%,
+        60% 40%,
+        65% 50%,
+        70% 35%,
+        75% 55%,
+        80% 40%,
+        85% 60%,
+        90% 50%,
+        95% 70%,
+        100% 60%,
+        100% 100%
+    );
+    z-index: 3;
+    pointer-events: none;
+}
+
+/* Fjell-glød fra solen bak */
+.synthwave-mountains::before {
+    content: '';
+    position: absolute;
+    top: -50px;
+    left: 30%;
+    right: 30%;
+    height: 50px;
+    background: linear-gradient(
+        to top,
+        rgba(255, 0, 128, 0.3) 0%,
+        transparent 100%
+    );
+    filter: blur(20px);
+}
+
+/* ============================================
+   GRID FLOOR - Perspektiv-grid
+   ============================================ */
+.grid-floor {
+    position: absolute;
+    bottom: 0;
+    left: -50%;
+    right: -50%;
+    height: 45%;
+    background:
+        /* Vertikale linjer */
+        repeating-linear-gradient(
+            90deg,
+            transparent 0px,
+            transparent 48px,
+            rgba(255, 0, 150, 0.4) 48px,
+            rgba(255, 0, 150, 0.4) 50px
+        ),
+        /* Horisontale linjer */
+        repeating-linear-gradient(
+            0deg,
+            transparent 0px,
+            transparent 48px,
+            rgba(0, 255, 255, 0.3) 48px,
+            rgba(0, 255, 255, 0.3) 50px
+        );
+    transform: perspective(400px) rotateX(65deg);
+    transform-origin: center top;
+    z-index: 4;
+    pointer-events: none;
+    /* Fade ut mot kantene */
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 10%,
+        black 90%,
+        transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 10%,
+        black 90%,
+        transparent 100%
+    );
+}
+
+/* Grid-glød effekt */
+.grid-floor::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 25%;
+    right: 25%;
+    height: 100%;
+    background: linear-gradient(
+        to bottom,
+        rgba(255, 0, 150, 0.2) 0%,
+        rgba(0, 255, 255, 0.1) 50%,
+        transparent 100%
+    );
+    filter: blur(30px);
 }
 
 @keyframes border-dance {
@@ -850,7 +1122,7 @@ body {
 
 /* Insert coin text - ARCADE STYLE */
 #insertCoinText {
-    font-size: 2.5em;
+    font-size: 2.8em;
     font-weight: 900;
     color: #00ff00;
     text-transform: uppercase;
@@ -859,42 +1131,32 @@ body {
         0 0 20px #00ff00,
         0 0 40px #00ff00,
         0 0 80px rgba(0, 255, 0, 0.5);
-    letter-spacing: 0.2em;
+    letter-spacing: 0.25em;
     animation: arcade-blink 1.2s ease-in-out infinite;
-    margin-top: auto;
-    margin-bottom: 80px;
+    margin-bottom: 60px;
 }
 
 @keyframes arcade-blink {
     0%, 100% {
         opacity: 1;
         transform: scale(1);
+        text-shadow:
+            0 0 10px #00ff00,
+            0 0 20px #00ff00,
+            0 0 40px #00ff00,
+            0 0 80px rgba(0, 255, 0, 0.5);
     }
     50% {
-        opacity: 0.4;
+        opacity: 0.5;
         transform: scale(0.98);
+        text-shadow:
+            0 0 5px #00ff00,
+            0 0 10px #00ff00,
+            0 0 20px rgba(0, 255, 0, 0.3);
     }
 }
 
-/* ============================================
-   VIGNETTE EFFECT - Darkened edges
-   ============================================ */
-.menu-vignette {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: radial-gradient(
-        ellipse 70% 60% at 50% 40%,
-        transparent 0%,
-        transparent 40%,
-        rgba(0, 0, 0, 0.3) 70%,
-        rgba(0, 0, 0, 0.7) 100%
-    );
-    pointer-events: none;
-    z-index: 9;
-}
+/* Old menu-vignette - replaced by vignette-overlay */
 
 #gameOverScreen {
     position: absolute;
@@ -1131,57 +1393,63 @@ body {
 }
 
 /* ============================================
-   RESPONSIVE DESIGN - New Layout System
+   RESPONSIVE DESIGN - Synthwave Menu
    ============================================ */
 
 /* Medium screens */
 @media (max-width: 900px) {
-    .menu-buttons-primary {
-        margin-top: 240px;
+    .game-title {
+        font-size: 4em;
     }
 
-    .menu-buttons-secondary {
-        flex-direction: column;
-        gap: 12px;
+    .game-title-small {
+        font-size: 2.5em !important;
+    }
+
+    .menu-btn {
+        width: 350px;
+        padding: 14px 30px;
+        font-size: 1em;
     }
 
     .synthwave-sun {
-        width: 220px;
-        height: 220px;
+        width: 260px;
+        height: 260px;
+        top: 12%;
+    }
+
+    .grid-floor {
+        height: 40%;
     }
 }
 
 /* Small screens */
 @media (max-width: 600px) {
-    .logo {
-        font-size: 3em;
+    .game-title {
+        font-size: 2.8em;
+        letter-spacing: 0.1em;
     }
 
-    .logo-small {
+    .game-title-small {
         font-size: 2em !important;
     }
 
-    .logo .year {
-        font-size: 0.45em;
+    .title-year {
+        font-size: 0.4em;
+        letter-spacing: 0.3em;
     }
 
     #insertCoinText {
-        font-size: 1.8em;
-        margin-bottom: 60px;
+        font-size: 2em;
+        margin-bottom: 40px;
     }
 
-    .menu-buttons-primary {
-        margin-top: 200px;
-    }
-
-    .btn-primary {
-        padding: 18px 50px;
-        font-size: 1.3em;
-    }
-
-    .btn-secondary {
-        padding: 12px 25px;
+    .menu-btn {
+        width: 90%;
+        max-width: 320px;
+        padding: 12px 20px;
         font-size: 0.9em;
+        letter-spacing: 0.15em;
     }
 
     .btn-tertiary {
@@ -1190,19 +1458,40 @@ body {
     }
 
     .menu-buttons-tertiary {
-        gap: 15px;
+        gap: 12px;
         flex-wrap: wrap;
         justify-content: center;
     }
 
     .synthwave-sun {
-        width: 180px;
-        height: 180px;
-        top: 5%;
+        width: 200px;
+        height: 200px;
+        top: 8%;
+    }
+
+    .synthwave-mountains {
+        bottom: 38%;
+        height: 80px;
+    }
+
+    .grid-floor {
+        height: 35%;
     }
 
     .attract-hint {
         font-size: 0.85em;
+    }
+
+    .attract-high-score {
+        font-size: 1.1em;
+    }
+
+    .footer-info .credits {
+        font-size: 1.2em;
+    }
+
+    .footer-info .insert-coin {
+        font-size: 1em;
     }
 }
 
@@ -1216,8 +1505,8 @@ body {
         touch-action: none;
     }
 
-    /* Larger tap targets for buttons */
-    .btn {
+    /* Larger tap targets for menu buttons */
+    .menu-btn {
         min-height: 55px;
         touch-action: manipulation;
     }
@@ -1231,67 +1520,70 @@ body {
     #insertCoinText {
         cursor: pointer;
     }
-
-    /* Make controls hint visible on mobile */
-    .controls {
-        font-size: 0.75em;
-        line-height: 1.8;
-    }
-
-    .controls::after {
-        content: 'Touch: Left = Move | Right = Fire/Bomb';
-        display: block;
-        color: #ff00ff;
-        margin-top: 8px;
-        font-weight: bold;
-    }
 }
 
 /* Landscape orientation optimizations for mobile */
 @media (max-height: 500px) and (pointer: coarse) {
-    .attract-mode {
-        padding-top: 20px;
+    .ui-container {
+        padding: 15px 20px;
     }
 
-    .full-menu {
-        padding-top: 10px;
-    }
-
-    .logo {
+    .game-title {
         font-size: 2em;
-        margin-bottom: 0.2em;
     }
 
-    .logo-small {
+    .game-title-small {
         font-size: 1.5em !important;
+    }
+
+    .title-year {
+        font-size: 0.35em;
     }
 
     #insertCoinText {
         font-size: 1.4em;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
     }
 
-    .menu-buttons-primary {
-        margin-top: 120px;
+    .menu-btn {
+        padding: 10px 25px;
+        font-size: 0.85em;
+        width: 280px;
     }
 
-    .btn {
-        padding: 12px 30px;
-        font-size: 1em;
-    }
-
-    .btn-primary {
-        padding: 14px 40px;
-        font-size: 1.1em;
+    .main-menu ul {
+        gap: 8px;
     }
 
     .synthwave-sun {
-        width: 100px;
-        height: 100px;
-        top: 2%;
+        width: 120px;
+        height: 120px;
+        top: 5%;
     }
 
-    .menu-vignette {
+    .synthwave-mountains {
+        height: 50px;
+        bottom: 35%;
+    }
+
+    .grid-floor {
+        height: 30%;
+    }
+
+    .footer-info {
+        margin-bottom: 15px;
+    }
+
+    .footer-info .credits {
+        font-size: 1em;
+        margin-bottom: 8px;
+    }
+
+    .footer-info .insert-coin {
+        font-size: 0.85em;
+    }
+
+    .vignette-overlay {
         display: none;
     }
 }
