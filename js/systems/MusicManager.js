@@ -23,6 +23,10 @@ export class MusicManager {
 
         // Track which game tracks are loaded
         this.loadedGameTracks = [];
+
+        // Transition state
+        this.isTransitioning = false;
+        this.pendingPlay = null;
     }
 
     /**
@@ -126,23 +130,10 @@ export class MusicManager {
             return;
         }
 
-        this.stopCurrentMusic(0.5);
+        // If already playing menu music, don't restart
+        if (this.currentTrack === 'menu') return;
 
-        // Wait for fade out before starting new track
-        setTimeout(() => {
-            if (!this.musicEnabled) return;
-
-            const source = this.audioContext.createBufferSource();
-            source.buffer = this.menuMusic;
-            source.loop = true;
-            source.connect(this.musicGain);
-            source.start(0);
-
-            this.currentSource = source;
-            this.currentTrack = 'menu';
-
-            console.log('🎵 Playing menu music');
-        }, 500);
+        this.transitionTo('menu', this.menuMusic, 0.5);
     }
 
     /**
@@ -155,65 +146,140 @@ export class MusicManager {
             return;
         }
 
-        this.stopCurrentMusic(0.3);
+        // Select random track
+        const randomIndex = Math.floor(Math.random() * this.gameTracks.length);
+        const track = this.gameTracks[randomIndex];
 
-        // Wait for fade out before starting new track
-        setTimeout(() => {
-            if (!this.musicEnabled) return;
+        this.transitionTo(track.name, track.buffer, 0.3);
+    }
 
-            // Select random track
-            const randomIndex = Math.floor(Math.random() * this.gameTracks.length);
-            const track = this.gameTracks[randomIndex];
+    /**
+     * Seamlessly transition from current music to new track
+     * @param {string} trackName - Name of the new track
+     * @param {AudioBuffer} buffer - Audio buffer to play
+     * @param {number} fadeTime - Fade out time in seconds
+     */
+    transitionTo(trackName, buffer, fadeTime = 0.5) {
+        // Cancel any pending transitions
+        if (this.pendingPlay) {
+            clearTimeout(this.pendingPlay);
+            this.pendingPlay = null;
+        }
 
-            const source = this.audioContext.createBufferSource();
-            source.buffer = track.buffer;
-            source.loop = true;
-            source.connect(this.musicGain);
-            source.start(0);
+        // Keep reference to old source for stopping
+        const oldSource = this.currentSource;
+        const hadOldSource = !!oldSource;
 
-            this.currentSource = source;
-            this.currentTrack = track.name;
+        // Cancel any ongoing gain automations
+        if (this.musicGain) {
+            this.musicGain.gain.cancelScheduledValues(this.audioContext.currentTime);
+        }
 
-            console.log(`🎵 Playing game music: ${track.name}`);
-        }, 300);
+        // If there's current music, fade it out
+        if (oldSource && fadeTime > 0) {
+            this.isTransitioning = true;
+            const now = this.audioContext.currentTime;
+
+            // Fade out old track
+            this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, now);
+            this.musicGain.gain.linearRampToValueAtTime(0, now + fadeTime);
+
+            // Stop old source after fade completes
+            setTimeout(() => {
+                try {
+                    oldSource.stop();
+                } catch (e) {
+                    // Source might already be stopped
+                }
+            }, fadeTime * 1000);
+
+            // Start new track after fade out
+            this.pendingPlay = setTimeout(() => {
+                this.pendingPlay = null;
+                if (!this.musicEnabled) {
+                    this.isTransitioning = false;
+                    return;
+                }
+                this.startTrack(trackName, buffer);
+            }, fadeTime * 1000);
+        } else {
+            // No current music, start immediately
+            if (oldSource) {
+                try {
+                    oldSource.stop();
+                } catch (e) {}
+            }
+            this.startTrack(trackName, buffer);
+        }
+
+        // Clear current references immediately to prevent double-stop
+        this.currentSource = null;
+        this.currentTrack = null;
+    }
+
+    /**
+     * Start playing a track (internal method)
+     */
+    startTrack(trackName, buffer) {
+        // Reset gain to target volume
+        if (this.musicGain) {
+            this.musicGain.gain.cancelScheduledValues(this.audioContext.currentTime);
+            this.musicGain.gain.setValueAtTime(this.volume, this.audioContext.currentTime);
+        }
+
+        const source = this.audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        source.connect(this.musicGain);
+        source.start(0);
+
+        this.currentSource = source;
+        this.currentTrack = trackName;
+        this.isTransitioning = false;
+
+        console.log(`🎵 Playing: ${trackName}`);
     }
 
     /**
      * Stop current music with optional fade out
      */
     stopCurrentMusic(fadeTime = 0.5) {
+        // Cancel any pending transitions
+        if (this.pendingPlay) {
+            clearTimeout(this.pendingPlay);
+            this.pendingPlay = null;
+        }
+
         if (!this.currentSource) return;
+
+        const sourceToStop = this.currentSource;
+        this.currentSource = null;
+        this.currentTrack = null;
 
         try {
             if (fadeTime > 0 && this.musicGain) {
                 const now = this.audioContext.currentTime;
-                this.musicGain.gain.setValueAtTime(this.volume, now);
+                this.musicGain.gain.cancelScheduledValues(now);
+                this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, now);
                 this.musicGain.gain.linearRampToValueAtTime(0, now + fadeTime);
-
-                // Restore volume after fade
-                setTimeout(() => {
-                    if (this.musicGain) {
-                        this.musicGain.gain.value = this.volume;
-                    }
-                }, fadeTime * 1000);
 
                 // Stop source after fade
                 setTimeout(() => {
                     try {
-                        if (this.currentSource) {
-                            this.currentSource.stop();
-                        }
+                        sourceToStop.stop();
                     } catch (e) {}
+                    // Restore volume
+                    if (this.musicGain) {
+                        this.musicGain.gain.cancelScheduledValues(this.audioContext.currentTime);
+                        this.musicGain.gain.setValueAtTime(this.volume, this.audioContext.currentTime);
+                    }
                 }, fadeTime * 1000);
             } else {
-                this.currentSource.stop();
+                sourceToStop.stop();
             }
         } catch (e) {
             // Source might already be stopped
         }
-
-        this.currentSource = null;
-        this.currentTrack = null;
     }
 
     /**
