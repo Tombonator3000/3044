@@ -14,15 +14,15 @@ const explosionPerfSettings = {
     maxShockwaves: 3
 };
 
-// Reduce particles on low-perf devices
+// Reduce particles on VERY low-perf devices only
 const isLowPerfDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-    || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+    || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2);
 
 if (isLowPerfDevice) {
-    explosionPerfSettings.particleMultiplier = 0.4;
-    explosionPerfSettings.enableTrails = false;
+    explosionPerfSettings.particleMultiplier = 0.6;  // Less aggressive reduction
+    explosionPerfSettings.enableTrails = true;       // Keep trails enabled
     explosionPerfSettings.enableShadows = false;
-    explosionPerfSettings.maxShockwaves = 1;
+    explosionPerfSettings.maxShockwaves = 2;         // Allow 2 shockwaves
 }
 
 /**

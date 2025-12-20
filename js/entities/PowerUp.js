@@ -157,6 +157,16 @@ export class PowerUp {
             particleSystem.powerUpCollect(this.x, this.y, this.color);
         }
 
+        // Show 80s slang phrase for power-up collection
+        if (gameState?.radicalSlang?.showPowerUpPhrase) {
+            gameState.radicalSlang.showPowerUpPhrase(this.x, this.y);
+        }
+
+        // Track session stats
+        if (gameState?.sessionStats) {
+            gameState.sessionStats.powerUpsCollected = (gameState.sessionStats.powerUpsCollected || 0) + 1;
+        }
+
         return true;
     }
 
