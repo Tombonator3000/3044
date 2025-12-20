@@ -159,6 +159,8 @@ export class MenuManager {
             if (e.type === 'keydown') {
                 const validKeys = ['Enter', ' ', 'Escape', 'c', 'C'];
                 if (!validKeys.includes(e.key)) return;
+            } else if (e.type === 'pointerdown' || e.type === 'touchstart') {
+                e.preventDefault();
             }
 
             this.showFullMenu();
@@ -167,12 +169,16 @@ export class MenuManager {
         // Listen for key press or click to exit attract mode
         document.addEventListener('keydown', exitAttractMode);
         attractMode.addEventListener('click', exitAttractMode);
+        attractMode.addEventListener('pointerdown', exitAttractMode, { passive: false });
+        attractMode.addEventListener('touchstart', exitAttractMode, { passive: false });
 
         // Also exit when clicking INSERT COIN text specifically
         const insertCoinText = document.getElementById('insertCoinText');
         if (insertCoinText) {
             insertCoinText.style.cursor = 'pointer';
             insertCoinText.addEventListener('click', exitAttractMode);
+            insertCoinText.addEventListener('pointerdown', exitAttractMode, { passive: false });
+            insertCoinText.addEventListener('touchstart', exitAttractMode, { passive: false });
         }
     }
 

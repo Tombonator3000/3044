@@ -435,10 +435,22 @@ function setupMenu() {
     // Setup start button (check both possible IDs)
     const startButton = document.getElementById('startButton') || document.getElementById('startGameBtn');
     if (startButton) {
-        startButton.addEventListener('click', () => {
+        let lastStartTrigger = 0;
+        const triggerStart = (event) => {
+            if (event.type === 'pointerdown' || event.type === 'touchstart') {
+                event.preventDefault();
+            } else if (performance.now() - lastStartTrigger < 500) {
+                return;
+            }
+
+            lastStartTrigger = performance.now();
             resetAttractModeTimeout();
             window.startGame();
-        });
+        };
+
+        startButton.addEventListener('click', triggerStart);
+        startButton.addEventListener('pointerdown', triggerStart, { passive: false });
+        startButton.addEventListener('touchstart', triggerStart, { passive: false });
     }
 
     // Load high score (check both possible IDs)
