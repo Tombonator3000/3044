@@ -77,6 +77,7 @@ export class MenuManager {
         this.menuAnimTimer = 0;
         this.insertCoinBlink = true;
         this.blinkTimer = 0;
+        this.insertCoinIntervalId = null;
 
         // Attract mode state (arcade-style "Press Start" screen)
         this.inAttractMode = true;
@@ -205,6 +206,7 @@ export class MenuManager {
         const fullMenu = document.getElementById('fullMenu');
 
         if (attractMode && fullMenu) {
+            this.startInsertCoinBlink();
             this.inAttractMode = true;
             fullMenu.classList.remove('visible');
 
@@ -218,12 +220,24 @@ export class MenuManager {
      * Start insert coin blinking animation
      */
     startInsertCoinBlink() {
-        setInterval(() => {
+        if (this.insertCoinIntervalId) return;
+
+        this.insertCoinIntervalId = setInterval(() => {
             if (cachedUI.insertCoinText) {
                 this.insertCoinBlink = !this.insertCoinBlink;
                 cachedUI.insertCoinText.style.opacity = this.insertCoinBlink ? '1' : '0.3';
             }
         }, 500);
+    }
+
+    /**
+     * Stop insert coin blinking animation
+     */
+    stopInsertCoinBlink() {
+        if (!this.insertCoinIntervalId) return;
+
+        clearInterval(this.insertCoinIntervalId);
+        this.insertCoinIntervalId = null;
     }
 
     /**
@@ -235,6 +249,11 @@ export class MenuManager {
 
         this.previousState = this.currentState;
         this.currentState = newState;
+
+        if (newState === MenuState.GAME) {
+            this.stopInsertCoinBlink();
+        }
+
         this.isTransitioning = true;
         this.transitionTimer = this.transitionDuration;
 
@@ -297,6 +316,7 @@ export class MenuManager {
      */
     showMainMenu(returnToAttract = false) {
         this.transitionTo(MenuState.MAIN);
+        this.startInsertCoinBlink();
 
         if (returnToAttract) {
             this.returnToAttractMode();
@@ -310,6 +330,7 @@ export class MenuManager {
      * Show game UI (start game)
      */
     showGameUI() {
+        this.stopInsertCoinBlink();
         this.transitionTo(MenuState.GAME);
     }
 
