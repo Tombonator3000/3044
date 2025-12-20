@@ -202,13 +202,15 @@ function init() {
 }
 
 function resizeCanvas() {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const gameArea = document.getElementById('gameContainer');
+    const rect = (gameArea || canvas).getBoundingClientRect();
     canvas.logicalWidth = LOGICAL_CANVAS_SIZE;
     canvas.logicalHeight = LOGICAL_CANVAS_SIZE;
     canvas.width = canvas.logicalWidth * dpr;
     canvas.height = canvas.logicalHeight * dpr;
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     updateConfig(canvas.logicalWidth, canvas.logicalHeight);
