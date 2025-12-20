@@ -5,6 +5,7 @@
 
 import { CONFIG } from '../config.js';
 import { PowerUp } from '../entities/PowerUp.js';
+import { addGridImpact } from '../rendering/GridRenderer.js';
 
 /**
  * CollisionSystem class - manages collision detection with spatial hashing
@@ -788,7 +789,7 @@ export class CollisionSystem {
     }
 
     /**
-     * Handle enemy kill with effects and power-up spawn
+     * Handle enemy kill with EPIC effects and power-up spawn
      */
     handleEnemyKill(enemy) {
         const gs = this.gameState;
@@ -811,14 +812,56 @@ export class CollisionSystem {
             gs.radicalSlang.checkCombo(gs.combo);
         }
 
-        // Explosion effect
+        // === GRID RIPPLE EFFECT ===
+        // Add impact to the waving grid for Geometry Wars-style ripples
+        const impactForce = 30 + (enemy.size || 20) * 1.5;
+        const impactRadius = 80 + (enemy.size || 20) * 3;
+        addGridImpact(enemy.x, enemy.y, impactForce, impactRadius);
+
+        // === ADVANCED EXPLOSION EFFECTS ===
         if (this.particleSystem) {
-            if (this.particleSystem.addExplosion) {
-                this.particleSystem.addExplosion(enemy.x, enemy.y, enemy.color || '#ff6600', 15);
-            } else if (this.particleSystem.explosion) {
-                this.particleSystem.explosion(enemy.x, enemy.y, enemy.color || '#ff6600', 15);
+            const combo = gs.combo || 0;
+            const enemyType = enemy.type || 'default';
+            const color = enemy.color || '#ff6600';
+
+            // Choose explosion type based on enemy type and combo
+            if (combo >= 50 && this.particleSystem.megaComboExplosion) {
+                // MEGA COMBO explosion for high combos
+                const comboLevel = Math.floor(combo / 25);
+                this.particleSystem.megaComboExplosion(enemy.x, enemy.y, comboLevel);
+            } else if (enemyType === 'electric' || enemyType === 'laser') {
+                // Electric explosion for electric/laser enemies
+                if (this.particleSystem.electricExplosion) {
+                    this.particleSystem.electricExplosion(enemy.x, enemy.y, color);
+                }
+            } else if (enemyType === 'glitch' || Math.random() < 0.1) {
+                // VHS glitch explosion (10% random chance or glitch enemies)
+                if (this.particleSystem.glitchExplosion) {
+                    this.particleSystem.glitchExplosion(enemy.x, enemy.y);
+                }
+            } else if (enemy.size > 30 || enemyType === 'heavy') {
+                // Fire explosion for big/heavy enemies
+                if (this.particleSystem.fireExplosion) {
+                    this.particleSystem.fireExplosion(enemy.x, enemy.y, enemy.size / 30);
+                }
+            } else if (combo >= 20 && this.particleSystem.synthwaveExplosion) {
+                // Synthwave explosion for decent combos
+                this.particleSystem.synthwaveExplosion(enemy.x, enemy.y);
+            } else if (this.particleSystem.pixelExplosion && Math.random() < 0.3) {
+                // 30% chance for pixel explosion
+                this.particleSystem.pixelExplosion(enemy.x, enemy.y, color);
+            } else {
+                // Standard explosion with shockwave
+                if (this.particleSystem.addExplosion) {
+                    this.particleSystem.addExplosion(enemy.x, enemy.y, color, 15);
+                }
+                // Add shockwave effect
+                if (this.particleSystem.addShockwave) {
+                    this.particleSystem.addShockwave(enemy.x, enemy.y, color, 60);
+                }
             }
 
+            // Score popup
             if (this.particleSystem.addScorePopup) {
                 this.particleSystem.addScorePopup(enemy.x, enemy.y - 20, score);
             }
@@ -831,10 +874,11 @@ export class CollisionSystem {
             this.soundSystem.play('explosion');
         }
 
-        // Screen shake
+        // Screen shake (stronger for bigger enemies)
         if (gs.screenShake) {
+            const shakeIntensity = 3 + (enemy.size || 20) * 0.1;
             gs.screenShake.intensity = Math.min(
-                (gs.screenShake.intensity || 0) + 3,
+                (gs.screenShake.intensity || 0) + shakeIntensity,
                 15
             );
             gs.screenShake.duration = Math.max(
@@ -853,7 +897,7 @@ export class CollisionSystem {
     }
 
     /**
-     * Handle player hit with effects
+     * Handle player hit with EPIC effects
      */
     handlePlayerHit(player) {
         const gs = this.gameState;
@@ -870,12 +914,17 @@ export class CollisionSystem {
                 gs.radicalSlang.resetCombo();
             }
 
-            // Explosion
+            // === MASSIVE GRID RIPPLE for player death ===
+            addGridImpact(player.x, player.y, 100, 300);
+
+            // Epic death explosion
             if (this.particleSystem) {
-                if (this.particleSystem.addExplosion) {
+                if (this.particleSystem.epicDeathExplosion) {
+                    this.particleSystem.epicDeathExplosion(player.x, player.y, '#00ff00');
+                } else if (this.particleSystem.synthwaveExplosion) {
+                    this.particleSystem.synthwaveExplosion(player.x, player.y);
+                } else if (this.particleSystem.addExplosion) {
                     this.particleSystem.addExplosion(player.x, player.y, '#00ff00', 30);
-                } else if (this.particleSystem.explosion) {
-                    this.particleSystem.explosion(player.x, player.y, '#00ff00', 30);
                 }
             }
 
