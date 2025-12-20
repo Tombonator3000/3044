@@ -812,354 +812,378 @@ export class Player {
 
     /**
      * NEON FALCON - Classic balanced ship (default)
-     * Sleek arrow design with neon glow
+     * 8-bit pixel art - sleek fighter design
      */
     drawNeonFalconShip(ctx, color) {
-        // Main body - sleek arrow
-        ctx.beginPath();
-        ctx.moveTo(0, -20);
-        ctx.lineTo(-15, 20);
-        ctx.lineTo(0, 10);
-        ctx.lineTo(15, 20);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.fillStyle = color + '44';
-        ctx.fill();
-
-        // Inner highlight
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
+        const p = 3; // Pixel size
         ctx.shadowBlur = 15;
-        ctx.stroke();
+        ctx.shadowColor = color;
 
-        // Wing accents
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(-8, 5);
-        ctx.lineTo(-12, 15);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(8, 5);
-        ctx.lineTo(12, 15);
-        ctx.stroke();
+        // 8-bit falcon fighter pattern
+        const falcon = [
+            [0,0,0,0,0,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,1,1,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,1,0],
+            [1,1,0,1,1,1,1,1,0,1,1],
+            [1,0,0,0,1,1,1,0,0,0,1],
+            [1,0,0,0,0,1,0,0,0,0,1],
+            [0,0,0,0,0,1,0,0,0,0,0],
+        ];
+
+        const offsetX = -falcon[0].length * p / 2;
+        const offsetY = -falcon.length * p / 2;
+
+        falcon.forEach((row, y) => {
+            row.forEach((pixel, x) => {
+                if (pixel) {
+                    // Cockpit area (center top) is brighter
+                    if (y < 4 && x >= 4 && x <= 6) {
+                        ctx.fillStyle = '#ffffff';
+                    } else {
+                        ctx.fillStyle = color;
+                    }
+                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
+                }
+            });
+        });
     }
 
     /**
      * GLASS CANNON - Angular, aggressive design
-     * Sharp edges, red accents, looks dangerous
+     * 8-bit pixel art - sharp angular deadly look
      */
     drawGlassCannonShip(ctx, color) {
-        // Sharp angular body
-        ctx.beginPath();
-        ctx.moveTo(0, -25);
-        ctx.lineTo(-10, -5);
-        ctx.lineTo(-18, 18);
-        ctx.lineTo(-5, 8);
-        ctx.lineTo(0, 20);
-        ctx.lineTo(5, 8);
-        ctx.lineTo(18, 18);
-        ctx.lineTo(10, -5);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.fillStyle = color + '33';
-        ctx.fill();
+        const p = 3; // Pixel size
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = color;
 
-        // Inner core - glowing energy
-        ctx.fillStyle = '#ffff00';
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = '#ffff00';
-        ctx.beginPath();
-        ctx.arc(0, 0, 4, 0, Math.PI * 2);
-        ctx.fill();
+        // 8-bit angular cannon pattern
+        const cannon = [
+            [0,0,0,0,0,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,1,0,1,0,1,0,0,0],
+            [0,0,1,0,1,1,1,0,1,0,0],
+            [0,1,0,0,1,1,1,0,0,1,0],
+            [1,0,0,1,1,1,1,1,0,0,1],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,0,1,1,1,0,1,1,0],
+            [1,1,0,0,0,1,0,0,0,1,1],
+            [1,0,0,0,0,0,0,0,0,0,1],
+        ];
 
-        // Danger stripes
-        ctx.strokeStyle = '#ff4400';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(-6, -10);
-        ctx.lineTo(-10, 5);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(6, -10);
-        ctx.lineTo(10, 5);
-        ctx.stroke();
+        const offsetX = -cannon[0].length * p / 2;
+        const offsetY = -cannon.length * p / 2;
+
+        cannon.forEach((row, y) => {
+            row.forEach((pixel, x) => {
+                if (pixel) {
+                    // Glowing energy core in center
+                    if (y >= 4 && y <= 6 && x >= 4 && x <= 6) {
+                        ctx.fillStyle = '#ffff00';
+                        ctx.shadowColor = '#ffff00';
+                    } else {
+                        ctx.fillStyle = color;
+                        ctx.shadowColor = color;
+                    }
+                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
+                }
+            });
+        });
     }
 
     /**
      * HEAVY TANK - Bulky, armored design
-     * Thick lines, hexagonal shape, looks sturdy
+     * 8-bit pixel art - wide armored fortress
      */
     drawTankShip(ctx, color) {
-        ctx.lineWidth = 4;
+        const p = 3; // Pixel size
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = color;
 
-        // Hexagonal armored body
-        ctx.beginPath();
-        ctx.moveTo(0, -22);
-        ctx.lineTo(-18, -8);
-        ctx.lineTo(-18, 12);
-        ctx.lineTo(-10, 22);
-        ctx.lineTo(10, 22);
-        ctx.lineTo(18, 12);
-        ctx.lineTo(18, -8);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.fillStyle = color + '55';
-        ctx.fill();
+        // 8-bit tank pattern - wide and bulky
+        const tank = [
+            [0,0,0,0,0,1,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,1,0,0,0,0],
+            [0,0,1,1,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,1,1,0],
+            [1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,1,1,0,1,1,1,1,0,1,1,1],
+            [1,1,1,0,1,1,1,1,0,1,1,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1],
+            [0,1,1,1,1,1,1,1,1,1,1,0],
+            [0,0,1,1,0,0,0,0,1,1,0,0],
+        ];
 
-        // Armor plates
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(-12, -5);
-        ctx.lineTo(-12, 10);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(12, -5);
-        ctx.lineTo(12, 10);
-        ctx.stroke();
+        const offsetX = -tank[0].length * p / 2;
+        const offsetY = -tank.length * p / 2;
 
-        // Shield generator in center
-        ctx.strokeStyle = '#00ffff';
-        ctx.lineWidth = 2;
-        ctx.shadowColor = '#00ffff';
-        ctx.beginPath();
-        ctx.arc(0, 2, 6, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Front cannon
-        ctx.fillStyle = color;
-        ctx.fillRect(-3, -25, 6, 8);
+        tank.forEach((row, y) => {
+            row.forEach((pixel, x) => {
+                if (pixel) {
+                    // Shield generator in center (cyan glow)
+                    if (y >= 4 && y <= 7 && x >= 4 && x <= 7) {
+                        ctx.fillStyle = '#00ffff';
+                        ctx.shadowColor = '#00ffff';
+                    } else {
+                        ctx.fillStyle = color;
+                        ctx.shadowColor = color;
+                    }
+                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
+                }
+            });
+        });
     }
 
     /**
      * SPEEDSTER - Streamlined, aerodynamic design
-     * Thin, elongated, built for speed
+     * 8-bit pixel art - slim and fast looking
      */
     drawSpeedsterShip(ctx, color) {
-        ctx.lineWidth = 2;
+        const p = 3; // Pixel size
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = color;
 
-        // Ultra-slim body
-        ctx.beginPath();
-        ctx.moveTo(0, -28);
-        ctx.lineTo(-6, -10);
-        ctx.lineTo(-10, 15);
-        ctx.lineTo(-4, 8);
-        ctx.lineTo(0, 18);
-        ctx.lineTo(4, 8);
-        ctx.lineTo(10, 15);
-        ctx.lineTo(6, -10);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.fillStyle = color + '44';
-        ctx.fill();
+        // 8-bit speedster pattern - slim and elongated
+        const speedster = [
+            [0,0,0,0,1,0,0,0,0],
+            [0,0,0,1,1,1,0,0,0],
+            [0,0,0,1,1,1,0,0,0],
+            [0,0,0,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,0,0],
+            [0,0,1,1,1,1,1,0,0],
+            [0,1,0,1,1,1,0,1,0],
+            [1,0,0,1,1,1,0,0,1],
+            [1,0,0,0,1,0,0,0,1],
+            [0,0,0,0,1,0,0,0,0],
+            [0,0,0,0,1,0,0,0,0],
+        ];
 
-        // Speed lines (motion blur effect)
+        const offsetX = -speedster[0].length * p / 2;
+        const offsetY = -speedster.length * p / 2;
+
+        speedster.forEach((row, y) => {
+            row.forEach((pixel, x) => {
+                if (pixel) {
+                    // Boost indicator (yellow) at top
+                    if (y <= 2 && x === 4) {
+                        ctx.fillStyle = '#ffff00';
+                        ctx.shadowColor = '#ffff00';
+                    } else {
+                        ctx.fillStyle = color;
+                        ctx.shadowColor = color;
+                    }
+                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
+                }
+            });
+        });
+
+        // Speed trail pixels behind
         ctx.globalAlpha = 0.5;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1;
+        ctx.fillStyle = color;
         for (let i = 1; i <= 3; i++) {
-            ctx.beginPath();
-            ctx.moveTo(-4 - i * 3, 20 + i * 5);
-            ctx.lineTo(-4 - i * 3, 15);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(4 + i * 3, 20 + i * 5);
-            ctx.lineTo(4 + i * 3, 15);
-            ctx.stroke();
+            ctx.globalAlpha = 0.5 - i * 0.15;
+            ctx.fillRect(offsetX + 4 * p, offsetY + (10 + i) * p, p - 1, p - 1);
         }
         ctx.globalAlpha = 1;
-
-        // Boost indicator
-        ctx.fillStyle = '#ffff00';
-        ctx.shadowColor = '#ffff00';
-        ctx.shadowBlur = 15;
-        ctx.beginPath();
-        ctx.arc(0, -15, 3, 0, Math.PI * 2);
-        ctx.fill();
     }
 
     /**
      * RETRO CLASSIC - Pixelated 8-bit style
-     * Blocky, nostalgic design
+     * 8-bit pixel art - classic arcade ship
      */
     drawRetroClassicShip(ctx, color) {
-        const px = 4; // Pixel size
-        ctx.lineWidth = 1;
-        ctx.fillStyle = color;
+        const p = 3; // Pixel size
         ctx.shadowBlur = 15;
+        ctx.shadowColor = color;
 
-        // Pixelated ship shape
-        const pixels = [
-            [0, -5],   // Top
-            [-1, -4], [0, -4], [1, -4],
-            [-1, -3], [0, -3], [1, -3],
-            [-2, -2], [-1, -2], [0, -2], [1, -2], [2, -2],
-            [-2, -1], [-1, -1], [0, -1], [1, -1], [2, -1],
-            [-3, 0], [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0], [3, 0],
-            [-3, 1], [-2, 1], [0, 1], [2, 1], [3, 1],
-            [-4, 2], [-3, 2], [0, 2], [3, 2], [4, 2],
-            [-4, 3], [0, 3], [4, 3],
-            [-4, 4], [4, 4],
+        // 8-bit classic arcade ship pattern
+        const retro = [
+            [0,0,0,0,0,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,1,1,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,1,0],
+            [1,1,1,1,1,1,1,1,1,1,1],
+            [1,1,0,1,1,1,1,1,0,1,1],
+            [1,0,0,0,1,1,1,0,0,0,1],
+            [1,0,0,0,0,1,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,1],
         ];
 
-        pixels.forEach(([px_x, px_y]) => {
-            ctx.fillRect(px_x * px - px/2, px_y * px - px/2, px, px);
-        });
+        const offsetX = -retro[0].length * p / 2;
+        const offsetY = -retro.length * p / 2;
 
-        // Outline
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(-2 * px, -5 * px, 4 * px, 9 * px);
+        retro.forEach((row, y) => {
+            row.forEach((pixel, x) => {
+                if (pixel) {
+                    // Alternating colors for retro effect
+                    if ((x + y) % 3 === 0 && y < 5) {
+                        ctx.fillStyle = '#ffffff';
+                    } else {
+                        ctx.fillStyle = color;
+                    }
+                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
+                }
+            });
+        });
     }
 
     /**
      * PHANTOM - Ethereal, ghostly design
-     * Translucent with phase effect
+     * 8-bit pixel art - ghost-like with phase effect
      */
     drawPhantomShip(ctx, color) {
+        const p = 3; // Pixel size
         const phase = Math.sin(Date.now() * 0.005) * 0.3;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = color;
 
-        // Ghostly outer aura
-        ctx.globalAlpha = 0.3 + phase;
-        ctx.fillStyle = color;
-        ctx.shadowBlur = 40;
-        ctx.beginPath();
-        ctx.arc(0, 0, 25, 0, Math.PI * 2);
-        ctx.fill();
+        // 8-bit ghost/phantom pattern
+        const phantom = [
+            [0,0,0,1,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,0],
+            [1,1,0,0,1,1,0,0,1,1],
+            [1,1,0,0,1,1,0,0,1,1],
+            [1,1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1,1,1],
+            [1,0,1,1,0,0,1,1,0,1],
+            [1,0,0,1,0,0,1,0,0,1],
+        ];
 
-        ctx.globalAlpha = 1;
+        const offsetX = -phantom[0].length * p / 2;
+        const offsetY = -phantom.length * p / 2;
 
-        // Ethereal body shape
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, -20);
-        ctx.quadraticCurveTo(-20, 0, -12, 20);
-        ctx.lineTo(0, 12);
-        ctx.lineTo(12, 20);
-        ctx.quadraticCurveTo(20, 0, 0, -20);
-        ctx.stroke();
-        ctx.fillStyle = color + '22';
-        ctx.fill();
+        // Ghost phasing effect
+        ctx.globalAlpha = 0.6 + phase;
 
-        // Inner spirit core
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowBlur = 25;
-        ctx.shadowColor = '#ffffff';
-        ctx.globalAlpha = 0.7 + phase;
-        ctx.beginPath();
-        ctx.arc(0, -2, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
+        phantom.forEach((row, y) => {
+            row.forEach((pixel, x) => {
+                if (pixel) {
+                    // Glowing eyes
+                    if (y >= 3 && y <= 4 && (x === 2 || x === 3 || x === 6 || x === 7)) {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.shadowColor = '#ffffff';
+                    } else {
+                        ctx.fillStyle = color;
+                        ctx.shadowColor = color;
+                    }
+                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
+                }
+            });
+        });
 
-        // Phase ripples
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1;
-        ctx.globalAlpha = 0.4;
-        for (let i = 1; i <= 2; i++) {
-            ctx.beginPath();
-            ctx.arc(0, 0, 15 + i * 8 + phase * 5, 0, Math.PI * 2);
-            ctx.stroke();
-        }
         ctx.globalAlpha = 1;
     }
 
     /**
      * BERSERKER - Aggressive, spiked design
-     * Angular with rage indicators
+     * 8-bit pixel art - angry spiked warrior
      */
     drawBerserkerShip(ctx, color) {
-        ctx.lineWidth = 3;
+        const p = 3; // Pixel size
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = color;
 
-        // Angry angular body
-        ctx.beginPath();
-        ctx.moveTo(0, -22);
-        ctx.lineTo(-8, -12);
-        ctx.lineTo(-20, -8); // Left spike
-        ctx.lineTo(-12, 0);
-        ctx.lineTo(-16, 18);
-        ctx.lineTo(-6, 12);
-        ctx.lineTo(0, 22);
-        ctx.lineTo(6, 12);
-        ctx.lineTo(16, 18);
-        ctx.lineTo(12, 0);
-        ctx.lineTo(20, -8);  // Right spike
-        ctx.lineTo(8, -12);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.fillStyle = color + '44';
-        ctx.fill();
+        // 8-bit berserker pattern - spiked and aggressive
+        const berserker = [
+            [0,0,0,0,0,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [1,0,0,1,1,1,1,1,0,0,1],
+            [1,1,0,1,1,1,1,1,0,1,1],
+            [0,1,1,1,1,1,1,1,1,1,0],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,0,1,1,1,0,1,1,0],
+            [1,1,0,0,1,1,1,0,0,1,1],
+            [1,0,0,0,0,1,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,1],
+            [0,0,0,0,0,1,0,0,0,0,0],
+        ];
 
-        // Rage eye in center
-        ctx.fillStyle = '#ff0000';
-        ctx.shadowColor = '#ff0000';
-        ctx.shadowBlur = 20;
-        const eyePulse = 3 + Math.sin(Date.now() * 0.01) * 1.5;
-        ctx.beginPath();
-        ctx.arc(0, -5, eyePulse, 0, Math.PI * 2);
-        ctx.fill();
+        const offsetX = -berserker[0].length * p / 2;
+        const offsetY = -berserker.length * p / 2;
 
-        // Battle scars
-        ctx.strokeStyle = '#ffaa00';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(-5, 2);
-        ctx.lineTo(-8, 10);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(5, 2);
-        ctx.lineTo(8, 10);
-        ctx.stroke();
+        // Rage pulse effect
+        const ragePulse = Math.sin(Date.now() * 0.01) > 0;
+
+        berserker.forEach((row, y) => {
+            row.forEach((pixel, x) => {
+                if (pixel) {
+                    // Rage eye in center (pulsing red)
+                    if (y >= 3 && y <= 5 && x >= 4 && x <= 6) {
+                        ctx.fillStyle = ragePulse ? '#ff0000' : '#ff4400';
+                        ctx.shadowColor = '#ff0000';
+                    }
+                    // Spikes are brighter
+                    else if ((y === 2 || y === 3) && (x === 0 || x === 1 || x === 9 || x === 10)) {
+                        ctx.fillStyle = '#ffaa00';
+                        ctx.shadowColor = '#ffaa00';
+                    } else {
+                        ctx.fillStyle = color;
+                        ctx.shadowColor = color;
+                    }
+                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
+                }
+            });
+        });
     }
 
     /**
      * SYNTHWAVE - Music-reactive, rhythmic design
-     * Flowing lines that pulse with beat
+     * 8-bit pixel art - music/wave themed with beat pulse
      */
     drawSynthShip(ctx, color) {
+        const p = 3; // Pixel size
         const beat = Math.sin(Date.now() * 0.008) * 0.5 + 0.5;
-        const pulse = 1 + beat * 0.15;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = color;
 
-        ctx.lineWidth = 2;
+        // 8-bit synthwave pattern - music note inspired
+        const synth = [
+            [0,0,0,1,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,0],
+            [0,1,1,1,1,1,1,1,1,0],
+            [1,1,0,1,1,1,1,0,1,1],
+            [1,0,0,1,1,1,1,0,0,1],
+            [1,0,0,0,1,1,0,0,0,1],
+            [1,1,0,0,1,1,0,0,1,1],
+            [0,1,1,0,1,1,0,1,1,0],
+            [0,0,1,1,0,0,1,1,0,0],
+        ];
 
-        // Main flowing body
-        ctx.beginPath();
-        ctx.moveTo(0, -20 * pulse);
-        ctx.bezierCurveTo(-15, -10, -15, 10, -12, 20);
-        ctx.lineTo(0, 15);
-        ctx.lineTo(12, 20);
-        ctx.bezierCurveTo(15, 10, 15, -10, 0, -20 * pulse);
-        ctx.stroke();
-        ctx.fillStyle = color + '44';
-        ctx.fill();
+        const offsetX = -synth[0].length * p / 2;
+        const offsetY = -synth.length * p / 2;
 
-        // Sound wave rings
-        ctx.strokeStyle = '#ff00ff';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 3; i++) {
-            const ringPulse = (beat + i * 0.33) % 1;
-            ctx.globalAlpha = 1 - ringPulse;
-            ctx.beginPath();
-            ctx.arc(0, 0, 10 + ringPulse * 20, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-        ctx.globalAlpha = 1;
+        synth.forEach((row, y) => {
+            row.forEach((pixel, x) => {
+                if (pixel) {
+                    // Rainbow gradient based on y position and beat
+                    const hue = (y * 30 + Date.now() * 0.1) % 360;
+                    if (y < 4) {
+                        ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+                        ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+                    } else {
+                        ctx.fillStyle = color;
+                        ctx.shadowColor = color;
+                    }
+                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
+                }
+            });
+        });
 
-        // Equalizer bars
+        // Animated equalizer bars below ship
         ctx.fillStyle = '#00ffff';
         ctx.shadowColor = '#00ffff';
         for (let i = -2; i <= 2; i++) {
-            const barHeight = 3 + Math.sin(Date.now() * 0.01 + i) * 4;
-            ctx.fillRect(i * 4 - 1.5, 5 - barHeight, 3, barHeight);
+            const barHeight = Math.floor(2 + Math.sin(Date.now() * 0.01 + i) * 2);
+            for (let h = 0; h < barHeight; h++) {
+                ctx.fillRect(offsetX + (4 + i) * p, offsetY + (10 + h) * p, p - 1, p - 1);
+            }
         }
-
-        // Central music note glow
-        ctx.fillStyle = color;
-        ctx.shadowBlur = 25;
-        ctx.shadowColor = color;
-        ctx.beginPath();
-        ctx.arc(0, -5, 4 * pulse, 0, Math.PI * 2);
-        ctx.fill();
     }
 }
