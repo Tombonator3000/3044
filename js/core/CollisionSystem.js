@@ -15,6 +15,7 @@ export class CollisionSystem {
         // Spatial hashing for performance
         this.cellSize = 50;
         this.grid = new Map();
+        this.maxEnemyRadius = 0;
         // Support both old style (gameState directly) and new style (options object)
         if (options.gameState) {
             this.gameState = options.gameState;
@@ -194,13 +195,21 @@ export class CollisionSystem {
 
         // Player bullets vs enemies
         if (bulletPool) {
+            this.buildEnemySpatialHash(gameState);
             const bullets = bulletPool.getActiveBullets?.() || bulletPool.bullets || [];
 
             for (const bullet of bullets) {
                 if (!bullet.active || !bullet.isPlayer) continue;
 
-                for (const enemy of gameState.enemies) {
-                    if (!enemy.active) continue;
+                const bulletRadius = bullet.radius || bullet.size || CONFIG.bullets?.playerRadius || 4;
+                const searchRadius = Math.max(
+                    1,
+                    Math.ceil((bulletRadius + this.maxEnemyRadius) / this.cellSize)
+                );
+                const nearby = this.getNearby(bullet.x, bullet.y, searchRadius);
+
+                for (const { entity: enemy, type } of nearby) {
+                    if (type !== 'enemy' || !enemy.active) continue;
 
                     this.stats.checksPerFrame++;
 
@@ -347,6 +356,7 @@ export class CollisionSystem {
         }
 
         // Player bullets vs enemies
+        this.buildEnemySpatialHash(gs);
         this.checkBulletsVsEnemies(gs);
 
         // Player vs power-ups
@@ -438,9 +448,14 @@ export class CollisionSystem {
 
             const bulletRadius = bullet.radius || CONFIG.bullets.playerRadius;
 
-            for (let j = gs.enemies.length - 1; j >= 0; j--) {
-                const enemy = gs.enemies[j];
-                if (!enemy || !enemy.alive) continue;
+            const searchRadius = Math.max(
+                1,
+                Math.ceil((bulletRadius + this.maxEnemyRadius) / this.cellSize)
+            );
+            const nearby = this.getNearby(bullet.x, bullet.y, searchRadius);
+
+            for (const { entity: enemy, type } of nearby) {
+                if (type !== 'enemy' || !enemy || !enemy.alive) continue;
 
                 this.stats.checksPerFrame++;
 
@@ -693,6 +708,25 @@ export class CollisionSystem {
             if (powerUp.active) {
                 this.addToGrid(powerUp, 'powerup');
             }
+        }
+    }
+
+    /**
+     * Build spatial hash for enemies only (per frame)
+     */
+    buildEnemySpatialHash(gs = this.gameState) {
+        this.clearGrid();
+        this.maxEnemyRadius = 0;
+
+        if (!gs) return;
+
+        const enemies = gs.enemies || [];
+        for (const enemy of enemies) {
+            if (!enemy || (!enemy.active && !enemy.alive)) continue;
+
+            const enemyRadius = enemy.radius || enemy.size || 20;
+            this.maxEnemyRadius = Math.max(this.maxEnemyRadius, enemyRadius);
+            this.addToGrid(enemy, 'enemy');
         }
     }
 
