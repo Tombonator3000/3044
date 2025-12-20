@@ -517,197 +517,189 @@ export class ShipManager {
     }
 
     /**
-     * Draw ship preview with unique design per ship type
+     * Draw ship preview with unique 8-bit pixel art design per ship type
      */
     drawShipPreview(ctx, shipId, color, unlocked) {
         const c = unlocked ? color : '#444444';
-        const fill = unlocked ? color + '44' : '#22222244';
+        const p = 3; // Pixel size for 8-bit style
+
+        ctx.shadowBlur = unlocked ? 10 : 0;
+        ctx.shadowColor = c;
+
+        // Helper function to draw pixel patterns
+        const drawPixelPattern = (pattern, mainColor, accentColor, accentCondition) => {
+            const offsetX = -pattern[0].length * p / 2;
+            const offsetY = -pattern.length * p / 2;
+
+            pattern.forEach((row, y) => {
+                row.forEach((pixel, x) => {
+                    if (pixel) {
+                        if (accentCondition && accentCondition(x, y)) {
+                            ctx.fillStyle = unlocked ? accentColor : '#666666';
+                        } else {
+                            ctx.fillStyle = unlocked ? mainColor : '#444444';
+                        }
+                        ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
+                    }
+                });
+            });
+        };
 
         switch (shipId) {
-            case 'glassCannon':
-                // Sharp angular design
-                ctx.beginPath();
-                ctx.moveTo(0, -20);
-                ctx.lineTo(-8, -4);
-                ctx.lineTo(-14, 14);
-                ctx.lineTo(-4, 6);
-                ctx.lineTo(0, 16);
-                ctx.lineTo(4, 6);
-                ctx.lineTo(14, 14);
-                ctx.lineTo(8, -4);
-                ctx.closePath();
-                ctx.stroke();
-                ctx.fillStyle = fill;
-                ctx.fill();
-                if (unlocked) {
-                    ctx.fillStyle = '#ffff00';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 3, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                break;
-
-            case 'tank':
-                // Hexagonal armored design
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.moveTo(0, -18);
-                ctx.lineTo(-14, -6);
-                ctx.lineTo(-14, 10);
-                ctx.lineTo(-8, 18);
-                ctx.lineTo(8, 18);
-                ctx.lineTo(14, 10);
-                ctx.lineTo(14, -6);
-                ctx.closePath();
-                ctx.stroke();
-                ctx.fillStyle = fill;
-                ctx.fill();
-                if (unlocked) {
-                    ctx.strokeStyle = '#00ffff';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.arc(0, 2, 5, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-                break;
-
-            case 'speedster':
-                // Ultra-slim design
-                ctx.beginPath();
-                ctx.moveTo(0, -22);
-                ctx.lineTo(-5, -8);
-                ctx.lineTo(-8, 12);
-                ctx.lineTo(-3, 6);
-                ctx.lineTo(0, 14);
-                ctx.lineTo(3, 6);
-                ctx.lineTo(8, 12);
-                ctx.lineTo(5, -8);
-                ctx.closePath();
-                ctx.stroke();
-                ctx.fillStyle = fill;
-                ctx.fill();
-                if (unlocked) {
-                    // Speed lines
-                    ctx.globalAlpha = 0.5;
-                    ctx.beginPath();
-                    ctx.moveTo(-6, 16);
-                    ctx.lineTo(-6, 22);
-                    ctx.moveTo(6, 16);
-                    ctx.lineTo(6, 22);
-                    ctx.stroke();
-                    ctx.globalAlpha = 1;
-                }
-                break;
-
-            case 'retroClassic':
-                // Pixelated design
-                const px = 3;
-                ctx.fillStyle = unlocked ? color : '#444444';
-                const pixels = [
-                    [0, -5], [-1, -4], [0, -4], [1, -4],
-                    [-1, -3], [0, -3], [1, -3],
-                    [-2, -2], [-1, -2], [0, -2], [1, -2], [2, -2],
-                    [-2, -1], [0, -1], [2, -1],
-                    [-3, 0], [-2, 0], [0, 0], [2, 0], [3, 0],
-                    [-3, 1], [0, 1], [3, 1],
-                    [-3, 2], [3, 2]
+            case 'glassCannon': {
+                const cannon = [
+                    [0,0,0,0,0,1,0,0,0,0,0],
+                    [0,0,0,0,1,1,1,0,0,0,0],
+                    [0,0,0,1,0,1,0,1,0,0,0],
+                    [0,0,1,0,1,1,1,0,1,0,0],
+                    [0,1,0,0,1,1,1,0,0,1,0],
+                    [1,0,0,1,1,1,1,1,0,0,1],
+                    [0,0,1,1,1,1,1,1,1,0,0],
+                    [0,1,1,0,1,1,1,0,1,1,0],
+                    [1,1,0,0,0,1,0,0,0,1,1],
+                    [1,0,0,0,0,0,0,0,0,0,1],
                 ];
-                pixels.forEach(([px_x, px_y]) => {
-                    ctx.fillRect(px_x * px - px/2, px_y * px - px/2, px, px);
+                drawPixelPattern(cannon, c, '#ffff00', (x, y) => y >= 4 && y <= 6 && x >= 4 && x <= 6);
+                break;
+            }
+
+            case 'tank': {
+                const tank = [
+                    [0,0,0,0,0,1,1,0,0,0,0,0],
+                    [0,0,0,0,1,1,1,1,0,0,0,0],
+                    [0,0,1,1,1,1,1,1,1,1,0,0],
+                    [0,1,1,1,1,1,1,1,1,1,1,0],
+                    [1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,0,1,1,1,1,0,1,1,1],
+                    [1,1,1,0,1,1,1,1,0,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1],
+                    [0,1,1,1,1,1,1,1,1,1,1,0],
+                    [0,0,1,1,0,0,0,0,1,1,0,0],
+                ];
+                drawPixelPattern(tank, c, '#00ffff', (x, y) => y >= 4 && y <= 7 && x >= 4 && x <= 7);
+                break;
+            }
+
+            case 'speedster': {
+                const speedster = [
+                    [0,0,0,0,1,0,0,0,0],
+                    [0,0,0,1,1,1,0,0,0],
+                    [0,0,0,1,1,1,0,0,0],
+                    [0,0,0,1,1,1,0,0,0],
+                    [0,0,1,1,1,1,1,0,0],
+                    [0,0,1,1,1,1,1,0,0],
+                    [0,1,0,1,1,1,0,1,0],
+                    [1,0,0,1,1,1,0,0,1],
+                    [1,0,0,0,1,0,0,0,1],
+                    [0,0,0,0,1,0,0,0,0],
+                    [0,0,0,0,1,0,0,0,0],
+                ];
+                drawPixelPattern(speedster, c, '#ffff00', (x, y) => y <= 2 && x === 4);
+                break;
+            }
+
+            case 'retroClassic': {
+                const retro = [
+                    [0,0,0,0,0,1,0,0,0,0,0],
+                    [0,0,0,0,1,1,1,0,0,0,0],
+                    [0,0,0,1,1,1,1,1,0,0,0],
+                    [0,0,1,1,1,1,1,1,1,0,0],
+                    [0,1,1,1,1,1,1,1,1,1,0],
+                    [1,1,1,1,1,1,1,1,1,1,1],
+                    [1,1,0,1,1,1,1,1,0,1,1],
+                    [1,0,0,0,1,1,1,0,0,0,1],
+                    [1,0,0,0,0,1,0,0,0,0,1],
+                    [1,0,0,0,0,0,0,0,0,0,1],
+                ];
+                drawPixelPattern(retro, c, '#ffffff', (x, y) => (x + y) % 3 === 0 && y < 5);
+                break;
+            }
+
+            case 'phantom': {
+                const phantom = [
+                    [0,0,0,1,1,1,1,0,0,0],
+                    [0,0,1,1,1,1,1,1,0,0],
+                    [0,1,1,1,1,1,1,1,1,0],
+                    [1,1,0,0,1,1,0,0,1,1],
+                    [1,1,0,0,1,1,0,0,1,1],
+                    [1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1],
+                    [1,1,1,1,1,1,1,1,1,1],
+                    [1,0,1,1,0,0,1,1,0,1],
+                    [1,0,0,1,0,0,1,0,0,1],
+                ];
+                ctx.globalAlpha = unlocked ? 0.7 : 0.4;
+                drawPixelPattern(phantom, c, '#ffffff', (x, y) => y >= 3 && y <= 4 && (x === 2 || x === 3 || x === 6 || x === 7));
+                ctx.globalAlpha = 1;
+                break;
+            }
+
+            case 'berserker': {
+                const berserker = [
+                    [0,0,0,0,0,1,0,0,0,0,0],
+                    [0,0,0,0,1,1,1,0,0,0,0],
+                    [1,0,0,1,1,1,1,1,0,0,1],
+                    [1,1,0,1,1,1,1,1,0,1,1],
+                    [0,1,1,1,1,1,1,1,1,1,0],
+                    [0,0,1,1,1,1,1,1,1,0,0],
+                    [0,1,1,0,1,1,1,0,1,1,0],
+                    [1,1,0,0,1,1,1,0,0,1,1],
+                    [1,0,0,0,0,1,0,0,0,0,1],
+                    [1,0,0,0,0,0,0,0,0,0,1],
+                    [0,0,0,0,0,1,0,0,0,0,0],
+                ];
+                drawPixelPattern(berserker, c, '#ff0000', (x, y) => y >= 3 && y <= 5 && x >= 4 && x <= 6);
+                break;
+            }
+
+            case 'synth': {
+                const synth = [
+                    [0,0,0,1,1,1,1,0,0,0],
+                    [0,0,1,1,1,1,1,1,0,0],
+                    [0,1,1,1,1,1,1,1,1,0],
+                    [0,1,1,1,1,1,1,1,1,0],
+                    [1,1,0,1,1,1,1,0,1,1],
+                    [1,0,0,1,1,1,1,0,0,1],
+                    [1,0,0,0,1,1,0,0,0,1],
+                    [1,1,0,0,1,1,0,0,1,1],
+                    [0,1,1,0,1,1,0,1,1,0],
+                    [0,0,1,1,0,0,1,1,0,0],
+                ];
+                const hue = (Date.now() * 0.1) % 360;
+                const offsetX = -synth[0].length * p / 2;
+                const offsetY = -synth.length * p / 2;
+                synth.forEach((row, y) => {
+                    row.forEach((pixel, x) => {
+                        if (pixel) {
+                            if (unlocked && y < 4) {
+                                ctx.fillStyle = `hsl(${(hue + y * 30) % 360}, 100%, 60%)`;
+                            } else {
+                                ctx.fillStyle = unlocked ? c : '#444444';
+                            }
+                            ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
+                        }
+                    });
                 });
                 break;
-
-            case 'phantom':
-                // Ghostly curved design
-                ctx.globalAlpha = unlocked ? 0.3 : 0.1;
-                ctx.beginPath();
-                ctx.arc(0, 0, 20, 0, Math.PI * 2);
-                ctx.fillStyle = fill;
-                ctx.fill();
-                ctx.globalAlpha = 1;
-                ctx.beginPath();
-                ctx.moveTo(0, -16);
-                ctx.quadraticCurveTo(-16, 0, -10, 16);
-                ctx.lineTo(0, 10);
-                ctx.lineTo(10, 16);
-                ctx.quadraticCurveTo(16, 0, 0, -16);
-                ctx.stroke();
-                ctx.fillStyle = fill;
-                ctx.fill();
-                break;
-
-            case 'berserker':
-                // Spiked aggressive design
-                ctx.beginPath();
-                ctx.moveTo(0, -18);
-                ctx.lineTo(-6, -10);
-                ctx.lineTo(-16, -6);
-                ctx.lineTo(-10, 0);
-                ctx.lineTo(-12, 14);
-                ctx.lineTo(-5, 10);
-                ctx.lineTo(0, 18);
-                ctx.lineTo(5, 10);
-                ctx.lineTo(12, 14);
-                ctx.lineTo(10, 0);
-                ctx.lineTo(16, -6);
-                ctx.lineTo(6, -10);
-                ctx.closePath();
-                ctx.stroke();
-                ctx.fillStyle = fill;
-                ctx.fill();
-                if (unlocked) {
-                    ctx.fillStyle = '#ff0000';
-                    ctx.beginPath();
-                    ctx.arc(0, -4, 3, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                break;
-
-            case 'synth':
-                // Flowing music design
-                ctx.beginPath();
-                ctx.moveTo(0, -16);
-                ctx.bezierCurveTo(-12, -8, -12, 8, -10, 16);
-                ctx.lineTo(0, 12);
-                ctx.lineTo(10, 16);
-                ctx.bezierCurveTo(12, 8, 12, -8, 0, -16);
-                ctx.stroke();
-                ctx.fillStyle = fill;
-                ctx.fill();
-                if (unlocked) {
-                    // Sound wave bars
-                    ctx.fillStyle = '#00ffff';
-                    for (let i = -2; i <= 2; i++) {
-                        const h = 3 + Math.abs(i) * 1.5;
-                        ctx.fillRect(i * 3 - 1, 4 - h, 2, h);
-                    }
-                }
-                break;
+            }
 
             case 'neonFalcon':
-            default:
-                // Classic arrow design
-                ctx.beginPath();
-                ctx.moveTo(0, -16);
-                ctx.lineTo(-12, 16);
-                ctx.lineTo(0, 8);
-                ctx.lineTo(12, 16);
-                ctx.closePath();
-                ctx.stroke();
-                ctx.fillStyle = fill;
-                ctx.fill();
-                // Wing accents
-                if (unlocked) {
-                    ctx.beginPath();
-                    ctx.moveTo(-6, 4);
-                    ctx.lineTo(-9, 12);
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.moveTo(6, 4);
-                    ctx.lineTo(9, 12);
-                    ctx.stroke();
-                }
+            default: {
+                const falcon = [
+                    [0,0,0,0,0,1,0,0,0,0,0],
+                    [0,0,0,0,1,1,1,0,0,0,0],
+                    [0,0,0,0,1,1,1,0,0,0,0],
+                    [0,0,0,1,1,1,1,1,0,0,0],
+                    [0,0,1,1,1,1,1,1,1,0,0],
+                    [0,1,1,1,1,1,1,1,1,1,0],
+                    [1,1,0,1,1,1,1,1,0,1,1],
+                    [1,0,0,0,1,1,1,0,0,0,1],
+                    [1,0,0,0,0,1,0,0,0,0,1],
+                    [0,0,0,0,0,1,0,0,0,0,0],
+                ];
+                drawPixelPattern(falcon, c, '#ffffff', (x, y) => y < 4 && x >= 4 && x <= 6);
                 break;
+            }
         }
     }
 }
