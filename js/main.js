@@ -29,6 +29,7 @@ import { RiskRewardSystem } from './systems/RiskRewardSystem.js';
 import { SlowMotionSystem } from './systems/SlowMotionSystem.js';
 import { ZoneSystem } from './systems/ZoneSystem.js';
 import { ReactiveMusicSystem } from './systems/ReactiveMusicSystem.js';
+import { MusicManager } from './systems/MusicManager.js';
 import { ShipManager } from './systems/ShipManager.js';
 import { GameModeManager } from './systems/GameModeManager.js';
 import { DailyChallengeSystem } from './systems/DailyChallengeSystem.js';
@@ -67,6 +68,7 @@ let riskRewardSystem = null;
 let slowMotionSystem = null;
 let zoneSystem = null;
 let reactiveMusicSystem = null;
+let musicManager = null;
 let shipManager = null;
 let gameModeManager = null;
 let dailyChallengeSystem = null;
@@ -134,6 +136,15 @@ function applyGameSettings() {
 
     if (particleSystem) {
         particleSystem.setIntensity(GameSettings.particleIntensity);
+    }
+
+    // Apply music settings
+    if (musicManager) {
+        if (GameSettings.musicEnabled) {
+            musicManager.enableMusic();
+        } else {
+            musicManager.disableMusic();
+        }
     }
 }
 
@@ -209,6 +220,14 @@ function init() {
     gameModeManager = new GameModeManager();
     dailyChallengeSystem = new DailyChallengeSystem();
     achievementSystem = new AchievementSystem();
+
+    // Initialize music manager (will load music on first user interaction)
+    musicManager = new MusicManager();
+
+    // Connect menu manager callback for music
+    if (menuManager) {
+        menuManager.onMenuShow = () => initAndPlayMenuMusic();
+    }
 
     // Update config
     updateConfig(canvas.logicalWidth, canvas.logicalHeight);
@@ -343,6 +362,9 @@ function initInput() {
         if (e.key === 'm' || e.key === 'M') {
             if (soundSystem) {
                 soundSystem.toggleMusic();
+            }
+            if (musicManager) {
+                musicManager.toggleMusic();
             }
         }
 
@@ -1302,10 +1324,30 @@ function exitAttractMode() {
     const menuScreen = document.getElementById('menuScreen');
     if (menuScreen) menuScreen.style.display = 'flex';
 
+    // Initialize and play menu music
+    initAndPlayMenuMusic();
+
     // Start menu loop
     requestAnimationFrame(menuLoop);
 
     resetAttractModeTimeout();
+}
+
+/**
+ * Initialize music manager and play menu music
+ * Called on first user interaction
+ */
+async function initAndPlayMenuMusic() {
+    if (!musicManager) return;
+
+    try {
+        if (!musicManager.initialized) {
+            await musicManager.init();
+        }
+        musicManager.playMenuMusic();
+    } catch (error) {
+        console.warn('Failed to initialize/play menu music:', error);
+    }
 }
 
 function updateAttractModeAI() {
@@ -1443,14 +1485,17 @@ window.startGame = async function() {
     lastTime = performance.now();
     gameLoopId = requestAnimationFrame(gameLoop);
 
-    // Initialize and play music
+    // Initialize sound system
     if (soundSystem) {
         soundSystem.init();
-        // Load music files (if not already loaded)
-        await soundSystem.loadMusic('game', 'assets/audio/game.mp3');
-        await soundSystem.loadMusic('menu', 'assets/audio/menu.mp3');
-        await soundSystem.loadMusic('boss', 'assets/audio/boss.mp3');
-        soundSystem.playMusic('game');
+    }
+
+    // Play game music
+    if (musicManager) {
+        if (!musicManager.initialized) {
+            await musicManager.init();
+        }
+        musicManager.playGameMusic();
     }
 
     // VHS glitch on start
@@ -2769,7 +2814,10 @@ function continueGame() {
 
     if (enemyBulletPool) enemyBulletPool.clear();
 
-    if (soundSystem) soundSystem.playMusic('game');
+    // Resume game music
+    if (musicManager) {
+        musicManager.playGameMusic();
+    }
 
     console.log('🎮 Game continued with credits');
 }
@@ -2807,6 +2855,11 @@ function returnToMenu() {
 
     // Update credits and score bank display
     updateCreditsDisplay();
+
+    // Play menu music
+    if (musicManager) {
+        musicManager.playMenuMusic();
+    }
 
     // Start menu loop
     requestAnimationFrame(menuLoop);

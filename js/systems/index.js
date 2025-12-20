@@ -7,6 +7,7 @@ export { BulletPool } from './BulletPool.js';
 export { ParticleSystem } from './ParticleSystem.js';
 export { WaveManager } from './WaveManager.js';
 export { SoundSystem } from './SoundSystem.js';
+export { MusicManager } from './MusicManager.js';
 export { PowerUpManager } from './PowerUpManager.js';
 
 // New gameplay systems
