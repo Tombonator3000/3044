@@ -88,6 +88,25 @@ export class Player {
 
         // Shield cooldown (for tank ship auto-shield)
         this.shieldCooldown = 0;
+
+        // Sidescroller mode (R-Type style)
+        this.sidescrollerMode = false;
+    }
+
+    /**
+     * Set sidescroller mode - repositions player for horizontal gameplay
+     */
+    setSidescrollerMode(enabled, canvas) {
+        this.sidescrollerMode = enabled;
+        if (enabled && canvas) {
+            // Position player on the left side for R-Type style gameplay
+            this.x = 80;
+            this.y = canvas.logicalHeight / 2;
+        } else if (canvas) {
+            // Reset to normal position (bottom center)
+            this.x = canvas.logicalWidth / 2;
+            this.y = canvas.logicalHeight - 100;
+        }
     }
 
     update(keys, canvas, bulletPool, gameState, touchJoystick, touchButtons, particleSystem, soundSystem, deltaTime = 1) {
@@ -354,7 +373,6 @@ export class Player {
     }
 
     normalShoot(bulletPool, soundSystem) {
-        const bulletSpeed = -12;
         const bulletOptions = {
             color: '#00ffff',
             size: 5,
@@ -369,43 +387,89 @@ export class Player {
             chainRange: this.chainRange
         };
 
-        switch (this.weaponLevel) {
-            case 1:
-                bulletPool.spawn?.(this.x, this.y - 20, 0, bulletSpeed, true, bulletOptions);
-                break;
-            case 2:
-                bulletPool.spawn?.(this.x - 8, this.y - 15, 0, bulletSpeed, true, bulletOptions);
-                bulletPool.spawn?.(this.x + 8, this.y - 15, 0, bulletSpeed, true, bulletOptions);
-                break;
-            case 3:
-                bulletPool.spawn?.(this.x, this.y - 20, 0, bulletSpeed, true, bulletOptions);
-                bulletPool.spawn?.(this.x - 12, this.y - 10, -1, bulletSpeed, true, bulletOptions);
-                bulletPool.spawn?.(this.x + 12, this.y - 10, 1, bulletSpeed, true, bulletOptions);
-                break;
-            case 4:
-                bulletPool.spawn?.(this.x - 8, this.y - 20, 0, bulletSpeed, true, bulletOptions);
-                bulletPool.spawn?.(this.x + 8, this.y - 20, 0, bulletSpeed, true, bulletOptions);
-                bulletPool.spawn?.(this.x - 16, this.y - 10, -2, bulletSpeed, true, bulletOptions);
-                bulletPool.spawn?.(this.x + 16, this.y - 10, 2, bulletSpeed, true, bulletOptions);
-                break;
-            default:
-                // Level 5+
-                bulletPool.spawn?.(this.x, this.y - 20, 0, bulletSpeed * 1.2, true, bulletOptions);
-                bulletPool.spawn?.(this.x - 10, this.y - 15, -1, bulletSpeed, true, bulletOptions);
-                bulletPool.spawn?.(this.x + 10, this.y - 15, 1, bulletSpeed, true, bulletOptions);
-                bulletPool.spawn?.(this.x - 20, this.y - 5, -2, bulletSpeed * 0.9, true, bulletOptions);
-                bulletPool.spawn?.(this.x + 20, this.y - 5, 2, bulletSpeed * 0.9, true, bulletOptions);
-        }
+        // Sidescroller mode: shoot horizontally to the right (R-Type style)
+        if (this.sidescrollerMode) {
+            const bulletSpeed = 14; // Horizontal speed (positive = right)
+            switch (this.weaponLevel) {
+                case 1:
+                    bulletPool.spawn?.(this.x + 20, this.y, bulletSpeed, 0, true, bulletOptions);
+                    break;
+                case 2:
+                    bulletPool.spawn?.(this.x + 15, this.y - 8, bulletSpeed, 0, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 15, this.y + 8, bulletSpeed, 0, true, bulletOptions);
+                    break;
+                case 3:
+                    bulletPool.spawn?.(this.x + 20, this.y, bulletSpeed, 0, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 10, this.y - 12, bulletSpeed, -1, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 10, this.y + 12, bulletSpeed, 1, true, bulletOptions);
+                    break;
+                case 4:
+                    bulletPool.spawn?.(this.x + 20, this.y - 8, bulletSpeed, 0, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 20, this.y + 8, bulletSpeed, 0, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 10, this.y - 16, bulletSpeed, -2, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 10, this.y + 16, bulletSpeed, 2, true, bulletOptions);
+                    break;
+                default:
+                    // Level 5+
+                    bulletPool.spawn?.(this.x + 20, this.y, bulletSpeed * 1.2, 0, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 15, this.y - 10, bulletSpeed, -1, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 15, this.y + 10, bulletSpeed, 1, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 5, this.y - 20, bulletSpeed * 0.9, -2, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 5, this.y + 20, bulletSpeed * 0.9, 2, true, bulletOptions);
+            }
 
-        // Spread shot
-        if (this.hasSpread) {
-            const spreadAngle = Math.PI / 8;
-            for (let i = 0; i < this.spreadCount; i++) {
-                const angle = -Math.PI / 2 + spreadAngle * (i - (this.spreadCount - 1) / 2);
-                bulletPool.spawn?.(this.x, this.y - 10,
-                    Math.cos(angle) * 10,
-                    Math.sin(angle) * 10,
-                    true, { ...bulletOptions, color: '#ffff00', size: 4 });
+            // Spread shot for sidescroller
+            if (this.hasSpread) {
+                const spreadAngle = Math.PI / 8;
+                for (let i = 0; i < this.spreadCount; i++) {
+                    const angle = spreadAngle * (i - (this.spreadCount - 1) / 2);
+                    bulletPool.spawn?.(this.x + 10, this.y,
+                        Math.cos(angle) * 10 + 8, // Add forward momentum
+                        Math.sin(angle) * 10,
+                        true, { ...bulletOptions, color: '#ffff00', size: 4 });
+                }
+            }
+        } else {
+            // Normal vertical shooting (up)
+            const bulletSpeed = -12;
+            switch (this.weaponLevel) {
+                case 1:
+                    bulletPool.spawn?.(this.x, this.y - 20, 0, bulletSpeed, true, bulletOptions);
+                    break;
+                case 2:
+                    bulletPool.spawn?.(this.x - 8, this.y - 15, 0, bulletSpeed, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 8, this.y - 15, 0, bulletSpeed, true, bulletOptions);
+                    break;
+                case 3:
+                    bulletPool.spawn?.(this.x, this.y - 20, 0, bulletSpeed, true, bulletOptions);
+                    bulletPool.spawn?.(this.x - 12, this.y - 10, -1, bulletSpeed, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 12, this.y - 10, 1, bulletSpeed, true, bulletOptions);
+                    break;
+                case 4:
+                    bulletPool.spawn?.(this.x - 8, this.y - 20, 0, bulletSpeed, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 8, this.y - 20, 0, bulletSpeed, true, bulletOptions);
+                    bulletPool.spawn?.(this.x - 16, this.y - 10, -2, bulletSpeed, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 16, this.y - 10, 2, bulletSpeed, true, bulletOptions);
+                    break;
+                default:
+                    // Level 5+
+                    bulletPool.spawn?.(this.x, this.y - 20, 0, bulletSpeed * 1.2, true, bulletOptions);
+                    bulletPool.spawn?.(this.x - 10, this.y - 15, -1, bulletSpeed, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 10, this.y - 15, 1, bulletSpeed, true, bulletOptions);
+                    bulletPool.spawn?.(this.x - 20, this.y - 5, -2, bulletSpeed * 0.9, true, bulletOptions);
+                    bulletPool.spawn?.(this.x + 20, this.y - 5, 2, bulletSpeed * 0.9, true, bulletOptions);
+            }
+
+            // Spread shot for normal mode
+            if (this.hasSpread) {
+                const spreadAngle = Math.PI / 8;
+                for (let i = 0; i < this.spreadCount; i++) {
+                    const angle = -Math.PI / 2 + spreadAngle * (i - (this.spreadCount - 1) / 2);
+                    bulletPool.spawn?.(this.x, this.y - 10,
+                        Math.cos(angle) * 10,
+                        Math.sin(angle) * 10,
+                        true, { ...bulletOptions, color: '#ffff00', size: 4 });
+                }
             }
         }
     }
@@ -542,8 +606,15 @@ export class Player {
     }
 
     respawn(canvas) {
-        this.x = canvas ? canvas.logicalWidth / 2 : 400;
-        this.y = canvas ? canvas.logicalHeight - 100 : 500;
+        if (this.sidescrollerMode && canvas) {
+            // Sidescroller respawn position (left side)
+            this.x = 80;
+            this.y = canvas.logicalHeight / 2;
+        } else {
+            // Normal respawn position (bottom center)
+            this.x = canvas ? canvas.logicalWidth / 2 : 400;
+            this.y = canvas ? canvas.logicalHeight - 100 : 500;
+        }
         this.isAlive = true;
         this.invulnerable = true;
         this.invulnerableTimer = 180;
@@ -643,6 +714,11 @@ export class Player {
         }
 
         ctx.translate(this.x, this.y);
+
+        // Rotate 90 degrees for sidescroller mode (ship points right)
+        if (this.sidescrollerMode) {
+            ctx.rotate(Math.PI / 2);
+        }
 
         // Determine ship color based on modes
         let activeColor = this.shipColor || config.colors.player;
