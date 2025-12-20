@@ -4,6 +4,7 @@
  */
 
 import { CONFIG, getCurrentTheme } from '../config.js';
+import { drawWavingGrid, addGridImpact, drawBackground } from '../rendering/GridRenderer.js';
 
 /**
  * GameLoop class - manages the main game loop
@@ -448,38 +449,23 @@ export class GameLoop {
     }
 
     /**
-     * Render background
+     * Render background with Geometry Wars-style waving grid
      */
     renderBackground(ctx, canvas, gs) {
         const wave = gs ? gs.wave : 1;
-        const theme = getCurrentTheme(wave);
 
-        // Gradient background
-        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        gradient.addColorStop(0, theme.bgStart);
-        gradient.addColorStop(1, theme.bgEnd);
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Draw gradient background
+        drawBackground(ctx, canvas, wave);
 
-        // Grid effect
-        ctx.strokeStyle = `hsla(${theme.gridHue}, 100%, 50%, 0.1)`;
-        ctx.lineWidth = 1;
+        // Draw Geometry Wars-style waving grid with physics
+        drawWavingGrid(ctx, canvas, wave);
+    }
 
-        // Vertical lines
-        for (let x = 0; x < canvas.width; x += 50) {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, canvas.height);
-            ctx.stroke();
-        }
-
-        // Horizontal lines
-        for (let y = 0; y < canvas.height; y += 50) {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(canvas.width, y);
-            ctx.stroke();
-        }
+    /**
+     * Add grid impact for ripple effects (called on explosions)
+     */
+    triggerGridImpact(x, y, force = 50, radius = 150) {
+        addGridImpact(x, y, force, radius);
     }
 
     /**
