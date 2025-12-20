@@ -277,6 +277,7 @@ export class Enemy {
         this.pulsePhase = Math.random() * Math.PI * 2;
         this.waveAmplitude = 30;
         this.neonTrails = [];
+        this.neonTrailTimer = 0;
         this.customDraw = 'synthwave';
     }
 
@@ -301,13 +302,14 @@ export class Enemy {
         this.customDraw = 'invader';
     }
 
-    update(playerX, playerY, canvas, enemyBulletPool, gameState, particleSystem) {
+    update(playerX, playerY, canvas, enemyBulletPool, gameState, particleSystem, deltaTime = 1) {
         if (!this.active) return;
 
-        this.moveTimer++;
-        this.fireTimer++;
-        this.glowPulse = (this.glowPulse + 0.1) % (Math.PI * 2);
-        this.rotation += 0.02;
+        const scaledDeltaTime = Math.max(deltaTime, 0);
+        this.moveTimer += scaledDeltaTime;
+        this.fireTimer += scaledDeltaTime;
+        this.glowPulse = (this.glowPulse + 0.1 * scaledDeltaTime) % (Math.PI * 2);
+        this.rotation += 0.02 * scaledDeltaTime;
 
         // Store player position for AI
         this.lastPlayerX = playerX;
@@ -316,51 +318,51 @@ export class Enemy {
         // Execute behavior
         switch (this.behavior) {
             case 'aggressive':
-                this.aggressiveBehavior(playerX, playerY, canvas);
+                this.aggressiveBehavior(playerX, playerY, canvas, scaledDeltaTime);
                 break;
             case 'patrol':
-                this.patrolBehavior(canvas);
+                this.patrolBehavior(canvas, scaledDeltaTime);
                 break;
             case 'sniper':
-                this.sniperBehavior(playerX, playerY, canvas);
+                this.sniperBehavior(playerX, playerY, canvas, scaledDeltaTime);
                 break;
             case 'dive':
-                this.diveBehavior(playerX, playerY, canvas);
+                this.diveBehavior(playerX, playerY, canvas, scaledDeltaTime);
                 break;
             case 'sinewave':
-                this.sinewaveBehavior(canvas);
+                this.sinewaveBehavior(canvas, scaledDeltaTime);
                 break;
             case 'flee':
-                this.fleeBehavior(playerX, playerY, canvas);
+                this.fleeBehavior(playerX, playerY, canvas, scaledDeltaTime);
                 break;
             // NEW 8-BIT BEHAVIORS
             case 'phase':
-                this.phaseBehavior(playerX, playerY, canvas);
+                this.phaseBehavior(playerX, playerY, canvas, scaledDeltaTime);
                 break;
             case 'ghost':
-                this.ghostBehavior(playerX, playerY, canvas);
+                this.ghostBehavior(playerX, playerY, canvas, scaledDeltaTime);
                 break;
             case 'orbit':
-                this.orbitBehavior(playerX, playerY, canvas);
+                this.orbitBehavior(playerX, playerY, canvas, scaledDeltaTime);
                 break;
             case 'glitch':
-                this.glitchBehavior(playerX, playerY, canvas);
+                this.glitchBehavior(playerX, playerY, canvas, scaledDeltaTime);
                 break;
             case 'boss':
-                this.bossBehavior(playerX, playerY, canvas);
+                this.bossBehavior(playerX, playerY, canvas, scaledDeltaTime);
                 break;
             case 'pulse':
-                this.pulseBehavior(playerX, playerY, canvas);
+                this.pulseBehavior(playerX, playerY, canvas, scaledDeltaTime);
                 break;
             case 'invader':
-                this.invaderBehavior(canvas);
+                this.invaderBehavior(canvas, scaledDeltaTime);
                 break;
             default:
-                this.y += this.speed;
+                this.y += this.speed * scaledDeltaTime;
         }
 
         // Try to dodge player bullets
-        if (this.dodgeChance > 0 && Math.random() < this.dodgeChance * 0.1) {
+        if (this.dodgeChance > 0 && Math.random() < this.dodgeChance * 0.1 * scaledDeltaTime) {
             this.tryDodge(gameState);
         }
 
@@ -376,70 +378,71 @@ export class Enemy {
         }
     }
 
-    aggressiveBehavior(playerX, playerY, canvas) {
+    aggressiveBehavior(playerX, playerY, canvas, deltaTime) {
         // Move toward player horizontally, down vertically
         const dx = playerX - this.x;
-        this.x += Math.sign(dx) * Math.min(Math.abs(dx) * 0.02, this.speed);
-        this.y += this.speed;
+        const step = Math.min(Math.abs(dx) * 0.02, this.speed);
+        this.x += Math.sign(dx) * step * deltaTime;
+        this.y += this.speed * deltaTime;
 
         // Bounds
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
-    patrolBehavior(canvas) {
+    patrolBehavior(canvas, deltaTime) {
         // Move in a pattern
-        this.x += Math.sin(this.moveTimer * 0.03) * this.speed * 2;
-        this.y += this.speed * 0.5;
+        this.x += Math.sin(this.moveTimer * 0.03) * this.speed * 2 * deltaTime;
+        this.y += this.speed * 0.5 * deltaTime;
 
         // Bounds
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
-    sniperBehavior(playerX, playerY, canvas) {
+    sniperBehavior(playerX, playerY, canvas, deltaTime) {
         // Stay at top, strafe slowly
         if (this.y < 100) {
-            this.y += this.speed;
+            this.y += this.speed * deltaTime;
         } else {
             // Strafe to get better angle
             const dx = playerX - this.x;
-            this.x += Math.sign(dx) * Math.min(0.5, Math.abs(dx) * 0.005);
+            this.x += Math.sign(dx) * Math.min(0.5, Math.abs(dx) * 0.005) * deltaTime;
         }
 
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
-    diveBehavior(playerX, playerY, canvas) {
+    diveBehavior(playerX, playerY, canvas, deltaTime) {
         if (!this.diving) {
             // Approach slowly
-            this.y += this.speed;
+            this.y += this.speed * deltaTime;
 
             // Start dive when close enough
-            if (this.y > 100 && Math.random() < 0.02) {
+            if (this.y > 100 && Math.random() < 0.02 * deltaTime) {
                 this.diving = true;
                 this.diveTarget = { x: playerX, y: playerY + 50 };
             }
         } else {
             // DIVE!
             const angle = Math.atan2(this.diveTarget.y - this.y, this.diveTarget.x - this.x);
-            this.x += Math.cos(angle) * this.diveSpeed;
-            this.y += Math.sin(angle) * this.diveSpeed;
+            this.x += Math.cos(angle) * this.diveSpeed * deltaTime;
+            this.y += Math.sin(angle) * this.diveSpeed * deltaTime;
         }
     }
 
-    sinewaveBehavior(canvas) {
-        this.y += this.speed;
+    sinewaveBehavior(canvas, deltaTime) {
+        this.y += this.speed * deltaTime;
         this.x = (canvas.logicalWidth / 2) + Math.sin(this.moveTimer * this.sineFrequency + this.sineOffset) * this.sineAmplitude;
     }
 
-    fleeBehavior(playerX, playerY, canvas) {
+    fleeBehavior(playerX, playerY, canvas, deltaTime) {
         // Run away from player (fever mode)
         const dx = this.x - playerX;
         const dy = this.y - playerY;
         const dist = Math.hypot(dx, dy);
 
         if (dist > 0) {
-            this.x += (dx / dist) * this.speed * 2;
-            this.y += (dy / dist) * this.speed * 0.5;
+            this.x += (dx / dist) * this.speed * 2 * deltaTime;
+            this.y += (dy / dist) * this.speed * 0.5 * deltaTime;
         }
 
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
@@ -450,14 +453,14 @@ export class Enemy {
     // NEW 8-BIT ENEMY BEHAVIORS
     // ============================================
 
-    phaseBehavior(playerX, playerY, canvas) {
-        this.phaseTimer++;
+    phaseBehavior(playerX, playerY, canvas, deltaTime) {
+        this.phaseTimer += deltaTime;
         this.eyeGlow = (Math.sin(this.moveTimer * 0.1) + 1) / 2;
 
         // Phase in/out every phaseDuration frames
         if (this.phaseTimer >= this.phaseDuration) {
             this.isPhased = !this.isPhased;
-            this.phaseTimer = 0;
+            this.phaseTimer -= this.phaseDuration;
         }
 
         // Move toward player when visible
@@ -466,27 +469,27 @@ export class Enemy {
             const dy = playerY - this.y;
             const dist = Math.hypot(dx, dy);
             if (dist > 0) {
-                this.x += (dx / dist) * this.speed;
-                this.y += (dy / dist) * this.speed * 0.5;
+                this.x += (dx / dist) * this.speed * deltaTime;
+                this.y += (dy / dist) * this.speed * 0.5 * deltaTime;
             }
         } else {
             // Float down slowly when phased
-            this.y += this.speed * 0.3;
+            this.y += this.speed * 0.3 * deltaTime;
         }
 
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
-    ghostBehavior(playerX, playerY, canvas) {
-        this.ghostTimer++;
-        this.floatOffset += 0.05;
+    ghostBehavior(playerX, playerY, canvas, deltaTime) {
+        this.ghostTimer += deltaTime;
+        this.floatOffset += 0.05 * deltaTime;
 
         // Ghostly floating movement
         const floatX = Math.sin(this.floatOffset) * 2;
         const floatY = Math.cos(this.floatOffset * 0.7) * 1.5;
 
-        this.x += floatX;
-        this.y += this.speed + floatY;
+        this.x += floatX * deltaTime;
+        this.y += (this.speed + floatY) * deltaTime;
 
         // Transparency fluctuation - become intangible sometimes
         this.transparency = 0.4 + Math.sin(this.ghostTimer * 0.03) * 0.6;
@@ -494,25 +497,25 @@ export class Enemy {
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
-    orbitBehavior(playerX, playerY, canvas) {
+    orbitBehavior(playerX, playerY, canvas, deltaTime) {
         // Set orbit center if not set
         if (this.orbitCenter.x === 0 && this.orbitCenter.y === 0) {
             this.orbitCenter = { x: this.x, y: this.y };
         }
 
         // Move orbit center down
-        this.orbitCenter.y += this.speed * 0.5;
+        this.orbitCenter.y += this.speed * 0.5 * deltaTime;
 
         // Orbit around center
-        this.orbitAngle += this.spinSpeed;
+        this.orbitAngle += this.spinSpeed * deltaTime;
         this.x = this.orbitCenter.x + Math.cos(this.orbitAngle) * this.orbitRadius;
         this.y = this.orbitCenter.y + Math.sin(this.orbitAngle) * this.orbitRadius * 0.5;
 
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
-    glitchBehavior(playerX, playerY, canvas) {
-        this.glitchTimer++;
+    glitchBehavior(playerX, playerY, canvas, deltaTime) {
+        this.glitchTimer += deltaTime;
         this.distortionAmount = Math.sin(this.moveTimer * 0.2) * 5;
 
         // Track toward player
@@ -521,13 +524,13 @@ export class Enemy {
         const dist = Math.hypot(dx, dy);
 
         if (dist > 0) {
-            this.x += (dx / dist) * this.speed;
-            this.y += (dy / dist) * this.speed * 0.3;
+            this.x += (dx / dist) * this.speed * deltaTime;
+            this.y += (dy / dist) * this.speed * 0.3 * deltaTime;
         }
 
         // Glitch teleport
         if (this.glitchTimer >= this.glitchInterval) {
-            this.glitchTimer = 0;
+            this.glitchTimer -= this.glitchInterval;
             // Teleport randomly nearby
             this.x += (Math.random() - 0.5) * 100;
             this.y += (Math.random() - 0.5) * 50;
@@ -537,46 +540,48 @@ export class Enemy {
         this.y = Math.max(this.size, Math.min(canvas.logicalHeight - this.size, this.y));
     }
 
-    bossBehavior(playerX, playerY, canvas) {
+    bossBehavior(playerX, playerY, canvas, deltaTime) {
         this.screenGlow = (Math.sin(this.moveTimer * 0.05) + 1) / 2;
 
         // Move slowly side to side at top
         if (this.y < 100) {
-            this.y += this.speed;
+            this.y += this.speed * deltaTime;
         } else {
-            this.x += Math.sin(this.moveTimer * 0.02) * this.speed * 2;
+            this.x += Math.sin(this.moveTimer * 0.02) * this.speed * 2 * deltaTime;
         }
 
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
-    pulseBehavior(playerX, playerY, canvas) {
-        this.pulsePhase += 0.08;
+    pulseBehavior(playerX, playerY, canvas, deltaTime) {
+        this.pulsePhase += 0.08 * deltaTime;
 
         // Pulsing movement with wave pattern
         const pulseOffset = Math.sin(this.pulsePhase) * this.waveAmplitude;
         this.x = (canvas.logicalWidth / 2) + pulseOffset + Math.sin(this.moveTimer * 0.03) * 50;
-        this.y += this.speed;
+        this.y += this.speed * deltaTime;
 
         // Update neon trail
-        if (this.moveTimer % 3 === 0) {
+        this.neonTrailTimer = (this.neonTrailTimer || 0) + deltaTime;
+        while (this.neonTrailTimer >= 3) {
             this.neonTrails.push({ x: this.x, y: this.y, life: 20 });
+            this.neonTrailTimer -= 3;
         }
         this.neonTrails = this.neonTrails.filter(t => {
-            t.life--;
+            t.life -= deltaTime;
             return t.life > 0;
         });
 
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
-    invaderBehavior(canvas) {
-        this.stepTimer++;
+    invaderBehavior(canvas, deltaTime) {
+        this.stepTimer += deltaTime;
         this.legFrame = Math.floor(this.moveTimer / 15) % 2;
 
         // Classic space invader movement
         if (this.stepTimer >= 30) {
-            this.stepTimer = 0;
+            this.stepTimer -= 30;
             this.x += this.stepDirection * this.stepDistance;
 
             // Hit edge - descend and reverse
@@ -587,7 +592,7 @@ export class Enemy {
         }
 
         // Slow constant downward drift
-        this.y += this.speed * 0.2;
+        this.y += this.speed * 0.2 * deltaTime;
     }
 
     tryDodge(gameState) {

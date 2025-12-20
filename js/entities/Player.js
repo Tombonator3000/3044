@@ -27,6 +27,7 @@ export class Player {
         // 🌈 FEVER MODE properties
         this.feverMode = 0;
         this.rainbowHue = 0;
+        this.feverBeatTimer = 0;
 
         // 🔥 NEON TRAIL properties
         this.trail = [];
@@ -55,6 +56,7 @@ export class Player {
         this.vortexActive = 0;
         this.vortexPower = 1;
         this.omegaMode = 0;
+        this.omegaPulseTimer = 0;
         this.freezePower = 0;
         this.reflectActive = 0;
         this.quantumMode = 0;
@@ -88,10 +90,11 @@ export class Player {
         this.shieldCooldown = 0;
     }
 
-    update(keys, canvas, bulletPool, gameState, touchJoystick, touchButtons, particleSystem, soundSystem) {
+    update(keys, canvas, bulletPool, gameState, touchJoystick, touchButtons, particleSystem, soundSystem, deltaTime = 1) {
+        const scaledDeltaTime = Math.max(deltaTime, 0);
         // Handle death and respawn
         if (!this.isAlive) {
-            this.respawnTimer--;
+            this.respawnTimer -= scaledDeltaTime;
             if (this.respawnTimer <= 0) {
                 this.respawn(canvas);
             }
@@ -105,10 +108,10 @@ export class Player {
         // Normal movement
         let dx = 0, dy = 0;
 
-        if (keys['ArrowLeft'] === true || keys['a'] === true || keys['A'] === true) dx -= this.speed;
-        if (keys['ArrowRight'] === true || keys['d'] === true || keys['D'] === true) dx += this.speed;
-        if (keys['ArrowUp'] === true || keys['w'] === true || keys['W'] === true) dy -= this.speed;
-        if (keys['ArrowDown'] === true || keys['s'] === true || keys['S'] === true) dy += this.speed;
+        if (keys['ArrowLeft'] === true || keys['a'] === true || keys['A'] === true) dx -= this.speed * scaledDeltaTime;
+        if (keys['ArrowRight'] === true || keys['d'] === true || keys['D'] === true) dx += this.speed * scaledDeltaTime;
+        if (keys['ArrowUp'] === true || keys['w'] === true || keys['W'] === true) dy -= this.speed * scaledDeltaTime;
+        if (keys['ArrowDown'] === true || keys['s'] === true || keys['S'] === true) dy += this.speed * scaledDeltaTime;
 
         // Touch joystick support
         if (touchJoystick && touchJoystick.active) {
@@ -116,8 +119,8 @@ export class Player {
             const touchDy = touchJoystick.currentY - touchJoystick.startY;
             const dist = Math.sqrt(touchDx * touchDx + touchDy * touchDy);
             if (dist > 10) {
-                dx += (touchDx / dist) * this.speed;
-                dy += (touchDy / dist) * this.speed;
+                dx += (touchDx / dist) * this.speed * scaledDeltaTime;
+                dy += (touchDy / dist) * this.speed * scaledDeltaTime;
             }
         }
 
@@ -153,7 +156,7 @@ export class Player {
 
         // Update mirror ship
         if (this.mirrorShip > 0) {
-            this.mirrorShip--;
+            this.mirrorShip = Math.max(0, this.mirrorShip - scaledDeltaTime);
             this.mirrorX = canvas.logicalWidth - this.x;
             this.mirrorY = this.y;
         }
@@ -173,12 +176,12 @@ export class Player {
 
         // Update trail fade
         this.trail = this.trail.filter(point => {
-            point.life -= 0.1;
+            point.life -= 0.1 * scaledDeltaTime;
             return point.life > 0;
         });
 
         // Handle shooting
-        this.fireTimer++;
+        this.fireTimer += scaledDeltaTime;
         const currentFireRate = this.hasLaser ? Math.max(3, this.fireRate - this.laserPower) : this.fireRate;
 
         const shooting = keys[' '] === true || keys['Space'] === true ||
@@ -191,7 +194,7 @@ export class Player {
 
         // Update invulnerability
         if (this.invulnerable) {
-            this.invulnerableTimer--;
+            this.invulnerableTimer -= scaledDeltaTime;
             if (this.invulnerableTimer <= 0) {
                 this.invulnerable = false;
             }
@@ -199,14 +202,18 @@ export class Player {
 
         // 🌈 Update fever mode
         if (this.feverMode > 0) {
-            this.feverMode--;
-            this.rainbowHue = (this.rainbowHue + 5) % 360;
+            this.feverMode -= scaledDeltaTime;
+            this.feverBeatTimer += scaledDeltaTime;
+            this.rainbowHue = (this.rainbowHue + 5 * scaledDeltaTime) % 360;
 
-            if (this.feverMode % 15 === 0 && soundSystem) {
+            if (this.feverBeatTimer >= 15 && soundSystem) {
                 soundSystem.playFeverBeat?.();
+                this.feverBeatTimer -= 15;
             }
 
             if (this.feverMode <= 0) {
+                this.feverMode = 0;
+                this.feverBeatTimer = 0;
                 this.invulnerable = false;
                 if (gameState && gameState.enemies) {
                     gameState.enemies.forEach(e => {
@@ -222,30 +229,32 @@ export class Player {
 
         // Update enhanced power-up timers
         if (this.ghostMode > 0) {
-            this.ghostMode--;
+            this.ghostMode -= scaledDeltaTime;
             if (this.ghostMode <= 0) {
+                this.ghostMode = 0;
                 this.invulnerable = false;
             }
         }
 
-        if (this.reflectActive > 0) this.reflectActive--;
-        if (this.quantumMode > 0) this.quantumMode--;
+        if (this.reflectActive > 0) this.reflectActive = Math.max(0, this.reflectActive - scaledDeltaTime);
+        if (this.quantumMode > 0) this.quantumMode = Math.max(0, this.quantumMode - scaledDeltaTime);
 
         if (this.plasmaMode > 0) {
-            this.plasmaMode--;
+            this.plasmaMode = Math.max(0, this.plasmaMode - scaledDeltaTime);
             if (this.fireTimer > 1) this.fireTimer = 1;
         }
 
         if (this.matrixMode > 0) {
-            this.matrixMode--;
-            this.speed = Math.min(this.speed * 1.1, 8);
+            this.matrixMode = Math.max(0, this.matrixMode - scaledDeltaTime);
+            this.speed = Math.min(this.speed * Math.pow(1.1, scaledDeltaTime), 8);
         }
 
-        if (this.infinityMode > 0) this.infinityMode--;
+        if (this.infinityMode > 0) this.infinityMode = Math.max(0, this.infinityMode - scaledDeltaTime);
 
         if (this.godMode > 0) {
-            this.godMode--;
+            this.godMode -= scaledDeltaTime;
             if (this.godMode <= 0) {
+                this.godMode = 0;
                 this.invulnerable = false;
                 this.infinitePower = false;
                 this.speed = 5.5;
@@ -254,21 +263,27 @@ export class Player {
 
         // Vortex effect
         if (this.vortexActive > 0) {
-            this.vortexActive--;
-            this.applyVortexEffect(gameState, particleSystem);
+            this.vortexActive -= scaledDeltaTime;
+            this.applyVortexEffect(gameState, particleSystem, scaledDeltaTime);
         }
 
         // Omega mode effects
         if (this.omegaMode > 0) {
-            this.omegaMode--;
-            if (this.omegaMode % 8 === 0) {
+            this.omegaMode -= scaledDeltaTime;
+            this.omegaPulseTimer += scaledDeltaTime;
+            while (this.omegaPulseTimer >= 8) {
                 this.createOmegaPulse(gameState);
+                this.omegaPulseTimer -= 8;
+            }
+            if (this.omegaMode <= 0) {
+                this.omegaMode = 0;
+                this.omegaPulseTimer = 0;
             }
         }
 
         // Magnet effect
         if (this.magnetRange > 0) {
-            this.applyMagnetEffect(gameState);
+            this.applyMagnetEffect(gameState, scaledDeltaTime);
         }
     }
 
@@ -395,10 +410,11 @@ export class Player {
         }
     }
 
-    applyVortexEffect(gameState, particleSystem) {
+    applyVortexEffect(gameState, particleSystem, deltaTime = 1) {
         if (!gameState) return;
 
         const baseRange = 200 + (this.vortexPower * 50);
+        const scaledDeltaTime = Math.max(deltaTime, 0);
 
         // Attract enemies
         gameState.enemies?.forEach(enemy => {
@@ -410,8 +426,8 @@ export class Player {
                 if (dist < baseRange) {
                     const force = Math.max(1, (baseRange - dist) / baseRange * (3 + this.vortexPower));
                     const angle = Math.atan2(dy, dx);
-                    enemy.x += Math.cos(angle) * force;
-                    enemy.y += Math.sin(angle) * force;
+                    enemy.x += Math.cos(angle) * force * scaledDeltaTime;
+                    enemy.y += Math.sin(angle) * force * scaledDeltaTime;
 
                     // Damage enemies too close
                     if (dist < 50 && Math.random() < 0.1) {
@@ -432,15 +448,16 @@ export class Player {
                 if (dist < baseRange) {
                     const force = (baseRange - dist) / baseRange * (4 + this.vortexPower);
                     const angle = Math.atan2(dy, dx);
-                    powerUp.x += Math.cos(angle) * force;
-                    powerUp.y += Math.sin(angle) * force;
+                    powerUp.x += Math.cos(angle) * force * scaledDeltaTime;
+                    powerUp.y += Math.sin(angle) * force * scaledDeltaTime;
                 }
             }
         });
     }
 
-    applyMagnetEffect(gameState) {
+    applyMagnetEffect(gameState, deltaTime = 1) {
         if (!gameState?.powerUps) return;
+        const scaledDeltaTime = Math.max(deltaTime, 0);
 
         gameState.powerUps.forEach(powerUp => {
             if (powerUp.active) {
@@ -450,8 +467,8 @@ export class Player {
 
                 if (dist < this.magnetRange && dist > 0) {
                     const force = (this.magnetRange - dist) / this.magnetRange * 5;
-                    powerUp.x += (dx / dist) * force;
-                    powerUp.y += (dy / dist) * force;
+                    powerUp.x += (dx / dist) * force * scaledDeltaTime;
+                    powerUp.y += (dy / dist) * force * scaledDeltaTime;
                 }
             }
         });

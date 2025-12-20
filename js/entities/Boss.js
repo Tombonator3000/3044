@@ -15,6 +15,7 @@ export class Boss {
         this.entering = true;
         this.defeated = false;
         this.deathTimer = 0;
+        this.deathEffectTimer = 0;
 
         // Determine boss type based on wave
         this.type = this.getBossType(wave);
@@ -129,13 +130,16 @@ export class Boss {
         this.phase3Threshold = this.maxHp * 0.3;
     }
 
-    update(playerX, playerY, enemyBulletPool, gameState, particleSystem) {
+    update(playerX, playerY, enemyBulletPool, gameState, particleSystem, deltaTime = 1) {
         if (!this.active) return;
+        const scaledDeltaTime = Math.max(deltaTime, 0);
 
         // Death sequence
         if (this.defeated) {
-            this.deathTimer++;
-            if (this.deathTimer % 10 === 0 && particleSystem) {
+            this.deathTimer += scaledDeltaTime;
+            this.deathEffectTimer += scaledDeltaTime;
+            if (this.deathEffectTimer >= 10 && particleSystem) {
+                this.deathEffectTimer -= 10;
                 const offsetX = (Math.random() - 0.5) * this.size * 2;
                 const offsetY = (Math.random() - 0.5) * this.size * 2;
                 particleSystem.addExplosion(this.x + offsetX, this.y + offsetY, this.color, 20);
@@ -151,7 +155,7 @@ export class Boss {
 
         // Entry animation
         if (this.entering) {
-            this.y += 2;
+            this.y += 2 * scaledDeltaTime;
             if (this.y >= this.targetY) {
                 this.y = this.targetY;
                 this.entering = false;
@@ -160,13 +164,13 @@ export class Boss {
         }
 
         // Update phase based on HP
-        this.updatePhase();
+        this.updatePhase(scaledDeltaTime);
 
         // Movement
-        this.updateMovement(playerX);
+        this.updateMovement(playerX, scaledDeltaTime);
 
         // Attack
-        this.attackTimer++;
+        this.attackTimer += scaledDeltaTime;
         if (this.attackTimer >= this.getAttackDelay()) {
             this.executeAttack(playerX, playerY, enemyBulletPool, gameState, particleSystem);
             this.attackTimer = 0;
@@ -174,13 +178,15 @@ export class Boss {
         }
 
         // Visual updates
-        this.rotation += 0.01;
-        this.pulsePhase += 0.05;
-        this.shieldRotation += 0.02;
-        if (this.damageFlash > 0) this.damageFlash--;
+        this.rotation += 0.01 * scaledDeltaTime;
+        this.pulsePhase += 0.05 * scaledDeltaTime;
+        this.shieldRotation += 0.02 * scaledDeltaTime;
+        if (this.damageFlash > 0) {
+            this.damageFlash = Math.max(0, this.damageFlash - scaledDeltaTime);
+        }
     }
 
-    updatePhase() {
+    updatePhase(deltaTime) {
         const oldPhase = this.currentPhase;
 
         if (this.hp <= this.phase3Threshold) {
@@ -196,44 +202,46 @@ export class Boss {
             this.phaseTimer = 60; // Phase transition effect
         }
 
-        if (this.phaseTimer > 0) this.phaseTimer--;
+        if (this.phaseTimer > 0) {
+            this.phaseTimer = Math.max(0, this.phaseTimer - deltaTime);
+        }
     }
 
-    updateMovement(playerX) {
+    updateMovement(playerX, deltaTime) {
         // Different movement per type
         switch (this.type) {
             case 'guardian':
                 // Slow tracking
                 const guardianDx = playerX - this.x;
-                this.x += Math.sign(guardianDx) * Math.min(Math.abs(guardianDx) * 0.02, this.speed);
+                this.x += Math.sign(guardianDx) * Math.min(Math.abs(guardianDx) * 0.02, this.speed) * deltaTime;
                 break;
 
             case 'destroyer':
                 // Side to side
-                this.x += Math.sin(Date.now() * 0.001) * this.speed;
+                this.x += Math.sin(Date.now() * 0.001) * this.speed * deltaTime;
                 break;
 
             case 'phantom':
                 // Erratic movement
-                if (Math.random() < 0.02 && this.canTeleport) {
+                if (Math.random() < 0.02 * deltaTime && this.canTeleport) {
                     this.x = 100 + Math.random() * (this.canvas.logicalWidth - 200);
                 } else {
-                    this.x += (Math.random() - 0.5) * this.speed * 3;
+                    this.x += (Math.random() - 0.5) * this.speed * 3 * deltaTime;
                 }
                 break;
 
             case 'mothership':
                 // Slow drift
-                this.x += Math.sin(Date.now() * 0.0005) * this.speed;
+                this.x += Math.sin(Date.now() * 0.0005) * this.speed * deltaTime;
                 break;
 
             case 'overlord':
                 // Combination - tracking with teleport
-                if (Math.random() < 0.01 && this.canTeleport) {
+                if (Math.random() < 0.01 * deltaTime && this.canTeleport) {
                     this.x = playerX + (Math.random() - 0.5) * 200;
                 } else {
                     const overlordDx = playerX - this.x;
-                    this.x += Math.sign(overlordDx) * Math.min(Math.abs(overlordDx) * 0.03, this.speed);
+                    this.x += Math.sign(overlordDx) * Math.min(Math.abs(overlordDx) * 0.03, this.speed) * deltaTime;
                 }
                 break;
         }
