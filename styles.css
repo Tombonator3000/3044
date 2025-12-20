@@ -1410,6 +1410,7 @@ body {
     text-transform: uppercase;
 }
 
+/* DOM touch controls - hidden by default, canvas-based controls used instead */
 #touchControlsLayer {
     position: fixed;
     top: 0;
@@ -1418,7 +1419,7 @@ body {
     height: 100vh;
     z-index: 18;
     pointer-events: none;
-    display: none;
+    display: none !important; /* Hidden - using canvas-based MobileControls instead */
     --touch-safe-top: max(16px, env(safe-area-inset-top));
     --touch-safe-bottom: max(24px, env(safe-area-inset-bottom));
     --touch-safe-side: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
@@ -2400,4 +2401,293 @@ body {
     .menu-nav-buttons .btn {
         width: 100%;
     }
+}
+
+/* ============================================
+   PC 3-PART LAYOUT (16:9 or wider)
+   Left HUD | Game Area | Right HUD
+   ============================================ */
+
+#pcLayout {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 11;
+    pointer-events: none;
+}
+
+/* Show PC layout on wide screens (16:9 or wider) */
+@media (min-width: 901px) and (min-aspect-ratio: 4/3) {
+    #pcLayout {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+    }
+
+    #pcLayout.game-active {
+        pointer-events: auto;
+    }
+
+    /* Hide mobile HUD on PC */
+    #mobileHudLayer {
+        display: none !important;
+    }
+
+    /* Hide old HUD layer on PC when game is active */
+    #hudLayer {
+        display: none !important;
+    }
+
+    /* Adjust canvas container for PC layout */
+    #gameContainer {
+        position: relative;
+        width: auto;
+        height: auto;
+        flex: 0 0 auto;
+    }
+
+    #gameCanvas {
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        max-height: 100%;
+    }
+}
+
+/* HUD Panels (left and right) */
+.hud-panel {
+    width: 180px;
+    min-width: 140px;
+    max-width: 220px;
+    flex: 0 0 180px;
+    background: linear-gradient(180deg,
+        rgba(10, 0, 30, 0.95) 0%,
+        rgba(20, 0, 40, 0.9) 50%,
+        rgba(10, 0, 30, 0.95) 100%
+    );
+    border: 2px solid rgba(0, 255, 255, 0.3);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 15px;
+    gap: 20px;
+    overflow: hidden;
+    pointer-events: auto;
+}
+
+#leftHudPanel {
+    border-right: 2px solid rgba(0, 255, 255, 0.4);
+    border-left: none;
+    box-shadow: inset -10px 0 30px rgba(0, 255, 255, 0.05);
+}
+
+#rightHudPanel {
+    border-left: 2px solid rgba(255, 0, 150, 0.4);
+    border-right: none;
+    box-shadow: inset 10px 0 30px rgba(255, 0, 150, 0.05);
+}
+
+/* Center game area */
+#centerGameArea {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    background: #000;
+}
+
+/* HUD sections */
+.hud-section {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.hud-label {
+    font-size: 0.7em;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-family: 'Courier New', monospace;
+}
+
+.hud-value {
+    font-size: 1.4em;
+    font-weight: 900;
+    color: #00ffff;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.6);
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.05em;
+}
+
+.hud-value.lives {
+    color: #00ff00;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+}
+
+.hud-value.bombs {
+    color: #ffff00;
+    text-shadow: 0 0 10px rgba(255, 255, 0, 0.6);
+}
+
+.hud-value.weapon {
+    color: #ff00ff;
+    text-shadow: 0 0 10px rgba(255, 0, 255, 0.6);
+    font-size: 1em;
+}
+
+.hud-value.combo {
+    color: #ff6600;
+    text-shadow: 0 0 10px rgba(255, 102, 0, 0.6);
+}
+
+.hud-value.score {
+    color: #00ffff;
+    text-shadow: 0 0 15px rgba(0, 255, 255, 0.8);
+    font-size: 1.2em;
+}
+
+.hud-value.highscore {
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+}
+
+.hud-value.wave {
+    color: #ff00ff;
+    text-shadow: 0 0 10px rgba(255, 0, 255, 0.6);
+}
+
+.hud-value.multiplier {
+    color: #00ff00;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+}
+
+/* Power-up slots */
+.power-up-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.power-up-slot {
+    width: 100%;
+    height: 30px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75em;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.power-up-slot.active {
+    border-color: #00ffff;
+    color: #00ffff;
+    background: rgba(0, 255, 255, 0.1);
+}
+
+/* Boss section */
+.boss-section {
+    display: none;
+}
+
+.boss-section.visible {
+    display: flex;
+}
+
+.boss-health-bar {
+    width: 100%;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #ff0066;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.boss-health-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff0066, #ff3399);
+    box-shadow: 0 0 15px rgba(255, 0, 102, 0.6);
+    transition: width 0.2s ease;
+    width: 100%;
+}
+
+/* ============================================
+   MOBILE LAYOUT (Portrait 9:16)
+   ============================================ */
+
+#mobileHudLayer {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    z-index: 15;
+    pointer-events: none;
+    padding-top: max(8px, env(safe-area-inset-top));
+}
+
+/* Show mobile HUD on narrow/mobile screens */
+@media (max-width: 900px), (pointer: coarse) {
+    #mobileHudLayer {
+        display: block;
+    }
+
+    #pcLayout {
+        display: none !important;
+    }
+}
+
+#mobileTopHud {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 8px 15px;
+    background: linear-gradient(180deg,
+        rgba(0, 0, 0, 0.8) 0%,
+        rgba(0, 0, 0, 0.4) 70%,
+        transparent 100%
+    );
+}
+
+.mobile-hud-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.mobile-hud-label {
+    font-size: 0.6em;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: 'Courier New', monospace;
+}
+
+.mobile-hud-value {
+    font-size: 1.1em;
+    font-weight: 900;
+    color: #00ffff;
+    text-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+    font-family: 'Courier New', monospace;
+}
+
+.mobile-hud-value.lives {
+    color: #00ff00;
+    text-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
+}
+
+.mobile-hud-value.wave {
+    color: #ff00ff;
+    text-shadow: 0 0 8px rgba(255, 0, 255, 0.6);
 }

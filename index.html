@@ -273,6 +273,79 @@
 
     </div>
 
+    <!-- PC 3-PART LAYOUT: Left HUD | Game | Right HUD -->
+    <div id="pcLayout">
+        <div id="leftHudPanel" class="hud-panel">
+            <div class="hud-section">
+                <div class="hud-label">LIVES</div>
+                <div class="hud-value" id="pcLivesDisplay">3</div>
+            </div>
+            <div class="hud-section">
+                <div class="hud-label">BOMBS</div>
+                <div class="hud-value bombs" id="pcBombsDisplay">3</div>
+            </div>
+            <div class="hud-section">
+                <div class="hud-label">WEAPON</div>
+                <div class="hud-value weapon" id="pcWeaponDisplay">STANDARD</div>
+            </div>
+            <div class="hud-section">
+                <div class="hud-label">COMBO</div>
+                <div class="hud-value combo" id="pcComboDisplay">x1</div>
+            </div>
+            <div class="hud-section power-ups">
+                <div class="hud-label">POWER-UPS</div>
+                <div class="power-up-slots" id="pcPowerUpSlots"></div>
+            </div>
+        </div>
+
+        <div id="centerGameArea">
+            <!-- Canvas will be moved here via JS -->
+        </div>
+
+        <div id="rightHudPanel" class="hud-panel">
+            <div class="hud-section">
+                <div class="hud-label">SCORE</div>
+                <div class="hud-value score" id="pcScoreDisplay">0</div>
+            </div>
+            <div class="hud-section">
+                <div class="hud-label">HI-SCORE</div>
+                <div class="hud-value highscore" id="pcHighScoreDisplay">0</div>
+            </div>
+            <div class="hud-section">
+                <div class="hud-label">WAVE</div>
+                <div class="hud-value wave" id="pcWaveDisplay">1</div>
+            </div>
+            <div class="hud-section">
+                <div class="hud-label">MULTIPLIER</div>
+                <div class="hud-value multiplier" id="pcMultiplierDisplay">x1.0</div>
+            </div>
+            <div class="hud-section boss-section" id="pcBossSection">
+                <div class="hud-label">BOSS HP</div>
+                <div class="boss-health-bar">
+                    <div class="boss-health-fill" id="pcBossHealthFill"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile HUD overlay (shown on mobile only) -->
+    <div id="mobileHudLayer">
+        <div id="mobileTopHud">
+            <div class="mobile-hud-item">
+                <span class="mobile-hud-label">SCORE</span>
+                <span class="mobile-hud-value" id="mobileScoreDisplay">0</span>
+            </div>
+            <div class="mobile-hud-item">
+                <span class="mobile-hud-label">LIVES</span>
+                <span class="mobile-hud-value lives" id="mobileLivesDisplay">3</span>
+            </div>
+            <div class="mobile-hud-item">
+                <span class="mobile-hud-label">WAVE</span>
+                <span class="mobile-hud-value wave" id="mobileWaveDisplay">1</span>
+            </div>
+        </div>
+    </div>
+
     <div id="hudLayer">
         <div id="gameUI">
             <div class="ui-row">
