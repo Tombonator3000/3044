@@ -104,6 +104,33 @@ console.log('🎮 Geometry 3044 — Loading...');
 // INITIALIZATION
 // ============================================
 
+function applyGameSettings() {
+    if (vhsEffect) {
+        vhsEffect.setEnabled(GameSettings.vhsEffect);
+    }
+
+    const overlayEnabled = GameSettings.scanlines;
+    const overlayElements = document.querySelectorAll('.scanlines-overlay, .vignette-overlay, .crt-flicker');
+    overlayElements.forEach((overlay) => {
+        overlay.style.display = overlayEnabled ? 'block' : 'none';
+        overlay.style.opacity = overlayEnabled ? '1' : '0';
+    });
+
+    if (gameState?.screenShake) {
+        gameState.screenShake.enabled = GameSettings.screenShake;
+        if (!gameState.screenShake.enabled) {
+            gameState.screenShake.intensity = 0;
+            gameState.screenShake.duration = 0;
+            gameState.screenShake.x = 0;
+            gameState.screenShake.y = 0;
+        }
+    }
+
+    if (particleSystem) {
+        particleSystem.setIntensity(GameSettings.particleIntensity);
+    }
+}
+
 function init() {
     console.log('🚀 Initializing Geometry 3044...');
 
@@ -129,6 +156,7 @@ function init() {
     // Initialize menu manager for options and high scores
     menuManager = new MenuManager();
     menuManager.init();
+    menuManager.onSettingsChanged = applyGameSettings;
 
     // Initialize sound system (needs user interaction to fully activate)
     soundSystem = new SoundSystem();
@@ -138,6 +166,7 @@ function init() {
 
     // Initialize VHS effect
     vhsEffect = new VHSEffect();
+    applyGameSettings();
 
     // Initialize HUD
     hud = new HUD();
@@ -1025,7 +1054,7 @@ function initGame(isAttractMode = false) {
         player: player,
         powerUpManager: powerUpManager,
         radicalSlang: radicalSlang,
-        screenShake: { x: 0, y: 0, intensity: 0, duration: 0 },
+        screenShake: { x: 0, y: 0, intensity: 0, duration: 0, enabled: GameSettings.screenShake },
         highScore: parseInt(localStorage.getItem('geometry3044_highScore')) || 0,
         isAttractMode: isAttractMode,
 
@@ -1048,6 +1077,8 @@ function initGame(isAttractMode = false) {
         canShoot: modeSettings.canShoot !== false,
         scoreMultiplier: modeSettings.scoreMultiplier || 1.0
     };
+
+    applyGameSettings();
 
     // Initialize game mode
     if (gameModeManager) {
@@ -1327,7 +1358,7 @@ function update(deltaTime) {
     }
 
     // Update screen shake
-    if (gameState.screenShake.duration > 0) {
+    if (gameState.screenShake.enabled && gameState.screenShake.duration > 0) {
         gameState.screenShake.duration--;
         gameState.screenShake.x = (Math.random() - 0.5) * gameState.screenShake.intensity;
         gameState.screenShake.y = (Math.random() - 0.5) * gameState.screenShake.intensity;
@@ -1335,6 +1366,10 @@ function update(deltaTime) {
     } else {
         gameState.screenShake.x = 0;
         gameState.screenShake.y = 0;
+        if (!gameState.screenShake.enabled) {
+            gameState.screenShake.intensity = 0;
+            gameState.screenShake.duration = 0;
+        }
     }
 
     // Check player death
@@ -1375,7 +1410,9 @@ function render() {
     ctx.save();
 
     // Apply screen shake
-    ctx.translate(gameState.screenShake.x, gameState.screenShake.y);
+    if (gameState.screenShake.enabled) {
+        ctx.translate(gameState.screenShake.x, gameState.screenShake.y);
+    }
 
     // Background
     drawBackground(ctx, canvas, gameState.wave);

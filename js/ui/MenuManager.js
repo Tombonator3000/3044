@@ -85,6 +85,7 @@ export class MenuManager {
         this.onStartGame = null;
         this.onContinue = null;
         this.onQuit = null;
+        this.onSettingsChanged = null;
     }
 
     /**
@@ -657,6 +658,9 @@ export class MenuManager {
         GameSettings[setting] = !GameSettings[setting];
         this.updateOptionsUI();
         GameSettings.save();
+        if (this.onSettingsChanged) {
+            this.onSettingsChanged(GameSettings);
+        }
     }
 
     /**
@@ -666,6 +670,9 @@ export class MenuManager {
         GameSettings.particleIntensity = value;
         this.updateOptionsUI();
         GameSettings.save();
+        if (this.onSettingsChanged) {
+            this.onSettingsChanged(GameSettings);
+        }
     }
 
     /**
@@ -675,6 +682,9 @@ export class MenuManager {
         GameSettings.difficulty = value;
         this.updateOptionsUI();
         GameSettings.save();
+        if (this.onSettingsChanged) {
+            this.onSettingsChanged(GameSettings);
+        }
     }
 
     /**
