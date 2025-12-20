@@ -321,6 +321,24 @@ export class MusicManager {
     }
 
     /**
+     * Pause music (reduces volume to 0)
+     */
+    pauseMusic() {
+        if (this.musicGain) {
+            this.musicGain.gain.value = 0;
+        }
+    }
+
+    /**
+     * Resume music (restores volume)
+     */
+    resumeMusic() {
+        if (this.musicGain) {
+            this.musicGain.gain.value = this.volume;
+        }
+    }
+
+    /**
      * Check if music is enabled
      */
     isEnabled() {

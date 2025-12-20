@@ -2424,9 +2424,9 @@ function togglePause() {
     gameState.paused = !gameState.paused;
 
     if (gameState.paused) {
-        if (soundSystem) soundSystem.pauseMusic();
+        if (musicManager) musicManager.pauseMusic();
     } else {
-        if (soundSystem) soundSystem.resumeMusic();
+        if (musicManager) musicManager.resumeMusic();
     }
 }
 
@@ -2506,8 +2506,10 @@ function handlePlayerDeath() {
         // Game over
         gameState.gameOver = true;
 
+        if (musicManager) {
+            musicManager.stopCurrentMusic();
+        }
         if (soundSystem) {
-            soundSystem.stopMusic();
             soundSystem.playGameOver();
         }
 
