@@ -449,6 +449,27 @@ body {
     letter-spacing: 0.2em;
 }
 
+.footer-info .score-bank {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #00ffff;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px #00ffff, 0 0 20px rgba(0, 255, 255, 0.5);
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+}
+
+.footer-info .credit-cost {
+    font-size: 1em;
+    font-weight: 600;
+    color: #ffff00;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px #ffff00, 0 0 20px rgba(255, 255, 0, 0.5);
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+    transition: color 0.3s ease;
+}
+
 /* Blink-animasjon for INSERT COIN */
 .blink {
     animation: coin-blink 1.5s ease-in-out infinite;
@@ -1366,6 +1387,23 @@ body {
     margin-bottom: 20px;
     text-shadow: 0 0 15px #00ff00;
     animation: blink 0.5s ease-in-out infinite;
+}
+
+.continue-credit-info {
+    font-size: 1.4em;
+    color: #00ff00;
+    margin-bottom: 15px;
+    text-shadow: 0 0 15px #00ff00;
+    font-weight: 700;
+}
+
+.continue-cost-info {
+    font-size: 1.2em;
+    color: #ffff00;
+    margin-bottom: 20px;
+    text-shadow: 0 0 15px #ffff00;
+    font-weight: 600;
+    transition: color 0.3s ease;
 }
 
 .rank { width: 50px; text-align: left; }

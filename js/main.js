@@ -84,6 +84,7 @@ let bombPressedLastFrame = false;
 
 // === MENU STATE ===
 let credits = 3;
+let creditsPurchased = 0; // Tracks how many credits have been purchased (for escalating cost)
 let attractMode = false;
 let attractModeTimeout = null;
 let attractModeAI = null;
@@ -214,6 +215,9 @@ function init() {
 
     // Setup menu
     setupMenu();
+
+    // Initialize credit cost display
+    updateCreditsDisplay();
 
     console.log('🎮 New systems initialized: Grazing, Risk/Reward, SlowMo, Zones, Ships, Modes, Achievements');
     console.log(`📱 Layout: ${isPcLayout ? 'PC (3-part)' : 'Mobile'}, Touch: ${isMobileDevice}`);
@@ -949,9 +953,99 @@ function updateCreditsDisplay() {
     if (creditsEl) {
         creditsEl.textContent = credits;
     }
+
+    // Update credit cost display
+    updateCreditCostDisplay();
+}
+
+// Get the cost of the next credit (escalating price)
+function getCreditCost() {
+    const baseCost = 1000;
+    const multiplier = 1.5;
+    // Cost increases: 1000, 1500, 2250, 3375, 5063, etc.
+    return Math.floor(baseCost * Math.pow(multiplier, creditsPurchased));
+}
+
+// Get available score (current game score if playing, otherwise highscore bank)
+function getAvailableScore() {
+    if (gameState && gameState.running) {
+        return gameState.score || 0;
+    }
+    // When not in game, use the stored score bank
+    return parseInt(localStorage.getItem('geometry3044_scoreBank') || '0');
+}
+
+// Deduct score (from current game or score bank)
+function deductScore(amount) {
+    if (gameState && gameState.running) {
+        gameState.score = Math.max(0, (gameState.score || 0) - amount);
+        // Update HUD
+        if (hud) hud.update(gameState, player);
+    } else {
+        const currentBank = parseInt(localStorage.getItem('geometry3044_scoreBank') || '0');
+        localStorage.setItem('geometry3044_scoreBank', Math.max(0, currentBank - amount).toString());
+    }
+}
+
+// Update the credit cost display in the UI
+function updateCreditCostDisplay() {
+    const cost = getCreditCost();
+    const available = getAvailableScore();
+    const canAfford = available >= cost;
+
+    // Update cost display element (menu)
+    const costEl = document.getElementById('creditCostDisplay');
+    if (costEl) {
+        costEl.textContent = `CREDIT COST: ${cost.toLocaleString()} PTS`;
+        costEl.style.color = canAfford ? '#00ff00' : '#ff4444';
+    }
+
+    // Update score bank display (menu)
+    const bankEl = document.getElementById('scoreBankDisplay');
+    if (bankEl) {
+        bankEl.textContent = `SCORE BANK: ${available.toLocaleString()}`;
+    }
+
+    // Update continue screen displays
+    const continueCreditsEl = document.getElementById('continueCreditsDisplay');
+    if (continueCreditsEl) {
+        continueCreditsEl.textContent = `CREDITS: ${credits}`;
+    }
+
+    const continueCostEl = document.getElementById('continueCreditCost');
+    if (continueCostEl) {
+        continueCostEl.textContent = `NEXT CREDIT: ${cost.toLocaleString()} PTS`;
+        continueCostEl.style.color = canAfford ? '#00ff00' : '#ff4444';
+    }
 }
 
 function addCredit() {
+    const cost = getCreditCost();
+    const available = getAvailableScore();
+
+    // Check if player can afford the credit
+    if (available < cost) {
+        console.log('❌ Not enough score! Need:', cost, 'Have:', available);
+
+        // Flash error
+        const costEl = document.getElementById('creditCostDisplay');
+        if (costEl) {
+            costEl.style.color = '#ff0000';
+            costEl.textContent = `NOT ENOUGH! NEED ${cost.toLocaleString()} PTS`;
+            setTimeout(() => {
+                updateCreditCostDisplay();
+            }, 1000);
+        }
+
+        if (soundSystem) {
+            soundSystem.playError?.() || soundSystem.playHit?.();
+        }
+        return;
+    }
+
+    // Deduct the cost
+    deductScore(cost);
+    creditsPurchased++;
     credits++;
     updateCreditsDisplay();
 
@@ -959,7 +1053,7 @@ function addCredit() {
         soundSystem.playCoin();
     }
 
-    console.log('💰 Credit inserted! Total:', credits);
+    console.log('💰 Credit purchased for', cost, 'pts! Total credits:', credits, 'Next cost:', getCreditCost());
 
     // Flash insert coin text
     const insertCoinEl = document.getElementById('insertCoinText');
@@ -2158,6 +2252,12 @@ function handlePlayerDeath() {
             localStorage.setItem('geometry3044_highScore', gameState.highScore);
         }
 
+        // Add score to score bank (for purchasing credits)
+        const currentBank = parseInt(localStorage.getItem('geometry3044_scoreBank') || '0');
+        const newBank = currentBank + gameState.score;
+        localStorage.setItem('geometry3044_scoreBank', newBank.toString());
+        console.log('💰 Score added to bank:', gameState.score, '| Total bank:', newBank);
+
         // Update achievements and stats
         if (achievementSystem && grazingSystem && riskRewardSystem) {
             const sessionStats = {
@@ -2386,6 +2486,9 @@ function drawDeathChoiceScreen() {
 
     // Option 1: Continue with credits
     const option1Y = boxY + 50;
+    const creditCost = getCreditCost();
+    const canAffordCredit = gameState.score >= creditCost;
+
     if (credits > 0) {
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.fillStyle = '#00ff00';
@@ -2403,9 +2506,10 @@ function drawDeathChoiceScreen() {
         ctx.shadowBlur = 0;
         ctx.fillText('[1] NO CREDITS', centerX, option1Y);
 
+        // Show credit purchase option
         ctx.font = '16px "Courier New", monospace';
-        ctx.fillStyle = '#ff6666';
-        ctx.fillText('Press C to insert coin', centerX, option1Y + 25);
+        ctx.fillStyle = canAffordCredit ? '#00ff00' : '#ff6666';
+        ctx.fillText(`Press C to buy credit (${creditCost.toLocaleString()} pts)`, centerX, option1Y + 25);
     }
 
     // Option 2: Return to menu
@@ -2520,6 +2624,9 @@ function returnToMenu() {
     if (highScoreEl) {
         highScoreEl.textContent = parseInt(highScore).toLocaleString();
     }
+
+    // Update credits and score bank display
+    updateCreditsDisplay();
 
     // Start menu loop
     requestAnimationFrame(menuLoop);
