@@ -5,6 +5,7 @@
 
 import { CONFIG, getCurrentTheme } from '../config.js';
 import { cachedUI, getCredits, setCredits, gameStarting, setGameStarting } from '../globals.js';
+import { logger } from '../utils/Logger.js';
 
 /**
  * Menu screen states
@@ -93,7 +94,7 @@ export class MenuManager {
      * Initialize menu manager and bind UI events
      */
     init() {
-        console.log('🎮 MenuManager.init() called');
+        logger.game('MenuManager.init() called');
 
         // Load saved settings
         GameSettings.load();

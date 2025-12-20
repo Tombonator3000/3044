@@ -3,6 +3,16 @@
 // ============================================
 
 export const config = {
+    // Debug settings
+    debug: {
+        enabled: false,          // Master debug flag - set to true for development
+        logGameEvents: false,    // Log game events (waves, spawns, etc.)
+        logAudio: false,         // Log audio events
+        logInput: false,         // Log input events
+        logPerformance: false,   // Log performance metrics
+        showFPS: false           // Show FPS counter
+    },
+
     width: 900,
     height: 900,
 
@@ -77,7 +87,57 @@ export const config = {
 
     // Timing
     timing: {
-        themeChangeDisplay: 180
+        themeChangeDisplay: 180,
+        fpsTarget: 60,
+        frameTime: 16.67
+    },
+
+    // Common magic numbers extracted
+    constants: {
+        // Math constants (pre-calculated for performance)
+        TWO_PI: Math.PI * 2,            // 6.283185...
+        HALF_PI: Math.PI / 2,
+
+        // Animation & effects
+        defaultPulseSpeed: 0.005,
+        defaultRotationSpeed: 0.02,
+        defaultGlowIntensity: 20,
+
+        // Physics
+        defaultFriction: 0.97,
+        defaultGravity: 0.1,
+        defaultBounce: 0.3,
+
+        // Spawn & lifetime
+        defaultLifetime: 600,           // 10 seconds at 60fps
+        powerUpLifetime: 600,
+        warningThreshold: 120,          // Blink when < 2 seconds left
+
+        // Damage & combat
+        defaultDamage: 1,
+        critMultiplier: 2,
+
+        // UI
+        defaultFontSize: 16,
+        headerFontSize: 48,
+        hudPadding: 20
+    },
+
+    // Power-up drop rates (in percentages)
+    dropRates: {
+        legendary: 0.003,   // 0.3%
+        epic: 0.018,        // 1.5% cumulative
+        rare: 0.098,        // 8% cumulative
+        uncommon: 0.318,    // 22% cumulative
+        common: 1.0         // Rest (~68%)
+    },
+
+    // Effect durations (in frames at 60fps)
+    durations: {
+        short: 300,         // 5 seconds
+        medium: 480,        // 8 seconds
+        long: 600,          // 10 seconds
+        veryLong: 900       // 15 seconds
     }
 };
 

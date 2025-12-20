@@ -5,6 +5,7 @@
 
 import { CONFIG, getCurrentTheme } from '../config.js';
 import { drawWavingGrid, addGridImpact, drawBackground } from '../rendering/GridRenderer.js';
+import { logger } from '../utils/Logger.js';
 
 /**
  * GameLoop class - manages the main game loop
