@@ -106,6 +106,26 @@ const promoTexts = [
 let currentPromoIndex = 0;
 let promoTimer = 0;
 
+// === BACKSTORY FOR ATTRACT MODE ===
+const backstoryTexts = [
+    "THE YEAR IS 3044...",
+    "EARTH'S LAST HOPE LIES IN THE STARS",
+    "THE STAROVER COMMAND HAS SEARCHED THE GALAXY",
+    "FOR A PILOT WORTHY OF THE ULTIMATE MISSION",
+    "AFTER ANALYZING BILLIONS OF CANDIDATES...",
+    "THEY HAVE CHOSEN YOU",
+    "YOUR ARCADE SKILLS HAVE BEEN MONITORED",
+    "THIS IS NOT A GAME — IT NEVER WAS",
+    "YOU ARE THE CHOSEN ONE",
+    "ONLY YOU CAN STOP THE GEOMETRY INVASION",
+    "THE FATE OF THE UNIVERSE RESTS IN YOUR HANDS",
+    "STAROVER COMMAND AWAITS YOUR RESPONSE",
+    "INSERT COIN TO ACCEPT YOUR DESTINY"
+];
+let currentBackstoryIndex = 0;
+let backstoryTimer = 0;
+let backstoryCharIndex = 0;
+
 console.log('🎮 Geometry 3044 — Loading...');
 
 // ============================================
@@ -1284,6 +1304,9 @@ function startAttractMode() {
     attractMode = true;
     currentPromoIndex = 0;
     promoTimer = 0;
+    currentBackstoryIndex = 0;
+    backstoryTimer = 0;
+    backstoryCharIndex = 0;
 
     // Initialize attract mode game
     initGame(true);
@@ -2911,6 +2934,43 @@ function drawAttractModeOverlay() {
     ctx.shadowBlur = 15;
     ctx.shadowColor = '#ff00ff';
     ctx.fillText('★ DEMO MODE ★', canvas.logicalWidth / 2, 40);
+
+    // Backstory with typewriter effect
+    const backstoryY = 80;
+    ctx.font = 'bold 16px "Courier New", monospace';
+
+    // Update backstory animation
+    backstoryTimer++;
+    if (backstoryTimer % 3 === 0) { // Typewriter speed
+        backstoryCharIndex++;
+    }
+
+    const currentText = backstoryTexts[currentBackstoryIndex];
+    const displayText = currentText.substring(0, backstoryCharIndex);
+
+    // Move to next line when current is complete
+    if (backstoryCharIndex > currentText.length + 30) { // +30 for pause
+        backstoryCharIndex = 0;
+        currentBackstoryIndex = (currentBackstoryIndex + 1) % backstoryTexts.length;
+    }
+
+    // Draw backstory text with green terminal effect
+    ctx.fillStyle = '#00ff00';
+    ctx.shadowColor = '#00ff00';
+    ctx.shadowBlur = 10;
+    ctx.fillText(displayText, canvas.logicalWidth / 2, backstoryY);
+
+    // Blinking cursor
+    if (backstoryCharIndex <= currentText.length && Math.sin(Date.now() * 0.01) > 0) {
+        const textWidth = ctx.measureText(displayText).width;
+        ctx.fillText('█', canvas.logicalWidth / 2 + textWidth / 2 + 5, backstoryY);
+    }
+
+    // Starover Command logo/text
+    ctx.font = 'bold 12px "Courier New", monospace';
+    ctx.fillStyle = '#ffaa00';
+    ctx.shadowColor = '#ffaa00';
+    ctx.fillText('▲ STAROVER COMMAND TRANSMISSION ▲', canvas.logicalWidth / 2, backstoryY + 25);
 
     // Promo text
     ctx.font = 'bold 28px "Courier New", monospace';
