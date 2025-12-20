@@ -78,6 +78,13 @@ export const config = {
     // Timing
     timing: {
         themeChangeDisplay: 180
+    },
+
+    // Rendering optimization
+    rendering: {
+        maxPixels: 1280 * 720,
+        minScale: 0.6,
+        maxScale: 1
     }
 };
 

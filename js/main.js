@@ -202,14 +202,28 @@ function init() {
 }
 
 function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    const screenPixels = screenWidth * screenHeight;
+    const maxPixels = config.rendering?.maxPixels || screenPixels;
+    const minScale = config.rendering?.minScale ?? 0.6;
+    const maxScale = config.rendering?.maxScale ?? 1;
+    const renderScale = Math.min(
+        maxScale,
+        Math.max(minScale, Math.sqrt(maxPixels / Math.max(1, screenPixels)))
+    );
+
+    canvas.width = Math.floor(screenWidth * renderScale);
+    canvas.height = Math.floor(screenHeight * renderScale);
+    canvas.style.width = `${screenWidth}px`;
+    canvas.style.height = `${screenHeight}px`;
 
     updateConfig(canvas.width, canvas.height);
 
     if (starfield) starfield.resize(canvas.width, canvas.height);
     if (hud) hud.resize(canvas.width, canvas.height);
     if (mobileControls) mobileControls.resize(canvas.width, canvas.height);
+    if (vhsEffect) vhsEffect.setPerformanceBudget(canvas.width * canvas.height, maxPixels);
 }
 
 // ============================================

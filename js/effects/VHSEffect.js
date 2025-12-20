@@ -10,9 +10,12 @@ export class VHSEffect {
     constructor() {
         // Reduce or disable effects on low-perf devices
         this.enabled = !isLowPerfDevice;
-        this.scanlineIntensity = isLowPerfDevice ? 0 : 0.12;
-        this.noiseIntensity = isLowPerfDevice ? 0 : 0.02;
-        this.chromaticAberration = isLowPerfDevice ? 0 : 1;
+        this.baseScanlineIntensity = isLowPerfDevice ? 0 : 0.12;
+        this.baseNoiseIntensity = isLowPerfDevice ? 0 : 0.02;
+        this.baseChromaticAberration = isLowPerfDevice ? 0 : 1;
+        this.scanlineIntensity = this.baseScanlineIntensity;
+        this.noiseIntensity = this.baseNoiseIntensity;
+        this.chromaticAberration = this.baseChromaticAberration;
         this.glitchActive = false;
         this.glitchTimer = 0;
         this.glitchIntensity = 0;
@@ -24,6 +27,8 @@ export class VHSEffect {
         // Noise buffer
         this.noiseCanvas = null;
         this.noiseCtx = null;
+        this.noisePattern = null;
+        this.noisePatternCtx = null;
         if (!isLowPerfDevice) {
             this.initNoiseBuffer();
         }
@@ -166,8 +171,11 @@ export class VHSEffect {
         ctx.globalCompositeOperation = 'overlay';
 
         // Tile the noise
-        const pattern = ctx.createPattern(this.noiseCanvas, 'repeat');
-        ctx.fillStyle = pattern;
+        if (!this.noisePattern || this.noisePatternCtx !== ctx) {
+            this.noisePattern = ctx.createPattern(this.noiseCanvas, 'repeat');
+            this.noisePatternCtx = ctx;
+        }
+        ctx.fillStyle = this.noisePattern;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         ctx.restore();
@@ -244,5 +252,20 @@ export class VHSEffect {
 
     setChromaticAberration(amount) {
         this.chromaticAberration = Math.max(0, Math.min(10, amount));
+    }
+
+    setPerformanceBudget(pixelCount, maxPixels) {
+        if (!this.enabled) return;
+        if (!maxPixels || maxPixels <= 0) {
+            this.scanlineIntensity = this.baseScanlineIntensity;
+            this.noiseIntensity = this.baseNoiseIntensity;
+            this.chromaticAberration = this.baseChromaticAberration;
+            return;
+        }
+
+        const loadFactor = Math.min(1, maxPixels / Math.max(1, pixelCount));
+        this.scanlineIntensity = this.baseScanlineIntensity * loadFactor;
+        this.noiseIntensity = this.baseNoiseIntensity * loadFactor;
+        this.chromaticAberration = this.baseChromaticAberration * loadFactor;
     }
 }
