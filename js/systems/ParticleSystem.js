@@ -5,11 +5,47 @@
  */
 
 import { CONFIG, getCurrentTheme } from '../config.js';
+import { GameSettings } from '../ui/MenuManager.js';
 
 // Performance settings for particles
 const particlePerfSettings = {
     enableShadows: true,
-    reducedParticles: false
+    reducedParticles: false,
+    intensityMultiplier: 1
+};
+
+const particleIntensityMap = {
+    low: 0.4,
+    medium: 0.7,
+    high: 1
+};
+
+const resolveIntensityMultiplier = (level) => {
+    if (typeof level === 'number') {
+        return Math.max(0, Math.min(1, level));
+    }
+
+    return particleIntensityMap[level] ?? 1;
+};
+
+const getParticleCountMultiplier = () => {
+    let multiplier = particlePerfSettings.intensityMultiplier;
+
+    if (particlePerfSettings.reducedParticles) {
+        multiplier *= 0.5;
+    }
+
+    return multiplier;
+};
+
+const getAdjustedCount = (baseCount) => {
+    const multiplier = getParticleCountMultiplier();
+
+    if (multiplier <= 0) {
+        return 0;
+    }
+
+    return Math.max(1, Math.floor(baseCount * multiplier));
 };
 
 // Detect low-perf devices - only reduce on very low-end devices
@@ -18,6 +54,8 @@ if (isMobileDevice || (navigator.hardwareConcurrency && navigator.hardwareConcur
     particlePerfSettings.enableShadows = false;
     particlePerfSettings.reducedParticles = true;
 }
+
+particlePerfSettings.intensityMultiplier = resolveIntensityMultiplier(GameSettings.particleIntensity);
 
 /**
  * Particle Class
@@ -305,25 +343,16 @@ export class ParticleSystem {
     }
 
     setIntensity(level) {
-        const intensityMap = {
-            low: 0.4,
-            medium: 0.7,
-            high: 1
-        };
-
-        if (typeof level === 'number') {
-            this.intensityMultiplier = Math.max(0, Math.min(1, level));
-            return;
-        }
-
-        this.intensityMultiplier = intensityMap[level] ?? 1;
+        this.intensityMultiplier = resolveIntensityMultiplier(level);
+        particlePerfSettings.intensityMultiplier = this.intensityMultiplier;
     }
 
     /**
      * Emit particles at a position
      */
     emit(x, y, count, options = {}) {
-        for (let i = 0; i < count; i++) {
+        const adjustedCount = getAdjustedCount(count);
+        for (let i = 0; i < adjustedCount; i++) {
             const particle = this.getParticle();
             particle.reset(x, y, {
                 vx: options.vx !== undefined ? options.vx : (Math.random() - 0.5) * (options.speed || 8),
@@ -343,8 +372,9 @@ export class ParticleSystem {
      * Create explosion effect
      */
     explosion(x, y, color = '#ff6600', count = 20, power = 1) {
-        for (let i = 0; i < count; i++) {
-            const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+        const adjustedCount = getAdjustedCount(count);
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + Math.random() * 0.3;
             const speed = (4 + Math.random() * 8) * power;
             const particle = this.getParticle();
             particle.reset(x, y, {
@@ -441,7 +471,8 @@ export class ParticleSystem {
      * Create spark effect
      */
     sparks(x, y, color, count = 5) {
-        for (let i = 0; i < count; i++) {
+        const adjustedCount = getAdjustedCount(count);
+        for (let i = 0; i < adjustedCount; i++) {
             const angle = Math.random() * Math.PI * 2;
             const speed = 2 + Math.random() * 4;
             const particle = this.getParticle();
@@ -572,6 +603,10 @@ export class ParticleSystem {
         if (this._activeCount === 0) return;
 
         ctx.save();
+        if (!particlePerfSettings.enableShadows) {
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
+        }
         for (let i = 0; i < this.particles.length; i++) {
             const particle = this.particles[i];
             if (particle.active) {
@@ -636,9 +671,10 @@ export class ParticleSystem {
         const speed = options.speed || 6;
         const life = options.life || 30;
         const size = options.size || 4;
+        const adjustedCount = getAdjustedCount(count);
 
-        for (let i = 0; i < count; i++) {
-            const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + Math.random() * 0.5;
             const velocity = speed * (0.5 + Math.random() * 0.5);
 
             this.addParticle({
@@ -669,7 +705,8 @@ export class ParticleSystem {
     }
 
     addSparkle(x, y, color = '#ffff00', count = 5) {
-        for (let i = 0; i < count; i++) {
+        const adjustedCount = getAdjustedCount(count);
+        for (let i = 0; i < adjustedCount; i++) {
             const angle = Math.random() * Math.PI * 2;
             const speed = 1 + Math.random() * 2;
 
@@ -851,10 +888,11 @@ export class ParticleSystem {
      */
     pixelExplosion(x, y, color = '#ff00ff', count = 30) {
         const colors = [color, '#ffffff', '#00ffff', '#ffff00'];
+        const adjustedCount = getAdjustedCount(count);
 
         // Pixel particles
-        for (let i = 0; i < count; i++) {
-            const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + Math.random() * 0.3;
             const speed = 3 + Math.random() * 8;
             const particle = this.getParticle();
             particle.reset(x, y, {
@@ -935,7 +973,7 @@ export class ParticleSystem {
      * Fire and smoke explosion
      */
     fireExplosion(x, y, size = 1) {
-        const count = Math.floor(25 * size);
+        const count = getAdjustedCount(Math.floor(25 * size));
 
         // Fire particles
         for (let i = 0; i < count; i++) {
@@ -955,7 +993,7 @@ export class ParticleSystem {
         }
 
         // Smoke particles
-        for (let i = 0; i < count / 2; i++) {
+        for (let i = 0; i < Math.floor(count / 2); i++) {
             const angle = Math.random() * Math.PI * 2;
             const speed = (2 + Math.random() * 3) * size;
             const particle = this.getParticle();
