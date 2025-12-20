@@ -154,6 +154,14 @@ function init() {
     detectLayoutType();
     window.addEventListener('resize', detectLayoutType);
 
+    // IMPORTANT: Explicitly hide PC layout on init - ensures it's hidden during menu
+    const pcLayoutEl = document.getElementById('pcLayout');
+    if (pcLayoutEl) {
+        pcLayoutEl.style.display = 'none';
+        pcLayoutEl.style.visibility = 'hidden';
+        pcLayoutEl.classList.remove('game-active');
+    }
+
     // Set canvas size
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
@@ -1010,6 +1018,14 @@ function exitAttractMode() {
 
     gameState = null;
 
+    // Hide PC layout when exiting attract mode
+    const pcLayout = document.getElementById('pcLayout');
+    if (pcLayout) {
+        pcLayout.classList.remove('game-active');
+        pcLayout.style.display = 'none';
+        pcLayout.style.visibility = 'hidden';
+    }
+
     // Show menu
     const menuScreen = document.getElementById('menuScreen');
     if (menuScreen) menuScreen.style.display = 'flex';
@@ -1170,8 +1186,9 @@ function setupGameplayLayout() {
     if (isPcLayout) {
         // PC Layout: Move canvas to center area
         if (pcLayout) {
-            pcLayout.style.display = 'flex';
             pcLayout.classList.add('game-active');
+            pcLayout.style.display = 'flex';
+            pcLayout.style.visibility = 'visible';
         }
         if (centerGameArea && canvas) {
             centerGameArea.appendChild(canvas);
@@ -1188,8 +1205,9 @@ function setupGameplayLayout() {
     } else {
         // Mobile Layout
         if (pcLayout) {
-            pcLayout.style.display = 'none';
             pcLayout.classList.remove('game-active');
+            pcLayout.style.display = 'none';
+            pcLayout.style.visibility = 'hidden';
         }
         // Keep canvas in gameContainer for mobile
         if (gameContainer && canvas && canvas.parentNode !== gameContainer) {
@@ -2265,8 +2283,9 @@ function resetMenuLayout() {
 
     // Hide PC layout and HUD layers
     if (pcLayout) {
-        pcLayout.style.display = 'none';
         pcLayout.classList.remove('game-active');
+        pcLayout.style.display = 'none';
+        pcLayout.style.visibility = 'hidden';
     }
     if (mobileHudLayer) mobileHudLayer.style.display = 'none';
     if (touchControlsLayer) touchControlsLayer.style.display = 'none';

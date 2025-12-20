@@ -2409,7 +2409,8 @@ body {
    ============================================ */
 
 #pcLayout {
-    display: none;
+    display: none !important;
+    visibility: hidden;
     position: fixed;
     top: 0;
     left: 0;
@@ -2423,7 +2424,8 @@ body {
 @media (min-width: 901px) and (min-aspect-ratio: 4/3) {
     /* PC layout is hidden by default, only shown when game-active class is added */
     #pcLayout.game-active {
-        display: flex;
+        display: flex !important;
+        visibility: visible !important;
         flex-direction: row;
         align-items: stretch;
         pointer-events: auto;
