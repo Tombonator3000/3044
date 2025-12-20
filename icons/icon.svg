@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <!-- Gradient for background -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a0033"/>
+      <stop offset="50%" style="stop-color:#0a0015"/>
+      <stop offset="100%" style="stop-color:#000"/>
+    </linearGradient>
+
+    <!-- Synthwave sun gradient -->
+    <linearGradient id="sunGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b35"/>
+      <stop offset="50%" style="stop-color:#ff00ff"/>
+      <stop offset="100%" style="stop-color:#8b00ff"/>
+    </linearGradient>
+
+    <!-- Ship glow -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Neon cyan glow -->
+    <filter id="cyanGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#bgGrad)"/>
+
+  <!-- Stars -->
+  <circle cx="50" cy="60" r="2" fill="#fff" opacity="0.8"/>
+  <circle cx="120" cy="40" r="1.5" fill="#fff" opacity="0.6"/>
+  <circle cx="200" cy="80" r="2" fill="#fff" opacity="0.7"/>
+  <circle cx="350" cy="50" r="1.5" fill="#fff" opacity="0.5"/>
+  <circle cx="420" cy="90" r="2" fill="#fff" opacity="0.8"/>
+  <circle cx="470" cy="45" r="1" fill="#fff" opacity="0.6"/>
+  <circle cx="80" cy="120" r="1.5" fill="#ff00ff" opacity="0.4"/>
+  <circle cx="450" cy="150" r="1.5" fill="#00ffff" opacity="0.4"/>
+
+  <!-- Synthwave sun (partial) -->
+  <circle cx="256" cy="420" r="120" fill="url(#sunGrad)"/>
+  <!-- Sun lines -->
+  <rect x="136" y="360" width="240" height="4" fill="#0a0015"/>
+  <rect x="136" y="380" width="240" height="6" fill="#0a0015"/>
+  <rect x="136" y="400" width="240" height="8" fill="#0a0015"/>
+  <rect x="136" y="420" width="240" height="12" fill="#0a0015"/>
+  <rect x="136" y="450" width="240" height="16" fill="#0a0015"/>
+
+  <!-- Grid floor -->
+  <g stroke="#ff00ff" stroke-width="1" opacity="0.4">
+    <!-- Horizontal lines -->
+    <line x1="0" y1="480" x2="512" y2="480"/>
+    <line x1="30" y1="460" x2="482" y2="460"/>
+    <line x1="60" y1="440" x2="452" y2="440"/>
+    <!-- Vertical lines (perspective) -->
+    <line x1="256" y1="350" x2="256" y2="512"/>
+    <line x1="256" y1="350" x2="0" y2="512"/>
+    <line x1="256" y1="350" x2="512" y2="512"/>
+    <line x1="256" y1="350" x2="80" y2="512"/>
+    <line x1="256" y1="350" x2="432" y2="512"/>
+  </g>
+
+  <!-- Player ship (geometric triangle) -->
+  <g filter="url(#glow)">
+    <!-- Ship body -->
+    <polygon points="256,120 306,220 256,200 206,220" fill="#00ffff" stroke="#00ffff" stroke-width="2"/>
+    <!-- Ship wings -->
+    <polygon points="206,220 256,200 180,250" fill="#ff00ff" stroke="#ff00ff" stroke-width="1"/>
+    <polygon points="306,220 256,200 332,250" fill="#ff00ff" stroke="#ff00ff" stroke-width="1"/>
+    <!-- Ship core -->
+    <circle cx="256" cy="180" r="12" fill="#fff"/>
+    <circle cx="256" cy="180" r="8" fill="#00ffff"/>
+  </g>
+
+  <!-- Engine trail -->
+  <g filter="url(#cyanGlow)" opacity="0.8">
+    <polygon points="256,220 270,280 256,260 242,280" fill="#00ffff"/>
+    <polygon points="256,260 265,310 256,290 247,310" fill="#ff00ff" opacity="0.6"/>
+  </g>
+
+  <!-- "3044" text -->
+  <text x="256" y="340" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="48" font-weight="bold" fill="#fff" filter="url(#glow)">3044</text>
+
+  <!-- Decorative geometric enemies (small) -->
+  <g opacity="0.6">
+    <!-- Diamond enemy left -->
+    <polygon points="80,180 100,200 80,220 60,200" fill="none" stroke="#ff6b35" stroke-width="2"/>
+    <!-- Diamond enemy right -->
+    <polygon points="432,180 452,200 432,220 412,200" fill="none" stroke="#ff6b35" stroke-width="2"/>
+    <!-- Triangle enemy -->
+    <polygon points="380,100 400,140 360,140" fill="none" stroke="#ff00ff" stroke-width="2"/>
+    <polygon points="132,100 152,140 112,140" fill="none" stroke="#00ffff" stroke-width="2"/>
+  </g>
+</svg>

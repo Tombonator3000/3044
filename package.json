@@ -1,0 +1,19 @@
+{
+  "name": "3044",
+  "version": "1.0.0",
+  "description": "Et retro-inspirert arcade shooter spill i stil med klassiske 80-talls arkadespill som Galaga, Tempest og Robotron.",
+  "main": "sw.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:22410/git/Tombonator3000/3044"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "pngjs": "^7.0.0"
+  }
+}
