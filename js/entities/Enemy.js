@@ -1,8 +1,244 @@
 // ============================================
-// GEOMETRY 3044 — ENEMY CLASS (COMPLETE)
+// GEOMETRY 3044 — ENEMY CLASS (REFACTORED)
+// ============================================
+// Refactored to use data-driven configuration
+// for cleaner, more maintainable enemy definitions
 // ============================================
 
 import { config, getCurrentTheme } from '../config.js';
+
+// ============================================
+// ENEMY CONFIGURATION DATA
+// Each enemy type is defined by a config object
+// with base stats and wave/intelligence scaling
+// ============================================
+const ENEMY_CONFIG = {
+    triangle: {
+        sides: 3,
+        size: 15,
+        hp: { base: 1 },
+        speed: { base: 2.2, waveScale: 0.18, min: 1.8 },
+        color: '#ff3366',
+        points: { base: 100, waveScale: 15 },
+        behavior: 'aggressive',
+        fireRate: { base: 120, intScale: -15, min: 50 },
+        bulletSpeed: { base: 5, intScale: 0.5 },
+        dodgeChance: { base: 0.05, intScale: 0.03 },
+        role: 'scout'
+    },
+    square: {
+        sides: 4,
+        size: 25,
+        hp: { base: 3, waveScale: 0.5 },
+        speed: { base: 1.5, waveScale: 0.08, min: 1.0 },
+        color: '#ff8800',
+        points: { base: 200, waveScale: 25 },
+        behavior: 'patrol',
+        fireRate: { base: 180, intScale: -20, min: 80 },
+        bulletSpeed: { base: 4, intScale: 0.3 },
+        dodgeChance: { base: 0.02, intScale: 0.02 },
+        role: 'heavy',
+        special: (enemy, wave, intelligence) => {
+            enemy.shieldActive = intelligence >= 2;
+            enemy.shieldStrength = intelligence;
+        }
+    },
+    pentagon: {
+        sides: 5,
+        size: 20,
+        hp: { base: 2, waveScale: 1/3 },
+        speed: { base: 1.2, waveScale: 0.05, min: 0.8 },
+        color: '#aa00ff',
+        points: { base: 300, waveScale: 35 },
+        behavior: 'sniper',
+        fireRate: { base: 200, intScale: -25, min: 100 },
+        bulletSpeed: { base: 8, intScale: 0.8 },
+        dodgeChance: { base: 0.1, intScale: 0.05 },
+        role: 'sniper',
+        special: (enemy, wave, intelligence) => {
+            enemy.aimPrediction = intelligence >= 1;
+            enemy.burstFire = intelligence >= 3;
+            enemy.burstCount = 3;
+        }
+    },
+    divebomber: {
+        sides: 3,
+        size: 18,
+        hp: { base: 2 },
+        speed: { base: 0.5 },
+        color: '#ff0044',
+        points: { base: 250, waveScale: 30 },
+        behavior: 'dive',
+        fireRate: { base: 999 }, // Doesn't shoot, just dives
+        role: 'bomber',
+        special: (enemy, wave) => {
+            enemy.diveSpeed = 12 + (wave * 0.5);
+            enemy.diving = false;
+            enemy.diveTarget = { x: 0, y: 0 };
+        }
+    },
+    sinewave: {
+        sides: 6,
+        size: 22,
+        hp: { base: 4, waveScale: 0.5 },
+        speed: { base: 2, waveScale: 0.1 },
+        color: '#00ffaa',
+        points: { base: 400, waveScale: 50 },
+        behavior: 'sinewave',
+        fireRate: { base: 100, intScale: -10, min: 60 },
+        bulletSpeed: { base: 6, intScale: 0.5 },
+        bulletPattern: 'spread',
+        role: 'elite',
+        special: (enemy, wave) => {
+            enemy.sineAmplitude = 100 + (wave * 5);
+            enemy.sineFrequency = 0.02 + (wave * 0.002);
+            enemy.sineOffset = Math.random() * Math.PI * 2;
+        }
+    },
+    // 8-BIT INSPIRED ENEMIES
+    pixelskull: {
+        sides: 0,
+        size: 24,
+        hp: { base: 3, waveScale: 0.5 },
+        speed: { base: 1.5, waveScale: 0.1 },
+        color: '#ff00ff',
+        secondaryColor: '#00ffff',
+        points: { base: 350, waveScale: 40 },
+        behavior: 'phase',
+        fireRate: { base: 140, intScale: -15, min: 70 },
+        bulletSpeed: { base: 5, intScale: 0.4 },
+        role: 'phase',
+        customDraw: 'skull',
+        special: (enemy) => {
+            enemy.phaseTimer = 0;
+            enemy.isPhased = false;
+            enemy.phaseDuration = 60;
+            enemy.eyeGlow = 0;
+        }
+    },
+    ghostbyte: {
+        sides: 0,
+        size: 20,
+        hp: { base: 2, waveScale: 1/3 },
+        speed: { base: 1.0, waveScale: 0.08 },
+        color: '#88ffff',
+        secondaryColor: '#ffffff',
+        points: { base: 275, waveScale: 30 },
+        behavior: 'ghost',
+        fireRate: { base: 150, intScale: -12, min: 80 },
+        bulletSpeed: { base: 4, intScale: 0.3 },
+        role: 'ghost',
+        customDraw: 'ghost',
+        special: (enemy) => {
+            enemy.floatOffset = Math.random() * Math.PI * 2;
+            enemy.transparency = 1;
+            enemy.ghostTimer = 0;
+        }
+    },
+    laserdisc: {
+        sides: 0,
+        size: 18,
+        hp: { base: 2, waveScale: 1/3 },
+        speed: { base: 2.5, waveScale: 0.15 },
+        color: '#ff6600',
+        secondaryColor: '#ffff00',
+        points: { base: 325, waveScale: 35 },
+        behavior: 'orbit',
+        fireRate: { base: 80, intScale: -8, min: 40 },
+        bulletSpeed: { base: 7, intScale: 0.6 },
+        bulletPattern: 'laser',
+        role: 'laser',
+        customDraw: 'disc',
+        special: (enemy, wave, intelligence) => {
+            enemy.spinSpeed = 0.15 + (intelligence * 0.02);
+            enemy.orbitRadius = 50 + (wave * 3);
+            enemy.orbitCenter = { x: 0, y: 0 };
+            enemy.orbitAngle = Math.random() * Math.PI * 2;
+        }
+    },
+    vhstracker: {
+        sides: 0,
+        size: 22,
+        hp: { base: 3, waveScale: 0.5 },
+        speed: { base: 3, waveScale: 0.2 },
+        color: '#00ff00',
+        secondaryColor: '#ff0000',
+        tertiaryColor: '#0000ff',
+        points: { base: 400, waveScale: 45 },
+        behavior: 'glitch',
+        fireRate: { base: 120, intScale: -12, min: 60 },
+        bulletSpeed: { base: 6, intScale: 0.5 },
+        role: 'tracker',
+        customDraw: 'vhs',
+        special: (enemy, wave, intelligence) => {
+            enemy.glitchTimer = 0;
+            enemy.glitchInterval = 90 - (intelligence * 10);
+            enemy.scanlines = [];
+            enemy.distortionAmount = 0;
+        }
+    },
+    arcadeboss: {
+        sides: 0,
+        size: 35,
+        hp: { base: 8, waveScale: 1 },
+        speed: { base: 0.8, waveScale: 0.05 },
+        color: '#ffff00',
+        secondaryColor: '#ff00ff',
+        points: { base: 800, waveScale: 80 },
+        behavior: 'boss',
+        fireRate: { base: 100, intScale: -10, min: 50 },
+        bulletSpeed: { base: 5, intScale: 0.4 },
+        role: 'miniboss',
+        customDraw: 'arcade',
+        special: (enemy, wave, intelligence) => {
+            enemy.spawnTimer = 0;
+            enemy.spawnInterval = 180 - (intelligence * 15);
+            enemy.screenGlow = 0;
+        }
+    },
+    synthwave: {
+        sides: 0,
+        size: 20,
+        hp: { base: 2, waveScale: 1/3 },
+        speed: { base: 2, waveScale: 0.12 },
+        color: '#ff0080',
+        secondaryColor: '#00ffff',
+        tertiaryColor: '#ffff00',
+        points: { base: 300, waveScale: 35 },
+        behavior: 'pulse',
+        fireRate: { base: 90, intScale: -10, min: 45 },
+        bulletSpeed: { base: 5.5, intScale: 0.45 },
+        role: 'synthwave',
+        customDraw: 'synthwave',
+        special: (enemy) => {
+            enemy.pulsePhase = Math.random() * Math.PI * 2;
+            enemy.waveAmplitude = 30;
+            enemy.neonTrails = [];
+            enemy.neonTrailTimer = 0;
+        }
+    },
+    pixelinvader: {
+        sides: 0,
+        size: 24,
+        hp: { base: 2, waveScale: 0.25 },
+        speed: { base: 1.2, waveScale: 0.08 },
+        color: '#00ff00',
+        secondaryColor: '#88ff88',
+        points: { base: 250, waveScale: 25 },
+        behavior: 'invader',
+        fireRate: { base: 160, intScale: -15, min: 90 },
+        bulletSpeed: { base: 4, intScale: 0.3 },
+        role: 'invader',
+        customDraw: 'invader',
+        special: (enemy) => {
+            enemy.stepTimer = 0;
+            enemy.stepDirection = 1;
+            enemy.stepDistance = 30;
+            enemy.descendAmount = 20;
+            enemy.legFrame = 0;
+        }
+    }
+};
 
 export class Enemy {
     constructor(x, y, type, gameState) {
@@ -22,52 +258,11 @@ export class Enemy {
         this.communicationTimer = 0;
 
         const currentWave = (gameState && gameState.wave) ? gameState.wave : 1;
-
-        // Base stats influenced by wave
-        const waveMultiplier = Math.min(1 + (currentWave * 0.1), 3.0);
         const intelligenceLevel = Math.min(Math.floor(currentWave / 3), 5);
 
-        switch(type) {
-            case 'triangle':
-                this.setupTriangleScout(currentWave, intelligenceLevel);
-                break;
-            case 'square':
-                this.setupSquareHeavy(currentWave, intelligenceLevel);
-                break;
-            case 'pentagon':
-                this.setupPentagonSniper(currentWave, intelligenceLevel);
-                break;
-            case 'divebomber':
-                this.setupDiveBomber(currentWave, intelligenceLevel);
-                break;
-            case 'sinewave':
-                this.setupSineWaveElite(currentWave, intelligenceLevel);
-                break;
-            // NEW 8-BIT INSPIRED ENEMIES
-            case 'pixelskull':
-                this.setupPixelSkull(currentWave, intelligenceLevel);
-                break;
-            case 'ghostbyte':
-                this.setupGhostByte(currentWave, intelligenceLevel);
-                break;
-            case 'laserdisc':
-                this.setupLaserDisc(currentWave, intelligenceLevel);
-                break;
-            case 'vhstracker':
-                this.setupVHSTracker(currentWave, intelligenceLevel);
-                break;
-            case 'arcadeboss':
-                this.setupArcadeBoss(currentWave, intelligenceLevel);
-                break;
-            case 'synthwave':
-                this.setupSynthwaveEnemy(currentWave, intelligenceLevel);
-                break;
-            case 'pixelinvader':
-                this.setupPixelInvader(currentWave, intelligenceLevel);
-                break;
-            default:
-                this.setupTriangleScout(currentWave, intelligenceLevel);
-        }
+        // Setup enemy from configuration (defaults to triangle if unknown type)
+        const cfg = ENEMY_CONFIG[type] || ENEMY_CONFIG.triangle;
+        this.setupFromConfig(cfg, currentWave, intelligenceLevel);
 
         // Store original values for fever mode
         this.originalBehavior = this.behavior;
@@ -77,229 +272,71 @@ export class Enemy {
         this.reactionTime = Math.max(10, 60 - (intelligenceLevel * 10));
     }
 
-    setupTriangleScout(wave, intelligence) {
-        this.sides = 3;
-        this.size = 15;
-        this.hp = 1;
-        this.speed = Math.max(1.8, 2.2 + (wave * 0.18));
-        this.color = '#ff3366';
-        this.points = 100 + (wave * 15);
-        this.behavior = 'aggressive';
-        this.fireRate = Math.max(50, 120 - (intelligence * 15));
-        this.bulletSpeed = 5 + (intelligence * 0.5);
-        this.dodgeChance = 0.05 + (intelligence * 0.03);
-        this.role = 'scout';
+    /**
+     * Applies configuration to this enemy instance
+     * Handles scaling calculations for wave and intelligence level
+     */
+    setupFromConfig(cfg, wave, intelligence) {
+        // Static properties
+        this.sides = cfg.sides;
+        this.size = cfg.size;
+        this.color = cfg.color;
+        this.behavior = cfg.behavior;
+        this.role = cfg.role;
+
+        // Optional colors for 8-bit enemies
+        if (cfg.secondaryColor) this.secondaryColor = cfg.secondaryColor;
+        if (cfg.tertiaryColor) this.tertiaryColor = cfg.tertiaryColor;
+        if (cfg.customDraw) this.customDraw = cfg.customDraw;
+        if (cfg.bulletPattern) this.bulletPattern = cfg.bulletPattern;
+
+        // Scaled HP: base + floor(wave * waveScale)
+        this.hp = this.calcScaledInt(cfg.hp, wave);
+
+        // Scaled speed with optional min
+        this.speed = this.calcScaledValue(cfg.speed, wave);
+
+        // Scaled points
+        this.points = this.calcScaledInt(cfg.points, wave);
+
+        // Scaled fire rate (decreases with intelligence)
+        this.fireRate = cfg.fireRate
+            ? this.calcScaledValue(cfg.fireRate, intelligence, 'intScale')
+            : 999;
+
+        // Scaled bullet speed (optional - some enemies don't shoot)
+        this.bulletSpeed = cfg.bulletSpeed
+            ? this.calcScaledValue(cfg.bulletSpeed, intelligence, 'intScale')
+            : 0;
+
+        // Scaled dodge chance (optional)
+        this.dodgeChance = cfg.dodgeChance
+            ? this.calcScaledValue(cfg.dodgeChance, intelligence, 'intScale')
+            : 0;
+
+        // Apply type-specific special initialization
+        if (cfg.special) {
+            cfg.special(this, wave, intelligence);
+        }
     }
 
-    setupSquareHeavy(wave, intelligence) {
-        this.sides = 4;
-        this.size = 25;
-        this.hp = 3 + Math.floor(wave / 2);
-        this.speed = Math.max(1.0, 1.5 + (wave * 0.08));
-        this.color = '#ff8800';
-        this.points = 200 + (wave * 25);
-        this.behavior = 'patrol';
-        this.fireRate = Math.max(80, 180 - (intelligence * 20));
-        this.bulletSpeed = 4 + (intelligence * 0.3);
-        this.dodgeChance = 0.02 + (intelligence * 0.02);
-        this.role = 'heavy';
-        this.shieldActive = intelligence >= 2;
-        this.shieldStrength = intelligence;
+    /**
+     * Calculate a scaled value: base + (multiplier * scale), with optional min/max
+     */
+    calcScaledValue(prop, multiplier, scaleKey = 'waveScale') {
+        if (typeof prop === 'number') return prop;
+        let value = prop.base + (multiplier * (prop[scaleKey] || 0));
+        if (prop.min !== undefined) value = Math.max(prop.min, value);
+        if (prop.max !== undefined) value = Math.min(prop.max, value);
+        return value;
     }
 
-    setupPentagonSniper(wave, intelligence) {
-        this.sides = 5;
-        this.size = 20;
-        this.hp = 2 + Math.floor(wave / 3);
-        this.speed = Math.max(0.8, 1.2 + (wave * 0.05));
-        this.color = '#aa00ff';
-        this.points = 300 + (wave * 35);
-        this.behavior = 'sniper';
-        this.fireRate = Math.max(100, 200 - (intelligence * 25));
-        this.bulletSpeed = 8 + (intelligence * 0.8);
-        this.dodgeChance = 0.1 + (intelligence * 0.05);
-        this.role = 'sniper';
-        this.aimPrediction = intelligence >= 1;
-        this.burstFire = intelligence >= 3;
-        this.burstCount = 3;
-    }
-
-    setupDiveBomber(wave, intelligence) {
-        this.sides = 3;
-        this.size = 18;
-        this.hp = 2;
-        this.speed = 0.5;
-        this.diveSpeed = 12 + (wave * 0.5);
-        this.color = '#ff0044';
-        this.points = 250 + (wave * 30);
-        this.behavior = 'dive';
-        this.diving = false;
-        this.diveTarget = { x: 0, y: 0 };
-        this.fireRate = 999; // Doesn't shoot, just dives
-        this.role = 'bomber';
-    }
-
-    setupSineWaveElite(wave, intelligence) {
-        this.sides = 6;
-        this.size = 22;
-        this.hp = 4 + Math.floor(wave / 2);
-        this.speed = 2 + (wave * 0.1);
-        this.color = '#00ffaa';
-        this.points = 400 + (wave * 50);
-        this.behavior = 'sinewave';
-        this.sineAmplitude = 100 + (wave * 5);
-        this.sineFrequency = 0.02 + (wave * 0.002);
-        this.sineOffset = Math.random() * Math.PI * 2;
-        this.fireRate = Math.max(60, 100 - (intelligence * 10));
-        this.bulletSpeed = 6 + (intelligence * 0.5);
-        this.bulletPattern = 'spread';
-        this.role = 'elite';
-    }
-
-    // ============================================
-    // NEW 8-BIT INSPIRED ENEMY TYPES
-    // ============================================
-
-    // PIXEL SKULL - Menacing 8-bit skull that phases in/out
-    setupPixelSkull(wave, intelligence) {
-        this.sides = 0; // Custom draw
-        this.size = 24;
-        this.hp = 3 + Math.floor(wave / 2);
-        this.speed = 1.5 + (wave * 0.1);
-        this.color = '#ff00ff';
-        this.secondaryColor = '#00ffff';
-        this.points = 350 + (wave * 40);
-        this.behavior = 'phase';
-        this.fireRate = Math.max(70, 140 - (intelligence * 15));
-        this.bulletSpeed = 5 + (intelligence * 0.4);
-        this.role = 'phase';
-        this.phaseTimer = 0;
-        this.isPhased = false;
-        this.phaseDuration = 60;
-        this.eyeGlow = 0;
-        this.customDraw = 'skull';
-    }
-
-    // GHOST BYTE - Floaty ghost that passes through bullets occasionally
-    setupGhostByte(wave, intelligence) {
-        this.sides = 0; // Custom draw
-        this.size = 20;
-        this.hp = 2 + Math.floor(wave / 3);
-        this.speed = 1.0 + (wave * 0.08);
-        this.color = '#88ffff';
-        this.secondaryColor = '#ffffff';
-        this.points = 275 + (wave * 30);
-        this.behavior = 'ghost';
-        this.fireRate = Math.max(80, 150 - (intelligence * 12));
-        this.bulletSpeed = 4 + (intelligence * 0.3);
-        this.role = 'ghost';
-        this.floatOffset = Math.random() * Math.PI * 2;
-        this.transparency = 1;
-        this.ghostTimer = 0;
-        this.customDraw = 'ghost';
-    }
-
-    // LASER DISC - Spinning disc that fires lasers in patterns
-    setupLaserDisc(wave, intelligence) {
-        this.sides = 0; // Custom draw
-        this.size = 18;
-        this.hp = 2 + Math.floor(wave / 3);
-        this.speed = 2.5 + (wave * 0.15);
-        this.color = '#ff6600';
-        this.secondaryColor = '#ffff00';
-        this.points = 325 + (wave * 35);
-        this.behavior = 'orbit';
-        this.fireRate = Math.max(40, 80 - (intelligence * 8));
-        this.bulletSpeed = 7 + (intelligence * 0.6);
-        this.role = 'laser';
-        this.spinSpeed = 0.15 + (intelligence * 0.02);
-        this.orbitRadius = 50 + (wave * 3);
-        this.orbitCenter = { x: 0, y: 0 };
-        this.orbitAngle = Math.random() * Math.PI * 2;
-        this.bulletPattern = 'laser';
-        this.customDraw = 'disc';
-    }
-
-    // VHS TRACKER - Glitchy enemy that teleports and leaves trails
-    setupVHSTracker(wave, intelligence) {
-        this.sides = 0; // Custom draw
-        this.size = 22;
-        this.hp = 3 + Math.floor(wave / 2);
-        this.speed = 3 + (wave * 0.2);
-        this.color = '#00ff00';
-        this.secondaryColor = '#ff0000';
-        this.tertiaryColor = '#0000ff';
-        this.points = 400 + (wave * 45);
-        this.behavior = 'glitch';
-        this.fireRate = Math.max(60, 120 - (intelligence * 12));
-        this.bulletSpeed = 6 + (intelligence * 0.5);
-        this.role = 'tracker';
-        this.glitchTimer = 0;
-        this.glitchInterval = 90 - (intelligence * 10);
-        this.scanlines = [];
-        this.distortionAmount = 0;
-        this.customDraw = 'vhs';
-    }
-
-    // ARCADE BOSS - Retro arcade cabinet that spawns mini enemies
-    setupArcadeBoss(wave, intelligence) {
-        this.sides = 0; // Custom draw
-        this.size = 35;
-        this.hp = 8 + wave;
-        this.speed = 0.8 + (wave * 0.05);
-        this.color = '#ffff00';
-        this.secondaryColor = '#ff00ff';
-        this.points = 800 + (wave * 80);
-        this.behavior = 'boss';
-        this.fireRate = Math.max(50, 100 - (intelligence * 10));
-        this.bulletSpeed = 5 + (intelligence * 0.4);
-        this.role = 'miniboss';
-        this.spawnTimer = 0;
-        this.spawnInterval = 180 - (intelligence * 15);
-        this.screenGlow = 0;
-        this.customDraw = 'arcade';
-    }
-
-    // SYNTHWAVE - Pulsing neon enemy that fires to the beat
-    setupSynthwaveEnemy(wave, intelligence) {
-        this.sides = 0; // Custom draw
-        this.size = 20;
-        this.hp = 2 + Math.floor(wave / 3);
-        this.speed = 2 + (wave * 0.12);
-        this.color = '#ff0080';
-        this.secondaryColor = '#00ffff';
-        this.tertiaryColor = '#ffff00';
-        this.points = 300 + (wave * 35);
-        this.behavior = 'pulse';
-        this.fireRate = Math.max(45, 90 - (intelligence * 10));
-        this.bulletSpeed = 5.5 + (intelligence * 0.45);
-        this.role = 'synthwave';
-        this.pulsePhase = Math.random() * Math.PI * 2;
-        this.waveAmplitude = 30;
-        this.neonTrails = [];
-        this.neonTrailTimer = 0;
-        this.customDraw = 'synthwave';
-    }
-
-    // PIXEL INVADER - Classic space invader style enemy
-    setupPixelInvader(wave, intelligence) {
-        this.sides = 0; // Custom draw
-        this.size = 24;
-        this.hp = 2 + Math.floor(wave / 4);
-        this.speed = 1.2 + (wave * 0.08);
-        this.color = '#00ff00';
-        this.secondaryColor = '#88ff88';
-        this.points = 250 + (wave * 25);
-        this.behavior = 'invader';
-        this.fireRate = Math.max(90, 160 - (intelligence * 15));
-        this.bulletSpeed = 4 + (intelligence * 0.3);
-        this.role = 'invader';
-        this.stepTimer = 0;
-        this.stepDirection = 1;
-        this.stepDistance = 30;
-        this.descendAmount = 20;
-        this.legFrame = 0;
-        this.customDraw = 'invader';
+    /**
+     * Calculate a scaled integer value (uses floor for partial wave scaling)
+     */
+    calcScaledInt(prop, multiplier) {
+        if (typeof prop === 'number') return prop;
+        return prop.base + Math.floor(multiplier * (prop.waveScale || 0));
     }
 
     update(playerX, playerY, canvas, enemyBulletPool, gameState, particleSystem, deltaTime = 1) {
