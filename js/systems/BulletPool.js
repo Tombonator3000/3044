@@ -19,7 +19,7 @@ export class BulletPool {
     }
 
     createBullet() {
-        return {
+        const bullet = {
             x: 0,
             y: 0,
             vx: 0,
@@ -44,11 +44,19 @@ export class BulletPool {
             explosive: false,
             explosionRadius: 0,
             quantum: false,
-            trail: [],
             maxTrailLength: 5,
+            trail: null,
+            trailIndex: 0,
+            trailCount: 0,
             lifetime: 0,
             maxLifetime: 300  // 5 seconds
         };
+        bullet.trail = this.createTrail(bullet.maxTrailLength);
+        return bullet;
+    }
+
+    createTrail(length) {
+        return Array.from({ length }, () => ({ x: 0, y: 0 }));
     }
 
     // Main spawn method - supports both old get() and new spawn() signatures
@@ -79,7 +87,16 @@ export class BulletPool {
         bullet.active = true;
         bullet.isPlayer = isPlayer;
         bullet.lifetime = 0;
-        bullet.trail = [];
+        bullet.maxTrailLength = options.maxTrailLength || bullet.maxTrailLength;
+        if (bullet.trail.length !== bullet.maxTrailLength) {
+            bullet.trail = this.createTrail(bullet.maxTrailLength);
+        }
+        bullet.trailIndex = 0;
+        bullet.trailCount = 0;
+        for (const point of bullet.trail) {
+            point.x = x;
+            point.y = y;
+        }
 
         // Apply defaults
         bullet.size = options.size || (isPlayer ? 5 : 6);
@@ -128,12 +145,11 @@ export class BulletPool {
             if (bullet.isPlayer) this._playerBulletCount++;
 
             // Store trail position
-            if (bullet.trail.length < bullet.maxTrailLength) {
-                bullet.trail.push({ x: bullet.x, y: bullet.y });
-            } else {
-                bullet.trail.shift();
-                bullet.trail.push({ x: bullet.x, y: bullet.y });
-            }
+            const trailPoint = bullet.trail[bullet.trailIndex];
+            trailPoint.x = bullet.x;
+            trailPoint.y = bullet.y;
+            bullet.trailIndex = (bullet.trailIndex + 1) % bullet.maxTrailLength;
+            bullet.trailCount = Math.min(bullet.trailCount + 1, bullet.maxTrailLength);
 
             // Homing behavior
             if (bullet.homing && bullet.isPlayer && gameState?.enemies) {
@@ -205,14 +221,18 @@ export class BulletPool {
             ctx.save();
 
             // Draw trail
-            if (bullet.trail.length > 1) {
+            if (bullet.trailCount > 1) {
                 ctx.strokeStyle = bullet.color;
                 ctx.lineWidth = bullet.size * 0.5;
                 ctx.globalAlpha = 0.3;
                 ctx.beginPath();
-                ctx.moveTo(bullet.trail[0].x, bullet.trail[0].y);
-                for (let i = 1; i < bullet.trail.length; i++) {
-                    ctx.lineTo(bullet.trail[i].x, bullet.trail[i].y);
+                const startIndex = (bullet.trailIndex - bullet.trailCount + bullet.maxTrailLength) % bullet.maxTrailLength;
+                const firstPoint = bullet.trail[startIndex];
+                ctx.moveTo(firstPoint.x, firstPoint.y);
+                for (let i = 1; i < bullet.trailCount; i++) {
+                    const pointIndex = (startIndex + i) % bullet.maxTrailLength;
+                    const point = bullet.trail[pointIndex];
+                    ctx.lineTo(point.x, point.y);
                 }
                 ctx.stroke();
                 ctx.globalAlpha = 1;
