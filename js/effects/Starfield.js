@@ -16,7 +16,17 @@ export class Starfield {
         this.initLayers();
         this.initNebulae();
 
+        // Sidescroller mode flag
+        this.sidescrollerMode = false;
+
         console.log(`⭐ Enhanced starfield created with ${this.layers.length} star layers, ${this.nebulae.length} main nebulae, and ${this.distantNebulae.length} distant nebulae`);
+    }
+
+    /**
+     * Set sidescroller mode for horizontal star movement
+     */
+    setSidescrollerMode(enabled) {
+        this.sidescrollerMode = enabled;
     }
 
     initLayers() {
@@ -111,32 +121,61 @@ export class Starfield {
         // Update star layers
         for (const layer of this.layers) {
             for (const star of layer) {
-                star.y += star.speed * dt;
+                if (this.sidescrollerMode) {
+                    // Horizontal scrolling (R-Type style)
+                    star.x -= star.speed * dt * 1.5; // Faster horizontal movement
 
-                // Wrap around
-                if (star.y > this.height) {
-                    star.y = -5;
-                    star.x = Math.random() * this.width;
+                    // Wrap around horizontally
+                    if (star.x < -5) {
+                        star.x = this.width + 5;
+                        star.y = Math.random() * this.height;
+                    }
+                } else {
+                    // Vertical scrolling (normal mode)
+                    star.y += star.speed * dt;
+
+                    // Wrap around
+                    if (star.y > this.height) {
+                        star.y = -5;
+                        star.x = Math.random() * this.width;
+                    }
                 }
             }
         }
 
         // Update nebulae
         for (const nebula of this.nebulae) {
-            nebula.y += nebula.speed * dt;
-            if (nebula.y > this.height + nebula.radius) {
-                nebula.y = -nebula.radius;
-                nebula.x = Math.random() * this.width;
-                nebula.color = this.getNebulaColor();
+            if (this.sidescrollerMode) {
+                nebula.x -= nebula.speed * dt * 1.5;
+                if (nebula.x < -nebula.radius) {
+                    nebula.x = this.width + nebula.radius;
+                    nebula.y = Math.random() * this.height;
+                    nebula.color = this.getNebulaColor();
+                }
+            } else {
+                nebula.y += nebula.speed * dt;
+                if (nebula.y > this.height + nebula.radius) {
+                    nebula.y = -nebula.radius;
+                    nebula.x = Math.random() * this.width;
+                    nebula.color = this.getNebulaColor();
+                }
             }
         }
 
         // Update distant nebulae
         for (const nebula of this.distantNebulae) {
-            nebula.y += nebula.speed * dt;
-            if (nebula.y > this.height + nebula.radius) {
-                nebula.y = -nebula.radius;
-                nebula.x = Math.random() * this.width;
+            if (this.sidescrollerMode) {
+                nebula.x -= nebula.speed * dt;
+                if (nebula.x < -nebula.radius) {
+                    nebula.x = this.width + nebula.radius;
+                    nebula.y = Math.random() * this.height;
+                }
+            } else {
+                nebula.y += nebula.speed * dt;
+                if (nebula.y > this.height + nebula.radius) {
+                    nebula.y = -nebula.radius;
+                    nebula.x = Math.random() * this.width;
+                }
             }
         }
     }

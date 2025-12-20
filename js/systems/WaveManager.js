@@ -138,11 +138,16 @@ export class WaveManager {
         return availableTypes[Math.floor(Math.random() * availableTypes.length)];
     }
 
-    getSpawnPosition(canvas, enemyType) {
+    getSpawnPosition(canvas, enemyType, sidescrollerMode = false) {
         const padding = 50;
         let x, y;
 
-        // Spawn enemies just above visible screen (y = -5 to -15)
+        // SIDESCROLLER MODE: Enemies spawn from the right side
+        if (sidescrollerMode) {
+            return this.getSidescrollerSpawnPosition(canvas, enemyType, padding);
+        }
+
+        // Normal mode: Spawn enemies just above visible screen (y = -5 to -15)
         // so they appear immediately and can't be shot before they're visible
         switch (enemyType) {
             case 'divebomber':
@@ -217,6 +222,82 @@ export class WaveManager {
         return { x, y };
     }
 
+    /**
+     * Get spawn position for sidescroller mode (R-Type style)
+     * Enemies spawn from the right side of the screen
+     */
+    getSidescrollerSpawnPosition(canvas, enemyType, padding) {
+        let x, y;
+
+        switch (enemyType) {
+            case 'divebomber':
+                // Divebombers come from right, dive left
+                x = canvas.logicalWidth + 5;
+                y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
+                break;
+
+            case 'sinewave':
+                // Sinewave enemies come from right, wave up/down as they go left
+                x = canvas.logicalWidth + 5;
+                y = canvas.logicalHeight / 2;
+                break;
+
+            case 'pixelskull':
+                // Skulls phase in from right
+                x = canvas.logicalWidth + 10;
+                y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
+                break;
+
+            case 'ghostbyte':
+                // Ghosts float in from right
+                x = canvas.logicalWidth + 5;
+                y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
+                break;
+
+            case 'laserdisc':
+                // Discs come from right or top/bottom
+                if (Math.random() > 0.7) {
+                    x = canvas.logicalWidth + 5;
+                    y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
+                } else {
+                    x = canvas.logicalWidth * 0.6 + Math.random() * (canvas.logicalWidth * 0.4);
+                    y = Math.random() > 0.5 ? -5 : canvas.logicalHeight + 5;
+                }
+                break;
+
+            case 'vhstracker':
+                // VHS trackers glitch in from right
+                x = canvas.logicalWidth + 10;
+                y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
+                break;
+
+            case 'arcadeboss':
+                // Arcade cabinets enter from right center
+                x = canvas.logicalWidth + 15;
+                y = canvas.logicalHeight * 0.3 + Math.random() * (canvas.logicalHeight * 0.4);
+                break;
+
+            case 'synthwave':
+                // Synthwave enemies pulse in from right with spread
+                x = canvas.logicalWidth + 8;
+                y = canvas.logicalHeight * 0.2 + Math.random() * (canvas.logicalHeight * 0.6);
+                break;
+
+            case 'pixelinvader':
+                // Invaders march in from right in formation
+                x = canvas.logicalWidth + 5;
+                y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
+                break;
+
+            default:
+                // Standard enemies from right side
+                x = canvas.logicalWidth + 5 + Math.random() * 10;
+                y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
+        }
+
+        return { x, y };
+    }
+
     update(enemies, canvas, gameState) {
         // Show wave text countdown
         if (this.showingWaveText) {
@@ -241,11 +322,16 @@ export class WaveManager {
         // Spawn enemies
         this.spawnTimer--;
 
+        // Check if we're in sidescroller mode
+        const sidescrollerMode = gameState?.sidescrollerMode || false;
+
         if (this.spawnTimer <= 0 && this.enemiesSpawned < this.enemiesPerWave) {
             const enemyType = this.getEnemyTypeForWave(this.wave);
-            const pos = this.getSpawnPosition(canvas, enemyType);
+            const pos = this.getSpawnPosition(canvas, enemyType, sidescrollerMode);
 
             const enemy = new Enemy(pos.x, pos.y, enemyType, gameState);
+            // Mark enemy for sidescroller movement
+            enemy.sidescrollerMode = sidescrollerMode;
             enemies.push(enemy);
 
             this.enemiesSpawned++;
@@ -254,15 +340,19 @@ export class WaveManager {
             // Spawn in pairs/groups for later waves (increased chance and earlier start)
             if (this.wave >= 3 && Math.random() < 0.5 && this.enemiesSpawned < this.enemiesPerWave) {
                 const extraType = this.getEnemyTypeForWave(this.wave);
-                const extraPos = this.getSpawnPosition(canvas, extraType);
-                enemies.push(new Enemy(extraPos.x, extraPos.y, extraType, gameState));
+                const extraPos = this.getSpawnPosition(canvas, extraType, sidescrollerMode);
+                const extraEnemy = new Enemy(extraPos.x, extraPos.y, extraType, gameState);
+                extraEnemy.sidescrollerMode = sidescrollerMode;
+                enemies.push(extraEnemy);
                 this.enemiesSpawned++;
 
                 // Triple spawn chance for wave 10+
                 if (this.wave >= 10 && Math.random() < 0.4 && this.enemiesSpawned < this.enemiesPerWave) {
                     const thirdType = this.getEnemyTypeForWave(this.wave);
-                    const thirdPos = this.getSpawnPosition(canvas, thirdType);
-                    enemies.push(new Enemy(thirdPos.x, thirdPos.y, thirdType, gameState));
+                    const thirdPos = this.getSpawnPosition(canvas, thirdType, sidescrollerMode);
+                    const thirdEnemy = new Enemy(thirdPos.x, thirdPos.y, thirdType, gameState);
+                    thirdEnemy.sidescrollerMode = sidescrollerMode;
+                    enemies.push(thirdEnemy);
                     this.enemiesSpawned++;
                 }
             }
@@ -294,7 +384,7 @@ export class WaveManager {
         return this.enemiesSpawned / this.enemiesPerWave;
     }
 
-    drawWaveText(ctx, canvas) {
+    drawWaveText(ctx, canvas, sidescrollerMode = false) {
         if (!this.showingWaveText) return;
 
         const theme = getCurrentTheme(this.wave);
@@ -320,11 +410,23 @@ export class WaveManager {
         ctx.fillStyle = theme.primary;
         ctx.fillText(`WAVE ${this.wave}`, 0, -20);
 
-        // Theme name
+        // Theme name or sidescroller indicator
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.shadowColor = theme.secondary;
         ctx.fillStyle = theme.secondary;
-        ctx.fillText(theme.name, 0, 40);
+
+        if (sidescrollerMode) {
+            // Show R-TYPE style indicator for sidescroller waves
+            ctx.fillText('R-TYPE ASSAULT', 0, 40);
+
+            // Additional indicator
+            ctx.font = 'bold 16px "Courier New", monospace';
+            ctx.fillStyle = '#ff00ff';
+            ctx.shadowColor = '#ff00ff';
+            ctx.fillText('← HORIZONTAL ATTACK →', 0, 70);
+        } else {
+            ctx.fillText(theme.name, 0, 40);
+        }
 
         ctx.restore();
     }

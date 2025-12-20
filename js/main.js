@@ -1871,6 +1871,15 @@ function update(deltaTime) {
                 spawnBoss();
             } else {
                 waveManager.startWave(gameState.wave, gameState);
+
+                // Update sidescroller mode for player and starfield
+                const isSidescroller = gameState.sidescrollerMode;
+                if (player) {
+                    player.setSidescrollerMode(isSidescroller, canvas);
+                }
+                if (starfield) {
+                    starfield.setSidescrollerMode(isSidescroller);
+                }
             }
         }
     }
@@ -2090,7 +2099,7 @@ function render() {
     if (radicalSlang) radicalSlang.draw(ctx, canvas.logicalWidth, canvas.logicalHeight);
 
     // Wave text
-    if (waveManager) waveManager.drawWaveText(ctx, canvas);
+    if (waveManager) waveManager.drawWaveText(ctx, canvas, gameState?.sidescrollerMode);
 
     ctx.restore();
 

@@ -279,6 +279,9 @@ export class Enemy {
         this.originalSpeed = this.speed;
         this.intelligence = intelligenceLevel;
         this.reactionTime = Math.max(10, 60 - (intelligenceLevel * 10));
+
+        // Sidescroller mode flag (set by WaveManager when spawning)
+        this.sidescrollerMode = false;
     }
 
     /**
@@ -421,7 +424,11 @@ export class Enemy {
                 this.invaderBehavior(canvas, scaledDeltaTime);
                 break;
             default:
-                this.y += this.speed * scaledDeltaTime;
+                if (this.sidescrollerMode) {
+                    this.x -= this.speed * scaledDeltaTime; // Move left in sidescroller
+                } else {
+                    this.y += this.speed * scaledDeltaTime; // Move down in normal
+                }
         }
 
         // Try to dodge player bullets
@@ -435,30 +442,58 @@ export class Enemy {
             this.fireTimer = 0;
         }
 
-        // Remove if off screen
-        if (this.y > canvas.logicalHeight + 50 || this.x < -50 || this.x > canvas.logicalWidth + 50) {
-            this.active = false;
+        // Remove if off screen (different bounds for sidescroller mode)
+        if (this.sidescrollerMode) {
+            // In sidescroller, enemies exit on the left side
+            if (this.x < -50 || this.y < -50 || this.y > canvas.logicalHeight + 50) {
+                this.active = false;
+            }
+        } else {
+            // Normal mode: enemies exit at bottom
+            if (this.y > canvas.logicalHeight + 50 || this.x < -50 || this.x > canvas.logicalWidth + 50) {
+                this.active = false;
+            }
         }
     }
 
     aggressiveBehavior(playerX, playerY, canvas, deltaTime) {
-        // Move toward player horizontally, down vertically
-        const dx = playerX - this.x;
-        const step = Math.min(Math.abs(dx) * 0.02, this.speed);
-        this.x += Math.sign(dx) * step * deltaTime;
-        this.y += this.speed * deltaTime;
+        if (this.sidescrollerMode) {
+            // Sidescroller: Move toward player vertically, left horizontally
+            const dy = playerY - this.y;
+            const step = Math.min(Math.abs(dy) * 0.02, this.speed);
+            this.y += Math.sign(dy) * step * deltaTime;
+            this.x -= this.speed * deltaTime; // Move left
 
-        // Bounds
-        this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
+            // Bounds
+            this.y = Math.max(this.size, Math.min(canvas.logicalHeight - this.size, this.y));
+        } else {
+            // Normal: Move toward player horizontally, down vertically
+            const dx = playerX - this.x;
+            const step = Math.min(Math.abs(dx) * 0.02, this.speed);
+            this.x += Math.sign(dx) * step * deltaTime;
+            this.y += this.speed * deltaTime;
+
+            // Bounds
+            this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
+        }
     }
 
     patrolBehavior(canvas, deltaTime) {
-        // Move in a pattern
-        this.x += Math.sin(this.moveTimer * 0.03) * this.speed * 2 * deltaTime;
-        this.y += this.speed * 0.5 * deltaTime;
+        if (this.sidescrollerMode) {
+            // Sidescroller: Move in vertical wave pattern, left horizontally
+            this.y += Math.sin(this.moveTimer * 0.03) * this.speed * 2 * deltaTime;
+            this.x -= this.speed * 0.5 * deltaTime;
 
-        // Bounds
-        this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
+            // Bounds
+            this.y = Math.max(this.size, Math.min(canvas.logicalHeight - this.size, this.y));
+        } else {
+            // Normal: Move in horizontal pattern, down
+            this.x += Math.sin(this.moveTimer * 0.03) * this.speed * 2 * deltaTime;
+            this.y += this.speed * 0.5 * deltaTime;
+
+            // Bounds
+            this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
+        }
     }
 
     sniperBehavior(playerX, playerY, canvas, deltaTime) {
@@ -493,8 +528,15 @@ export class Enemy {
     }
 
     sinewaveBehavior(canvas, deltaTime) {
-        this.y += this.speed * deltaTime;
-        this.x = (canvas.logicalWidth / 2) + Math.sin(this.moveTimer * this.sineFrequency + this.sineOffset) * this.sineAmplitude;
+        if (this.sidescrollerMode) {
+            // Sidescroller: Wave up/down while moving left
+            this.x -= this.speed * deltaTime;
+            this.y = (canvas.logicalHeight / 2) + Math.sin(this.moveTimer * this.sineFrequency + this.sineOffset) * this.sineAmplitude;
+        } else {
+            // Normal: Wave left/right while moving down
+            this.y += this.speed * deltaTime;
+            this.x = (canvas.logicalWidth / 2) + Math.sin(this.moveTimer * this.sineFrequency + this.sineOffset) * this.sineAmplitude;
+        }
     }
 
     fleeBehavior(playerX, playerY, canvas, deltaTime) {

@@ -37,6 +37,10 @@ export class GameState {
         this.bossActive = false;
         this.miniBossActive = false;
 
+        // Sidescroller mode (R-Type style)
+        this.sidescrollerMode = false;
+        this.sidescrollerWaves = [4, 9, 14, 19, 24, 29]; // Waves that use sidescroller mode
+
         // Player state
         this.player = null;
         this.playerInvulnerable = false;
@@ -212,11 +216,21 @@ export class GameState {
         this.enemiesKilledThisWave = 0;
         this.totalEnemiesThisWave = 0;
 
+        // Check if this wave should be sidescroller mode
+        this.sidescrollerMode = this.sidescrollerWaves.includes(waveNumber);
+
         // Show theme name for new theme waves
         if (waveNumber <= 6) {
             this.themeChangeTimer = CONFIG.timing.themeChangeDisplay;
             this.showThemeName = true;
         }
+    }
+
+    /**
+     * Check if current wave is a sidescroller wave
+     */
+    isSidescrollerWave() {
+        return this.sidescrollerMode;
     }
 
     /**
