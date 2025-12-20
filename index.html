@@ -76,8 +76,10 @@
 
                 <!-- Footer Info -->
                 <div class="footer-info">
+                    <p class="score-bank" id="scoreBankDisplay">SCORE BANK: 0</p>
                     <p class="credits" id="creditsDisplay">CREDITS: <span id="creditsCount">3</span></p>
-                    <p class="insert-coin blink">INSERT COIN</p>
+                    <p class="credit-cost" id="creditCostDisplay">CREDIT COST: 1,000 PTS</p>
+                    <p class="insert-coin blink">PRESS C: BUY CREDIT</p>
                 </div>
             </div>
 
@@ -140,11 +142,14 @@
             <div class="continue-timer">
                 <span id="continueTimerDisplay">10</span>
             </div>
-            <div class="continue-instruction">
-                INSERT COIN TO CONTINUE
+            <div class="continue-credit-info">
+                <span id="continueCreditsDisplay">CREDITS: 0</span>
+            </div>
+            <div class="continue-cost-info" id="continueCreditCost">
+                NEXT CREDIT: 1,000 PTS
             </div>
             <div class="continue-hint">
-                Press C to Insert Coin
+                Press C to Buy Credit (costs score)
             </div>
         </div>
 
