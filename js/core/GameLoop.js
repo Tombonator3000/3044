@@ -423,7 +423,7 @@ export class GameLoop {
         if (gs && gs.flashEffect.active) {
             ctx.fillStyle = gs.flashEffect.color;
             ctx.globalAlpha = gs.flashEffect.alpha;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, canvas.logicalWidth, canvas.logicalHeight);
             ctx.globalAlpha = 1;
         }
 
@@ -534,7 +534,7 @@ export class GameLoop {
 
         // Render options menu if available and visible
         if (this.optionsMenu && this.optionsMenu.isVisible()) {
-            this.optionsMenu.draw(ctx, this.canvas.width, this.canvas.height);
+            this.optionsMenu.draw(ctx, this.canvas.logicalWidth, this.canvas.logicalHeight);
         }
     }
 
@@ -565,19 +565,19 @@ export class GameLoop {
         ctx.shadowColor = CONFIG.colors.wave;
         ctx.fillStyle = CONFIG.colors.wave;
         ctx.font = 'bold 20px "Courier New", monospace';
-        ctx.fillText(`WAVE ${wave}`, this.canvas.width / 2, 20);
+        ctx.fillText(`WAVE ${wave}`, this.canvas.logicalWidth / 2, 20);
 
         // Lives
         ctx.textAlign = 'right';
         ctx.shadowColor = CONFIG.colors.lives;
         ctx.fillStyle = CONFIG.colors.lives;
         ctx.font = '20px "Courier New", monospace';
-        ctx.fillText(`\u2665 ${gs.lives}`, this.canvas.width - 20, 20);
+        ctx.fillText(`\u2665 ${gs.lives}`, this.canvas.logicalWidth - 20, 20);
 
         // Bombs
         ctx.shadowColor = CONFIG.colors.bombs;
         ctx.fillStyle = CONFIG.colors.bombs;
-        ctx.fillText(`\u2605 ${gs.bombs}`, this.canvas.width - 20, 50);
+        ctx.fillText(`\u2605 ${gs.bombs}`, this.canvas.logicalWidth - 20, 50);
 
         // Combo
         if (gs.combo > 1) {
@@ -585,7 +585,7 @@ export class GameLoop {
             ctx.shadowColor = theme.accent;
             ctx.fillStyle = theme.accent;
             ctx.font = 'bold 28px "Courier New", monospace';
-            ctx.fillText(`${gs.combo}x COMBO!`, this.canvas.width / 2, 60);
+            ctx.fillText(`${gs.combo}x COMBO!`, this.canvas.logicalWidth / 2, 60);
         }
 
         // Theme name display
@@ -596,7 +596,7 @@ export class GameLoop {
             ctx.textAlign = 'center';
             ctx.shadowColor = theme.primary;
             ctx.fillStyle = theme.primary;
-            ctx.fillText(theme.name, this.canvas.width / 2, this.canvas.height / 2 - 50);
+            ctx.fillText(theme.name, this.canvas.logicalWidth / 2, this.canvas.logicalHeight / 2 - 50);
             ctx.globalAlpha = 1;
         }
 
@@ -609,7 +609,7 @@ export class GameLoop {
      */
     renderPauseOverlay(ctx, canvas) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, canvas.logicalWidth, canvas.logicalHeight);
 
         ctx.font = 'bold 48px "Courier New", monospace';
         ctx.textAlign = 'center';
@@ -617,11 +617,11 @@ export class GameLoop {
         ctx.shadowBlur = 20;
         ctx.shadowColor = '#00ffff';
         ctx.fillStyle = '#00ffff';
-        ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+        ctx.fillText('PAUSED', canvas.logicalWidth / 2, canvas.logicalHeight / 2);
 
         ctx.font = '20px "Courier New", monospace';
         ctx.fillStyle = '#ffffff';
-        ctx.fillText('Press ESC or P to resume', canvas.width / 2, canvas.height / 2 + 50);
+        ctx.fillText('Press ESC or P to resume', canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 50);
 
         ctx.shadowBlur = 0;
     }
@@ -651,11 +651,11 @@ export class GameLoop {
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
         ctx.fillStyle = this.currentFPS < 30 ? '#ff0000' : this.currentFPS < 50 ? '#ffff00' : '#00ff00';
-        ctx.fillText(`FPS: ${this.currentFPS}`, 10, this.canvas.height - 10);
+        ctx.fillText(`FPS: ${this.currentFPS}`, 10, this.canvas.logicalHeight - 10);
 
         if (this.collisionSystem) {
             const stats = this.collisionSystem.getStats();
-            ctx.fillText(`Checks: ${stats.checksPerFrame}`, 10, this.canvas.height - 30);
+            ctx.fillText(`Checks: ${stats.checksPerFrame}`, 10, this.canvas.logicalHeight - 30);
         }
 
         ctx.restore();

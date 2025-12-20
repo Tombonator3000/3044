@@ -442,7 +442,7 @@ export class GameModeManager {
         const cardWidth = 250;
         const cardHeight = 120;
         const spacing = 20;
-        const startX = (canvas.width - (cardWidth * 2 + spacing)) / 2;
+        const startX = (canvas.logicalWidth - (cardWidth * 2 + spacing)) / 2;
         const startY = 150;
 
         ctx.save();
@@ -453,7 +453,7 @@ export class GameModeManager {
         ctx.fillStyle = '#00ffff';
         ctx.shadowBlur = 20;
         ctx.shadowColor = '#00ffff';
-        ctx.fillText('SELECT GAME MODE', canvas.width / 2, 80);
+        ctx.fillText('SELECT GAME MODE', canvas.logicalWidth / 2, 80);
 
         // Draw each mode
         modes.forEach((mode, index) => {

@@ -133,13 +133,13 @@ export class WaveManager {
         switch (enemyType) {
             case 'divebomber':
                 // Divebombers come from top
-                x = padding + Math.random() * (canvas.width - padding * 2);
+                x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
                 y = -30;
                 break;
 
             case 'sinewave':
                 // Sinewave enemies start from sides
-                x = Math.random() > 0.5 ? -30 : canvas.width + 30;
+                x = Math.random() > 0.5 ? -30 : canvas.logicalWidth + 30;
                 y = 50 + Math.random() * 100;
                 break;
 
@@ -149,54 +149,54 @@ export class WaveManager {
 
             case 'pixelskull':
                 // Skulls phase in from anywhere at top
-                x = padding + Math.random() * (canvas.width - padding * 2);
+                x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
                 y = -40;
                 break;
 
             case 'ghostbyte':
                 // Ghosts float in from sides
-                x = Math.random() > 0.5 ? -30 : canvas.width + 30;
+                x = Math.random() > 0.5 ? -30 : canvas.logicalWidth + 30;
                 y = 30 + Math.random() * 150;
                 break;
 
             case 'laserdisc':
                 // Discs orbit in from corners
                 if (Math.random() > 0.5) {
-                    x = Math.random() > 0.5 ? -30 : canvas.width + 30;
+                    x = Math.random() > 0.5 ? -30 : canvas.logicalWidth + 30;
                     y = 50 + Math.random() * 100;
                 } else {
-                    x = padding + Math.random() * (canvas.width - padding * 2);
+                    x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
                     y = -30;
                 }
                 break;
 
             case 'vhstracker':
                 // VHS trackers glitch in from random top positions
-                x = padding + Math.random() * (canvas.width - padding * 2);
+                x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
                 y = -40 - Math.random() * 30;
                 break;
 
             case 'arcadeboss':
                 // Arcade cabinets descend from center-top
-                x = canvas.width * 0.3 + Math.random() * (canvas.width * 0.4);
+                x = canvas.logicalWidth * 0.3 + Math.random() * (canvas.logicalWidth * 0.4);
                 y = -60;
                 break;
 
             case 'synthwave':
                 // Synthwave enemies pulse in from center-top with spread
-                x = canvas.width * 0.2 + Math.random() * (canvas.width * 0.6);
+                x = canvas.logicalWidth * 0.2 + Math.random() * (canvas.logicalWidth * 0.6);
                 y = -35;
                 break;
 
             case 'pixelinvader':
                 // Classic invaders line up at top like the original game
-                x = padding + Math.random() * (canvas.width - padding * 2);
+                x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
                 y = -30;
                 break;
 
             default:
                 // Standard enemies from top
-                x = padding + Math.random() * (canvas.width - padding * 2);
+                x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
                 y = -30 - Math.random() * 50;
         }
 
@@ -280,7 +280,7 @@ export class WaveManager {
         const scale = 1 + (1 - this.waveTextTimer / 120) * 0.5;
 
         ctx.save();
-        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.translate(canvas.logicalWidth / 2, canvas.logicalHeight / 2);
         ctx.scale(scale, scale);
         ctx.globalAlpha = alpha;
 

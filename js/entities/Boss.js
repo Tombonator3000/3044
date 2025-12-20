@@ -6,7 +6,7 @@ import { config, getCurrentTheme } from '../config.js';
 
 export class Boss {
     constructor(wave, canvas) {
-        this.x = canvas.width / 2;
+        this.x = canvas.logicalWidth / 2;
         this.y = -100;
         this.targetY = 120;
         this.canvas = canvas;
@@ -216,7 +216,7 @@ export class Boss {
             case 'phantom':
                 // Erratic movement
                 if (Math.random() < 0.02 && this.canTeleport) {
-                    this.x = 100 + Math.random() * (this.canvas.width - 200);
+                    this.x = 100 + Math.random() * (this.canvas.logicalWidth - 200);
                 } else {
                     this.x += (Math.random() - 0.5) * this.speed * 3;
                 }
@@ -239,7 +239,7 @@ export class Boss {
         }
 
         // Keep in bounds
-        this.x = Math.max(this.size, Math.min(this.canvas.width - this.size, this.x));
+        this.x = Math.max(this.size, Math.min(this.canvas.logicalWidth - this.size, this.x));
     }
 
     getAttackDelay() {
@@ -401,7 +401,7 @@ export class Boss {
 
     attackBlink(playerX, playerY, bulletPool) {
         // Teleport and fire in all directions
-        this.x = 100 + Math.random() * (this.canvas.width - 200);
+        this.x = 100 + Math.random() * (this.canvas.logicalWidth - 200);
 
         for (let i = 0; i < 8; i++) {
             const angle = (Math.PI * 2 * i) / 8;
@@ -414,9 +414,9 @@ export class Boss {
     attackClone(bulletPool, particleSystem) {
         // Fire from multiple positions
         const positions = [
-            this.canvas.width * 0.25,
-            this.canvas.width * 0.5,
-            this.canvas.width * 0.75
+            this.canvas.logicalWidth * 0.25,
+            this.canvas.logicalWidth * 0.5,
+            this.canvas.logicalWidth * 0.75
         ];
 
         for (const x of positions) {
@@ -487,7 +487,7 @@ export class Boss {
 
         // Warning line
         if (particleSystem) {
-            for (let y = 0; y < this.canvas.height; y += 30) {
+            for (let y = 0; y < this.canvas.logicalHeight; y += 30) {
                 particleSystem.addParticle({
                     x: beamX,
                     y: y,
@@ -663,7 +663,7 @@ export class Boss {
     drawHealthBar(ctx) {
         const barWidth = 200;
         const barHeight = 20;
-        const x = this.canvas.width / 2 - barWidth / 2;
+        const x = this.canvas.logicalWidth / 2 - barWidth / 2;
         const y = 20;
 
         // Background
@@ -706,12 +706,12 @@ export class Boss {
         ctx.fillStyle = this.color;
         ctx.shadowBlur = 15;
         ctx.shadowColor = this.color;
-        ctx.fillText(this.name, this.canvas.width / 2, 55);
+        ctx.fillText(this.name, this.canvas.logicalWidth / 2, 55);
 
         // Phase indicator
         ctx.font = '12px "Courier New", monospace';
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(`PHASE ${this.currentPhase}`, this.canvas.width / 2, 70);
+        ctx.fillText(`PHASE ${this.currentPhase}`, this.canvas.logicalWidth / 2, 70);
         ctx.restore();
     }
 }

@@ -119,6 +119,7 @@ export class VHSEffect {
     }
 
     applyChromaticAberration(ctx, canvas) {
+        const { width, height } = this.getCanvasSize(canvas);
         // Simple RGB shift simulation
         // Note: True chromatic aberration requires pixel manipulation
         // This is a simplified version using shadow effects
@@ -135,24 +136,25 @@ export class VHSEffect {
         ctx.shadowOffsetX = -offset;
         ctx.shadowOffsetY = 0;
         ctx.fillStyle = 'transparent';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, width, height);
 
         // Blue shift right
         ctx.shadowColor = '#0000ff';
         ctx.shadowOffsetX = offset;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, width, height);
 
         ctx.restore();
     }
 
     applyScanlines(ctx, canvas) {
+        const { width, height } = this.getCanvasSize(canvas);
         ctx.save();
         ctx.globalAlpha = this.scanlineIntensity;
         ctx.fillStyle = '#000000';
 
         // Draw fewer scanlines - every 6 pixels instead of 4
-        for (let y = this.scanlineOffset; y < canvas.height; y += 6) {
-            ctx.fillRect(0, y, canvas.width, 2);
+        for (let y = this.scanlineOffset; y < height; y += 6) {
+            ctx.fillRect(0, y, width, 2);
         }
 
         ctx.restore();
@@ -160,6 +162,7 @@ export class VHSEffect {
 
     applyNoise(ctx, canvas) {
         if (!this.noiseCanvas) return;
+        const { width, height } = this.getCanvasSize(canvas);
 
         ctx.save();
         ctx.globalAlpha = this.noiseIntensity * (this.glitchActive ? 3 : 1);
@@ -168,13 +171,14 @@ export class VHSEffect {
         // Tile the noise
         const pattern = ctx.createPattern(this.noiseCanvas, 'repeat');
         ctx.fillStyle = pattern;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, width, height);
 
         ctx.restore();
     }
 
     applyGlitch(ctx, canvas) {
         if (!this.glitchActive) return;
+        const { width, height } = this.getCanvasSize(canvas);
 
         const intensity = this.glitchIntensity * (this.glitchTimer / 30);
 
@@ -182,13 +186,13 @@ export class VHSEffect {
         const sliceCount = Math.floor(3 + Math.random() * 5 * intensity);
 
         for (let i = 0; i < sliceCount; i++) {
-            const y = Math.random() * canvas.height;
-            const height = 5 + Math.random() * 30 * intensity;
+            const y = Math.random() * height;
+            const sliceHeight = 5 + Math.random() * 30 * intensity;
             const offsetX = (Math.random() - 0.5) * 50 * intensity;
 
             // Save slice
             try {
-                const imageData = ctx.getImageData(0, y, canvas.width, height);
+                const imageData = ctx.getImageData(0, y, width, sliceHeight);
                 ctx.putImageData(imageData, offsetX, y);
             } catch (e) {
                 // Security error if canvas is tainted
@@ -201,27 +205,35 @@ export class VHSEffect {
             ctx.globalCompositeOperation = 'exclusion';
             ctx.globalAlpha = 0.2 * intensity;
             ctx.fillStyle = ['#ff0000', '#00ff00', '#0000ff'][Math.floor(Math.random() * 3)];
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, width, height);
             ctx.restore();
         }
     }
 
     applyVignette(ctx, canvas) {
+        const { width, height } = this.getCanvasSize(canvas);
         // Cache gradient if canvas size hasn't changed
-        if (this.lastCanvasSize.w !== canvas.width || this.lastCanvasSize.h !== canvas.height) {
+        if (this.lastCanvasSize.w !== width || this.lastCanvasSize.h !== height) {
             this.vignetteGradient = ctx.createRadialGradient(
-                canvas.width / 2, canvas.height / 2, 0,
-                canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) * 0.7
+                width / 2, height / 2, 0,
+                width / 2, height / 2, Math.max(width, height) * 0.7
             );
             this.vignetteGradient.addColorStop(0, 'transparent');
             this.vignetteGradient.addColorStop(0.5, 'transparent');
             this.vignetteGradient.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
-            this.lastCanvasSize.w = canvas.width;
-            this.lastCanvasSize.h = canvas.height;
+            this.lastCanvasSize.w = width;
+            this.lastCanvasSize.h = height;
         }
 
         ctx.fillStyle = this.vignetteGradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, width, height);
+    }
+
+    getCanvasSize(canvas) {
+        return {
+            width: canvas.logicalWidth || canvas.width,
+            height: canvas.logicalHeight || canvas.height
+        };
     }
 
     // CRT screen curvature effect (optional, performance heavy)

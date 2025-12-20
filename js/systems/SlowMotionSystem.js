@@ -160,8 +160,8 @@ export class SlowMotionSystem {
 
         // Vignette effect
         const gradient = ctx.createRadialGradient(
-            canvas.width / 2, canvas.height / 2, 0,
-            canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) / 2
+            canvas.logicalWidth / 2, canvas.logicalHeight / 2, 0,
+            canvas.logicalWidth / 2, canvas.logicalHeight / 2, Math.max(canvas.logicalWidth, canvas.logicalHeight) / 2
         );
 
         gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
@@ -169,20 +169,20 @@ export class SlowMotionSystem {
         gradient.addColorStop(1, `rgba(0, 0, 0, ${alpha * 0.8})`);
 
         ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, canvas.logicalWidth, canvas.logicalHeight);
 
         // Color tint at edges
         const colorAlpha = Math.floor(alpha * 40).toString(16).padStart(2, '0');
         const gradientColor = ctx.createRadialGradient(
-            canvas.width / 2, canvas.height / 2, canvas.width * 0.3,
-            canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) / 2
+            canvas.logicalWidth / 2, canvas.logicalHeight / 2, canvas.logicalWidth * 0.3,
+            canvas.logicalWidth / 2, canvas.logicalHeight / 2, Math.max(canvas.logicalWidth, canvas.logicalHeight) / 2
         );
 
         gradientColor.addColorStop(0, 'rgba(0, 0, 0, 0)');
         gradientColor.addColorStop(1, color + colorAlpha);
 
         ctx.fillStyle = gradientColor;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, canvas.logicalWidth, canvas.logicalHeight);
 
         // Slow-mo text indicator
         if (this.isActive && this.currentTrigger) {
@@ -205,7 +205,7 @@ export class SlowMotionSystem {
             }
 
             if (text) {
-                ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+                ctx.fillText(text, canvas.logicalWidth / 2, canvas.logicalHeight / 2);
             }
         }
 
@@ -217,7 +217,7 @@ export class SlowMotionSystem {
             ctx.fillStyle = '#ffffff';
             ctx.shadowBlur = 5;
             ctx.shadowColor = '#ffffff';
-            ctx.fillText(`TIME: ${Math.floor(this.currentFactor * 100)}%`, canvas.width - 20, 30);
+            ctx.fillText(`TIME: ${Math.floor(this.currentFactor * 100)}%`, canvas.logicalWidth - 20, 30);
         }
 
         ctx.restore();
