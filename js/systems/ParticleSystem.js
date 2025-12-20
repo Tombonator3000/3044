@@ -263,6 +263,13 @@ export class ParticleSystem {
         this.maxParticles = CONFIG.particles.maxCount;
         this.poolIndex = 0;
         this._activeCount = 0; // Cached count for performance
+        this.intensityMultiplier = 1;
+        this.nullParticle = {
+            active: false,
+            reset() {
+                return this;
+            }
+        };
 
         // Pre-allocate particle pool
         for (let i = 0; i < this.maxParticles; i++) {
@@ -274,6 +281,14 @@ export class ParticleSystem {
      * Get a particle from the pool
      */
     getParticle() {
+        if (this.intensityMultiplier <= 0) {
+            return this.nullParticle;
+        }
+
+        if (this.intensityMultiplier < 1 && Math.random() > this.intensityMultiplier) {
+            return this.nullParticle;
+        }
+
         // Find inactive particle
         for (let i = 0; i < this.particles.length; i++) {
             const idx = (this.poolIndex + i) % this.particles.length;
@@ -287,6 +302,21 @@ export class ParticleSystem {
         // If all active, reuse oldest (count stays the same)
         this.poolIndex = (this.poolIndex + 1) % this.particles.length;
         return this.particles[this.poolIndex];
+    }
+
+    setIntensity(level) {
+        const intensityMap = {
+            low: 0.4,
+            medium: 0.7,
+            high: 1
+        };
+
+        if (typeof level === 'number') {
+            this.intensityMultiplier = Math.max(0, Math.min(1, level));
+            return;
+        }
+
+        this.intensityMultiplier = intensityMap[level] ?? 1;
     }
 
     /**
