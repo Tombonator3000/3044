@@ -229,6 +229,15 @@ function initInput() {
                 soundSystem.toggleMusic();
             }
         }
+
+        // FPS/Performance monitor toggle (F3)
+        if (e.key === 'F3') {
+            e.preventDefault();
+            if (hud) {
+                const visible = hud.togglePerformanceMonitor();
+                console.log(`Performance monitor: ${visible ? 'ON' : 'OFF'}`);
+            }
+        }
     });
 
     document.addEventListener('keyup', (e) => {
@@ -1334,7 +1343,11 @@ function update(deltaTime) {
     }
 
     // Update HUD
-    if (hud) hud.update(gameState, deltaTime);
+    if (hud) {
+        hud.update(gameState, deltaTime);
+        // Update performance monitor entity counts
+        hud.updatePerformanceEntityCounts(bulletPool, enemyBulletPool, particleSystem);
+    }
 
     // Extra life at 100000 points
     const extraLifeThreshold = 100000;

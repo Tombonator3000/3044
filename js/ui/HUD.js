@@ -15,6 +15,7 @@ import { BossHealthBar } from './components/BossHealthBar.js';
 import { PowerUpSlots } from './components/PowerUpSlots.js';
 import { HighScoreDisplay } from './components/HighScoreDisplay.js';
 import { MultiplierPopup } from './components/MultiplierPopup.js';
+import { PerformanceMonitor } from './components/PerformanceMonitor.js';
 
 export class HUD {
     constructor() {
@@ -66,6 +67,7 @@ export class HUD {
         this.powerUpSlots = new PowerUpSlots(this.theme);
         this.highScoreDisplay = new HighScoreDisplay(this.theme);
         this.multiplierPopup = new MultiplierPopup(this.theme);
+        this.performanceMonitor = new PerformanceMonitor(this.theme);
     }
 
     setTheme(themeId) {
@@ -103,6 +105,7 @@ export class HUD {
         this.powerUpSlots.resize(width, height);
         this.highScoreDisplay.resize(width, height);
         this.multiplierPopup.resize(width, height);
+        this.performanceMonitor.resize(width, height);
     }
 
     // Call when score increases for popup effect
@@ -180,6 +183,9 @@ export class HUD {
         this.lastCombo = combo;
         this.multiplierPopup.update(deltaTime);
 
+        // Performance monitor
+        this.performanceMonitor.update(gameState, deltaTime);
+
         // Score popups
         this.scorePopups = this.scorePopups.filter(popup => {
             popup.life -= deltaTime;
@@ -241,6 +247,9 @@ export class HUD {
 
         // Draw score popups
         this.drawScorePopups(ctx);
+
+        // Draw performance monitor (on top of other elements)
+        this.performanceMonitor.draw(ctx);
 
         // Draw theme-specific overlay effects
         this.drawThemeOverlay(ctx);
@@ -452,5 +461,26 @@ export class HUD {
         ctx.fillStyle = flash ? this.theme.colors.warning : '#ff6600';
         ctx.fillText('WARNING: BOSS APPROACHING', x, y);
         ctx.restore();
+    }
+
+    // Performance monitor methods
+    togglePerformanceMonitor() {
+        return this.performanceMonitor.toggle();
+    }
+
+    showPerformanceMonitor() {
+        this.performanceMonitor.show();
+    }
+
+    hidePerformanceMonitor() {
+        this.performanceMonitor.hide();
+    }
+
+    isPerformanceMonitorVisible() {
+        return this.performanceMonitor.visible;
+    }
+
+    updatePerformanceEntityCounts(bulletPool, enemyBulletPool, particleSystem) {
+        this.performanceMonitor.updateEntityCounts(bulletPool, enemyBulletPool, particleSystem);
     }
 }
