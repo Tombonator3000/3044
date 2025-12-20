@@ -166,6 +166,12 @@ function init() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
+    // Handle fullscreen changes - resize canvas when entering/exiting fullscreen
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
     // Initialize input
     initInput();
 
@@ -259,18 +265,18 @@ function resizeCanvas() {
     canvas.height = canvas.logicalHeight * dpr;
 
     if (isPcLayout) {
-        // PC Layout: Canvas fits in center area, maintaining aspect ratio
+        // PC Layout: Canvas fills entire center area (stretches to fill, no black bars)
         const centerArea = document.getElementById('centerGameArea');
         if (centerArea) {
             const areaRect = centerArea.getBoundingClientRect();
-            const size = Math.min(areaRect.width, areaRect.height);
-            canvas.style.width = `${size}px`;
-            canvas.style.height = `${size}px`;
+            // Fill the entire center area - stretch to remove black bars
+            canvas.style.width = `${areaRect.width}px`;
+            canvas.style.height = `${areaRect.height}px`;
         } else {
-            // Fallback to window height
-            const size = Math.min(window.innerHeight, window.innerWidth - 360);
-            canvas.style.width = `${size}px`;
-            canvas.style.height = `${size}px`;
+            // Fallback to full available space
+            const hudWidth = 360; // Approximate total HUD width (180px * 2)
+            canvas.style.width = `${window.innerWidth - hudWidth}px`;
+            canvas.style.height = `${window.innerHeight}px`;
         }
     } else {
         // Mobile/tablet: Canvas fills container
@@ -1110,6 +1116,15 @@ function requestGameFullscreen() {
     } catch (error) {
         console.warn('⚠️ Fullscreen request failed:', error);
     }
+}
+
+function handleFullscreenChange() {
+    // Small delay to let the browser finish the fullscreen transition
+    setTimeout(() => {
+        detectLayoutType();
+        resizeCanvas();
+        console.log('🖥️ Fullscreen changed, canvas resized');
+    }, 100);
 }
 
 // ============================================
