@@ -1696,6 +1696,7 @@ function initGame(isAttractMode = false) {
     }
 
     // Start wave 1 with difficulty settings
+    gameState.startWave(1);  // Set sidescroller mode flag if needed
     waveManager.startWave(1, gameState);
 
     // Reset keys
@@ -1849,6 +1850,7 @@ function update(deltaTime) {
         // Check for wave complete
         if (waveManager.isWaveComplete()) {
             gameState.wave++;
+            gameState.startWave(gameState.wave);  // Set sidescroller mode flag if needed
 
             // Show wave clear phrase
             if (radicalSlang?.showWaveClearPhrase) {
