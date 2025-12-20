@@ -168,13 +168,7 @@ body {
 }
 
 .attract-high-score {
-    font-size: 1.3em;
-    font-weight: 700;
-    color: #ffff00;
-    text-transform: uppercase;
-    text-shadow: 0 0 15px #ffff00, 0 0 30px rgba(255, 255, 0, 0.5);
-    letter-spacing: 0.15em;
-    margin-top: 20px;
+    display: none;
 }
 
 .attract-hint {
@@ -855,10 +849,11 @@ body {
 /* ============================================
    SYNTHWAVE SUN - Stor retro-sol
    Plassert i bakgrunnen, UPÅVIRKET av UI
+   Rising from behind mountains
    ============================================ */
 .synthwave-sun {
     position: absolute;
-    top: 15%;
+    bottom: 52%;
     left: 50%;
     transform: translateX(-50%);
     width: 320px;
@@ -891,11 +886,9 @@ body {
         0 0 250px rgba(255, 0, 128, 0.5),
         0 0 400px rgba(255, 0, 128, 0.3),
         inset 0 0 80px rgba(255, 255, 200, 0.3);
-    animation: sun-glow 5s ease-in-out infinite alternate;
+    animation: sun-glow 5s ease-in-out infinite alternate, sun-rise 60s ease-out forwards;
     z-index: 2;
     pointer-events: none;
-    /* Klipp bunnen for setting-sun effekt */
-    clip-path: polygon(0 0, 100% 0, 100% 80%, 0 80%);
 }
 
 /* Sol-refleksjon/glød ring */
@@ -938,6 +931,15 @@ body {
 @keyframes sun-pulse {
     0%, 100% { transform: scale(1); opacity: 0.5; }
     50% { transform: scale(1.05); opacity: 0.8; }
+}
+
+@keyframes sun-rise {
+    0% {
+        bottom: 40%;
+    }
+    100% {
+        bottom: 52%;
+    }
 }
 
 /* Fjell/silhuett i horisonten */
@@ -1558,7 +1560,7 @@ body {
     .synthwave-sun {
         width: 260px;
         height: 260px;
-        top: 12%;
+        bottom: 48%;
     }
 
     .grid-floor {
@@ -1626,7 +1628,7 @@ body {
     .synthwave-sun {
         width: 200px;
         height: 200px;
-        top: 8%;
+        bottom: 44%;
     }
 
     .synthwave-mountains {
@@ -1718,7 +1720,7 @@ body {
     .synthwave-sun {
         width: 120px;
         height: 120px;
-        top: 5%;
+        bottom: 40%;
     }
 
     .synthwave-mountains {
@@ -2127,8 +2129,11 @@ body {
     width: 60px;
     height: 60px;
     margin: 10px auto;
-    border: 2px solid currentColor;
+    border: none;
     border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Mode Grid */

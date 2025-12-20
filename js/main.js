@@ -603,17 +603,34 @@ function populateShipGrid() {
         card.className = `ship-card ${ship.unlocked ? '' : 'locked'} ${ship.id === currentShip.id ? 'selected' : ''}`;
         card.style.borderColor = ship.unlocked ? ship.color : '#666';
 
-        card.innerHTML = `
-            <div class="ship-preview" style="border-color: ${ship.color}">
-                <svg width="56" height="56" viewBox="0 0 56 56">
-                    <polygon points="28,5 8,50 28,40 48,50"
-                             fill="${ship.unlocked ? ship.color + '44' : '#33333344'}"
-                             stroke="${ship.unlocked ? ship.color : '#666'}"
-                             stroke-width="2"/>
-                </svg>
-            </div>
-            <div class="ship-name" style="color: ${ship.unlocked ? ship.color : '#666'}">${ship.name}</div>
-        `;
+        // Create canvas for ship preview
+        const previewDiv = document.createElement('div');
+        previewDiv.className = 'ship-preview';
+        previewDiv.style.borderColor = ship.color;
+        previewDiv.style.border = 'none';
+        previewDiv.style.background = 'transparent';
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 60;
+        canvas.height = 60;
+        canvas.style.width = '60px';
+        canvas.style.height = '60px';
+        previewDiv.appendChild(canvas);
+
+        // Draw the actual ship preview
+        const ctx = canvas.getContext('2d');
+        ctx.save();
+        ctx.translate(30, 30);
+        drawShipPreviewOnCanvas(ctx, ship.id, ship.color, ship.unlocked);
+        ctx.restore();
+
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'ship-name';
+        nameDiv.style.color = ship.unlocked ? ship.color : '#666';
+        nameDiv.textContent = ship.name;
+
+        card.appendChild(previewDiv);
+        card.appendChild(nameDiv);
 
         if (ship.unlocked) {
             card.addEventListener('click', () => {
@@ -627,6 +644,161 @@ function populateShipGrid() {
     });
 
     updateShipSelection();
+}
+
+/**
+ * Draw ship preview on canvas with actual 8-bit pixel art
+ */
+function drawShipPreviewOnCanvas(ctx, shipId, color, unlocked) {
+    const c = unlocked ? color : '#444444';
+    const p = 3; // Pixel size for 8-bit style
+
+    ctx.shadowBlur = unlocked ? 10 : 0;
+    ctx.shadowColor = c;
+
+    // Ship patterns (same as in Player.js)
+    const shipPatterns = {
+        neonFalcon: [
+            [0,0,0,0,0,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,1,1,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,1,0],
+            [1,1,0,1,1,1,1,1,0,1,1],
+            [1,0,0,0,1,1,1,0,0,0,1],
+            [1,0,0,0,0,1,0,0,0,0,1],
+            [0,0,0,0,0,1,0,0,0,0,0],
+        ],
+        glassCannon: [
+            [0,0,0,0,0,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,1,0,1,0,1,0,0,0],
+            [0,0,1,0,1,1,1,0,1,0,0],
+            [0,1,0,0,1,1,1,0,0,1,0],
+            [1,0,0,1,1,1,1,1,0,0,1],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,0,1,1,1,0,1,1,0],
+            [1,1,0,0,0,1,0,0,0,1,1],
+            [1,0,0,0,0,0,0,0,0,0,1],
+        ],
+        tank: [
+            [0,0,0,0,0,1,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,1,0,0,0,0],
+            [0,0,1,1,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,1,1,0],
+            [1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,1,1,0,1,1,1,1,0,1,1,1],
+            [1,1,1,0,1,1,1,1,0,1,1,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1],
+            [0,1,1,1,1,1,1,1,1,1,1,0],
+            [0,0,1,1,0,0,0,0,1,1,0,0],
+        ],
+        speedster: [
+            [0,0,0,0,1,0,0,0,0],
+            [0,0,0,1,1,1,0,0,0],
+            [0,0,0,1,1,1,0,0,0],
+            [0,0,0,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,0,0],
+            [0,0,1,1,1,1,1,0,0],
+            [0,1,0,1,1,1,0,1,0],
+            [1,0,0,1,1,1,0,0,1],
+            [1,0,0,0,1,0,0,0,1],
+            [0,0,0,0,1,0,0,0,0],
+            [0,0,0,0,1,0,0,0,0],
+        ],
+        retroClassic: [
+            [0,0,0,0,0,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,1,1,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,1,0],
+            [1,1,1,1,1,1,1,1,1,1,1],
+            [1,1,0,1,1,1,1,1,0,1,1],
+            [1,0,0,0,1,1,1,0,0,0,1],
+            [1,0,0,0,0,1,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,1],
+        ],
+        phantom: [
+            [0,0,0,1,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,0],
+            [1,1,0,0,1,1,0,0,1,1],
+            [1,1,0,0,1,1,0,0,1,1],
+            [1,1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1,1,1],
+            [1,0,1,1,0,0,1,1,0,1],
+            [1,0,0,1,0,0,1,0,0,1],
+        ],
+        berserker: [
+            [0,0,0,0,0,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [1,0,0,1,1,1,1,1,0,0,1],
+            [1,1,0,1,1,1,1,1,0,1,1],
+            [0,1,1,1,1,1,1,1,1,1,0],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,0,1,1,1,0,1,1,0],
+            [1,1,0,0,1,1,1,0,0,1,1],
+            [1,0,0,0,0,1,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,1],
+            [0,0,0,0,0,1,0,0,0,0,0],
+        ],
+        synth: [
+            [0,0,0,1,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,0],
+            [0,1,1,1,1,1,1,1,1,0],
+            [1,1,0,1,1,1,1,0,1,1],
+            [1,0,0,1,1,1,1,0,0,1],
+            [1,0,0,0,1,1,0,0,0,1],
+            [1,1,0,0,1,1,0,0,1,1],
+            [0,1,1,0,1,1,0,1,1,0],
+            [0,0,1,1,0,0,1,1,0,0],
+        ],
+    };
+
+    const pattern = shipPatterns[shipId] || shipPatterns.neonFalcon;
+    const offsetX = -pattern[0].length * p / 2;
+    const offsetY = -pattern.length * p / 2;
+
+    // Get accent color conditions per ship
+    const accentColors = {
+        neonFalcon: { condition: (x, y) => y < 4 && x >= 4 && x <= 6, color: '#ffffff' },
+        glassCannon: { condition: (x, y) => y >= 4 && y <= 6 && x >= 4 && x <= 6, color: '#ffff00' },
+        tank: { condition: (x, y) => y >= 4 && y <= 7 && x >= 4 && x <= 7, color: '#00ffff' },
+        speedster: { condition: (x, y) => y <= 2 && x === 4, color: '#ffff00' },
+        retroClassic: { condition: (x, y) => (x + y) % 3 === 0 && y < 5, color: '#ffffff' },
+        phantom: { condition: (x, y) => y >= 3 && y <= 4 && (x === 2 || x === 3 || x === 6 || x === 7), color: '#ffffff' },
+        berserker: { condition: (x, y) => y >= 3 && y <= 5 && x >= 4 && x <= 6, color: '#ff0000' },
+        synth: { condition: (x, y) => y < 4, color: null }, // Special rainbow effect
+    };
+
+    const accent = accentColors[shipId] || accentColors.neonFalcon;
+
+    // Special handling for phantom (transparency) and synth (rainbow)
+    if (shipId === 'phantom' && unlocked) {
+        ctx.globalAlpha = 0.7;
+    }
+
+    pattern.forEach((row, y) => {
+        row.forEach((pixel, x) => {
+            if (pixel) {
+                if (shipId === 'synth' && unlocked && y < 4) {
+                    // Rainbow effect for synth ship
+                    const hue = (Date.now() * 0.1 + y * 30) % 360;
+                    ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+                } else if (accent.condition && accent.condition(x, y) && unlocked) {
+                    ctx.fillStyle = accent.color;
+                } else {
+                    ctx.fillStyle = unlocked ? c : '#444444';
+                }
+                ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
+            }
+        });
+    });
+
+    ctx.globalAlpha = 1;
 }
 
 function updateShipSelection() {
