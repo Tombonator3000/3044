@@ -4,6 +4,7 @@
  */
 
 import { CONFIG } from '../config.js';
+import { logger } from '../utils/Logger.js';
 
 /**
  * SoundSystem Class
@@ -64,9 +65,9 @@ export class SoundSystem {
             this.generateSounds();
 
             this.initialized = true;
-            console.log('🔊 SoundSystem initialized');
+            logger.audio('SoundSystem initialized');
         } catch (error) {
-            console.warn('⚠️ SoundSystem initialization failed:', error);
+            logger.warn('SoundSystem initialization failed:', error);
         }
     }
 

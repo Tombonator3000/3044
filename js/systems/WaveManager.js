@@ -4,6 +4,7 @@
 
 import { config, getCurrentTheme } from '../config.js';
 import { Enemy } from '../entities/Enemy.js';
+import { logger } from '../utils/Logger.js';
 
 export class WaveManager {
     constructor() {
@@ -46,7 +47,7 @@ export class WaveManager {
         // Wave 1: 60 frames, Wave 10: 30 frames, Wave 15+: 15 frames minimum
         this.spawnDelay = Math.max(15, 60 - (waveNum * 3));
 
-        console.log(`🌊 Wave ${waveNum} starting: ${this.enemiesPerWave} enemies, spawn delay: ${this.spawnDelay}`);
+        logger.game(`Wave ${waveNum} starting: ${this.enemiesPerWave} enemies, spawn delay: ${this.spawnDelay}`);
     }
 
     calculateEnemiesPerWave(wave) {
