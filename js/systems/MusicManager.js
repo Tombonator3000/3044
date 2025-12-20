@@ -27,6 +27,7 @@ export class MusicManager {
         // Transition state
         this.isTransitioning = false;
         this.pendingPlay = null;
+        this.pendingStop = null;
     }
 
     /**
@@ -166,9 +167,14 @@ export class MusicManager {
             this.pendingPlay = null;
         }
 
+        // Cancel any pending stop
+        if (this.pendingStop) {
+            clearTimeout(this.pendingStop);
+            this.pendingStop = null;
+        }
+
         // Keep reference to old source for stopping
         const oldSource = this.currentSource;
-        const hadOldSource = !!oldSource;
 
         // Cancel any ongoing gain automations
         if (this.musicGain) {
@@ -184,18 +190,19 @@ export class MusicManager {
             this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, now);
             this.musicGain.gain.linearRampToValueAtTime(0, now + fadeTime);
 
-            // Stop old source after fade completes
-            setTimeout(() => {
+            // Stop old source after fade completes, THEN start new track
+            // Using a single timeout to ensure proper ordering
+            this.pendingPlay = setTimeout(() => {
+                this.pendingPlay = null;
+
+                // First, stop the old source
                 try {
                     oldSource.stop();
                 } catch (e) {
                     // Source might already be stopped
                 }
-            }, fadeTime * 1000);
 
-            // Start new track after fade out
-            this.pendingPlay = setTimeout(() => {
-                this.pendingPlay = null;
+                // Then start the new track (if music is still enabled)
                 if (!this.musicEnabled) {
                     this.isTransitioning = false;
                     return;
@@ -203,7 +210,7 @@ export class MusicManager {
                 this.startTrack(trackName, buffer);
             }, fadeTime * 1000);
         } else {
-            // No current music, start immediately
+            // No current music or no fade needed, start immediately
             if (oldSource) {
                 try {
                     oldSource.stop();
@@ -248,6 +255,10 @@ export class MusicManager {
         if (this.pendingPlay) {
             clearTimeout(this.pendingPlay);
             this.pendingPlay = null;
+        }
+        if (this.pendingStop) {
+            clearTimeout(this.pendingStop);
+            this.pendingStop = null;
         }
 
         if (!this.currentSource) return;
