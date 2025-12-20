@@ -88,6 +88,7 @@ export class MenuManager {
         this.onContinue = null;
         this.onQuit = null;
         this.onSettingsChanged = null;
+        this.onMenuShow = null; // Called when showing menu (for music)
     }
 
     /**
@@ -202,6 +203,11 @@ export class MenuManager {
             setTimeout(() => {
                 fullMenu.classList.add('visible');
             }, 200);
+
+            // Trigger menu show callback (for music)
+            if (this.onMenuShow) {
+                this.onMenuShow();
+            }
 
             console.log('Exited attract mode, showing full menu');
         }
