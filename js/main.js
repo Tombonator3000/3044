@@ -1399,7 +1399,7 @@ function handleFullscreenChange() {
 // GAME START
 // ============================================
 
-window.startGame = function() {
+window.startGame = async function() {
     console.log('🎮 Starting game...');
 
     // Check credits
@@ -1443,9 +1443,13 @@ window.startGame = function() {
     lastTime = performance.now();
     gameLoopId = requestAnimationFrame(gameLoop);
 
-    // Play music
+    // Initialize and play music
     if (soundSystem) {
         soundSystem.init();
+        // Load music files (if not already loaded)
+        await soundSystem.loadMusic('game', 'assets/audio/game.mp3');
+        await soundSystem.loadMusic('menu', 'assets/audio/menu.mp3');
+        await soundSystem.loadMusic('boss', 'assets/audio/boss.mp3');
         soundSystem.playMusic('game');
     }
 
