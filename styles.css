@@ -63,7 +63,76 @@ body {
     overflow: hidden;
 }
 
-/* Menu content container */
+/* ============================================
+   ATTRACT MODE - Initial "Press Start" screen
+   ============================================ */
+.attract-mode {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding-top: 60px;
+    z-index: 10;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.attract-mode.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-20px);
+}
+
+.attract-high-score {
+    margin-top: auto;
+    margin-bottom: 20px;
+}
+
+.attract-hint {
+    font-size: 1em;
+    color: #ffff00;
+    opacity: 0.7;
+    margin-top: 10px;
+    letter-spacing: 0.2em;
+}
+
+/* ============================================
+   FULL MENU - Shown after pressing start
+   ============================================ */
+.full-menu {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding-top: 40px;
+    z-index: 10;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.full-menu.visible {
+    display: flex;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Smaller logo for full menu */
+.logo-small {
+    font-size: 2.5em !important;
+    margin-bottom: 0.3em !important;
+}
+
+/* Menu content container - DEPRECATED, kept for compatibility */
 .menu-content {
     display: flex;
     flex-direction: column;
@@ -116,51 +185,82 @@ body {
     filter: blur(2px);
 }
 
+/* ============================================
+   LOGO - Chrome metallic effect
+   ============================================ */
 .logo {
-    font-size: 4em;
+    font-size: 4.5em;
     font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 0.15em;
-    margin-bottom: 0.5em;
-    background: linear-gradient(45deg, #ffffff, #e6e6e6, #ffffff, #cccccc);
+    letter-spacing: 0.12em;
+    margin-bottom: 0.3em;
+    /* Chrome metallic gradient */
+    background: linear-gradient(
+        180deg,
+        #ffffff 0%,
+        #d4d4d4 25%,
+        #8a8a8a 50%,
+        #d4d4d4 75%,
+        #ffffff 100%
+    );
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-shadow:
-        0 0 10px rgba(255, 255, 255, 0.8),
-        0 0 20px rgba(255, 255, 255, 0.6),
-        0 0 30px rgba(255, 255, 255, 0.4),
-        0 4px 8px rgba(0, 0, 0, 0.8);
-    animation: chrome-pulse 3s ease-in-out infinite;
+    /* Subtle shadow for depth - no blur */
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 30px rgba(255, 255, 255, 0.3));
     position: relative;
     z-index: 5;
     text-align: center;
 }
 
+/* Pink outline effect behind logo */
 .logo::before {
     content: 'GEOMETRY';
     position: absolute;
-    top: 2px;
-    left: 2px;
-    background: linear-gradient(45deg, #ff0080, #ff0040, #ff0080);
+    top: 3px;
+    left: 3px;
+    background: linear-gradient(180deg, #ff0080 0%, #ff0050 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     z-index: -1;
-    filter: blur(1px);
+    opacity: 0.8;
 }
 
+/* Year number - neon pink style */
 .logo .year {
-    background: linear-gradient(45deg, #ff0080, #ff4da6, #ff0080, #e6005c);
+    display: block;
+    font-size: 0.5em;
+    letter-spacing: 0.4em;
+    margin-top: -10px;
+    background: linear-gradient(90deg, #ff0080, #ff40a0, #ff0080);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-shadow:
-        0 0 10px rgba(255, 0, 128, 0.8),
-        0 0 20px rgba(255, 0, 128, 0.6),
-        0 0 30px rgba(255, 0, 128, 0.4),
-        0 4px 8px rgba(0, 0, 0, 0.8);
-    animation: neon-glow 2s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 8px rgba(255, 0, 128, 0.8)) drop-shadow(0 0 20px rgba(255, 0, 128, 0.5));
+    animation: neon-flicker 3s ease-in-out infinite;
+}
+
+@keyframes neon-flicker {
+    0%, 100% {
+        opacity: 1;
+        filter: drop-shadow(0 0 8px rgba(255, 0, 128, 0.8)) drop-shadow(0 0 20px rgba(255, 0, 128, 0.5));
+    }
+    92% {
+        opacity: 1;
+    }
+    93% {
+        opacity: 0.8;
+    }
+    94% {
+        opacity: 1;
+    }
+    96% {
+        opacity: 0.9;
+    }
+    97% {
+        opacity: 1;
+    }
 }
 
 @keyframes chrome-pulse {
@@ -206,6 +306,36 @@ body {
     50% { transform: scale(1.05); opacity: 0.8; }
 }
 
+/* ============================================
+   MENU BUTTON GROUPS - Hierarchical Layout
+   ============================================ */
+.menu-buttons-primary {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    z-index: 5;
+    margin-top: 280px; /* Position below horizon line */
+}
+
+.menu-buttons-secondary {
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+    z-index: 5;
+    margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.menu-buttons-tertiary {
+    display: flex;
+    flex-direction: row;
+    gap: 25px;
+    z-index: 5;
+    margin-top: 25px;
+}
+
+/* Legacy support */
 .menu-buttons {
     display: flex;
     flex-direction: column;
@@ -213,39 +343,70 @@ body {
     z-index: 5;
 }
 
+/* ============================================
+   BUTTON STYLES - Dark with Neon Borders
+   ============================================ */
 .btn {
     padding: 18px 50px;
     font-size: 1.3em;
     font-weight: 700;
     text-transform: uppercase;
-    background: linear-gradient(45deg, rgba(0, 255, 255, 0.1), rgba(255, 0, 150, 0.1));
+    /* DARK SOLID BACKGROUND for readability */
+    background: rgba(10, 0, 30, 0.85);
     color: #00ffff;
-    border: 2px solid transparent;
-    background-clip: padding-box;
+    /* STRONG NEON BORDER */
+    border: 2px solid #00ffff;
+    border-radius: 4px;
     cursor: pointer;
-    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     letter-spacing: 0.15em;
     position: relative;
     overflow: hidden;
     font-family: 'Courier New', monospace;
-    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
     box-shadow:
-        0 0 20px rgba(0, 255, 255, 0.3),
-        inset 0 0 20px rgba(0, 255, 255, 0.1);
+        0 0 15px rgba(0, 255, 255, 0.4),
+        inset 0 0 30px rgba(0, 255, 255, 0.05);
     touch-action: manipulation;
+}
+
+/* Primary button - larger and more prominent */
+.btn-primary {
+    padding: 22px 70px;
+    font-size: 1.6em;
+    border-color: #00ff00;
+    color: #00ff00;
+    text-shadow: 0 0 15px rgba(0, 255, 0, 0.8);
+    box-shadow:
+        0 0 25px rgba(0, 255, 0, 0.5),
+        inset 0 0 30px rgba(0, 255, 0, 0.05);
+    animation: primary-pulse 2s ease-in-out infinite;
+}
+
+@keyframes primary-pulse {
+    0%, 100% {
+        box-shadow:
+            0 0 25px rgba(0, 255, 0, 0.5),
+            inset 0 0 30px rgba(0, 255, 0, 0.05);
+    }
+    50% {
+        box-shadow:
+            0 0 35px rgba(0, 255, 0, 0.7),
+            0 0 60px rgba(0, 255, 0, 0.3),
+            inset 0 0 30px rgba(0, 255, 0, 0.1);
+    }
 }
 
 .btn::before {
     content: '';
     position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
-    background: linear-gradient(45deg, #00ffff, #ff0080, #00ffff, #ff0080);
-    border-radius: inherit;
-    z-index: -1;
-    animation: border-dance 3s linear infinite;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    transition: left 0.5s;
+    z-index: 1;
     pointer-events: none;
 }
 
@@ -253,31 +414,52 @@ body {
     content: '';
     position: absolute;
     top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.6s;
-    z-index: 1;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
     pointer-events: none;
 }
 
 .btn:hover {
     color: #ffffff;
-    transform: scale(1.05) translateY(-2px);
+    transform: scale(1.03) translateY(-2px);
     text-shadow:
-        0 0 20px rgba(255, 255, 255, 0.8),
-        0 0 30px rgba(0, 255, 255, 0.6);
-    background: linear-gradient(45deg, rgba(0, 255, 255, 0.2), rgba(255, 0, 150, 0.2));
+        0 0 20px rgba(255, 255, 255, 0.9),
+        0 0 40px currentColor;
+    background: rgba(20, 0, 50, 0.9);
     box-shadow:
-        0 0 30px rgba(0, 255, 255, 0.6),
-        0 0 50px rgba(255, 0, 150, 0.4),
-        inset 0 0 30px rgba(255, 255, 255, 0.1),
-        0 8px 25px rgba(0, 0, 0, 0.5);
+        0 0 30px currentColor,
+        0 0 60px rgba(255, 0, 150, 0.3),
+        inset 0 0 30px rgba(255, 255, 255, 0.05),
+        0 8px 25px rgba(0, 0, 0, 0.6);
 }
 
-.btn:hover::after {
+.btn:hover::before {
     left: 100%;
+}
+
+/* Tertiary buttons - smaller, text-like */
+.btn-tertiary {
+    padding: 10px 20px;
+    font-size: 0.85em;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: transparent;
+    color: #888;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 0.1em;
+    font-family: 'Courier New', monospace;
+}
+
+.btn-tertiary:hover {
+    color: #ff00ff;
+    border-color: #ff00ff;
+    text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+    box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
 }
 
 /* ENHANCED MENU EFFECTS */
@@ -494,23 +676,37 @@ body {
     100% { opacity: 0.7; }
 }
 
-/* Synthwave decorative elements */
+/* ============================================
+   SYNTHWAVE SUN - Larger and more prominent
+   ============================================ */
 .synthwave-sun {
     position: absolute;
-    top: 5%;
+    top: 8%;
     left: 50%;
     transform: translateX(-50%);
-    width: 150px;
-    height: 150px;
+    width: 280px;
+    height: 280px;
     border-radius: 50%;
-    background: radial-gradient(circle, #ff6b00 0%, #ff0080 70%, transparent 100%);
+    /* Gradient sun with horizontal stripes */
+    background:
+        repeating-linear-gradient(
+            0deg,
+            transparent 0px,
+            transparent 8px,
+            rgba(0, 0, 0, 0.3) 8px,
+            rgba(0, 0, 0, 0.3) 12px
+        ),
+        radial-gradient(circle at 50% 30%, #ffee00 0%, #ff9500 30%, #ff0080 70%, #660066 100%);
     box-shadow:
-        0 0 50px rgba(255, 107, 0, 0.6),
-        0 0 100px rgba(255, 0, 128, 0.4),
-        inset 0 0 50px rgba(255, 255, 255, 0.1);
+        0 0 60px rgba(255, 150, 0, 0.8),
+        0 0 120px rgba(255, 0, 128, 0.6),
+        0 0 200px rgba(255, 0, 128, 0.3),
+        inset 0 0 60px rgba(255, 255, 255, 0.2);
     animation: sun-glow 4s ease-in-out infinite alternate;
     z-index: 1;
     pointer-events: none;
+    /* Clip bottom half to create setting sun effect */
+    clip-path: polygon(0 0, 100% 0, 100% 85%, 0 85%);
 }
 
 .synthwave-sun::before {
@@ -652,16 +848,52 @@ body {
     margin-top: 10px;
 }
 
-/* Insert coin text */
+/* Insert coin text - ARCADE STYLE */
 #insertCoinText {
-    font-size: 1.5em;
+    font-size: 2.5em;
     font-weight: 900;
-    color: #ff00ff;
+    color: #00ff00;
     text-transform: uppercase;
-    text-shadow: 0 0 20px #ff00ff;
-    letter-spacing: 0.15em;
-    animation: blink 1s ease-in-out infinite;
-    margin-top: 20px;
+    text-shadow:
+        0 0 10px #00ff00,
+        0 0 20px #00ff00,
+        0 0 40px #00ff00,
+        0 0 80px rgba(0, 255, 0, 0.5);
+    letter-spacing: 0.2em;
+    animation: arcade-blink 1.2s ease-in-out infinite;
+    margin-top: auto;
+    margin-bottom: 80px;
+}
+
+@keyframes arcade-blink {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.4;
+        transform: scale(0.98);
+    }
+}
+
+/* ============================================
+   VIGNETTE EFFECT - Darkened edges
+   ============================================ */
+.menu-vignette {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(
+        ellipse 70% 60% at 50% 40%,
+        transparent 0%,
+        transparent 40%,
+        rgba(0, 0, 0, 0.3) 70%,
+        rgba(0, 0, 0, 0.7) 100%
+    );
+    pointer-events: none;
+    z-index: 9;
 }
 
 #gameOverScreen {
@@ -898,6 +1130,82 @@ body {
     display: none !important;
 }
 
+/* ============================================
+   RESPONSIVE DESIGN - New Layout System
+   ============================================ */
+
+/* Medium screens */
+@media (max-width: 900px) {
+    .menu-buttons-primary {
+        margin-top: 240px;
+    }
+
+    .menu-buttons-secondary {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .synthwave-sun {
+        width: 220px;
+        height: 220px;
+    }
+}
+
+/* Small screens */
+@media (max-width: 600px) {
+    .logo {
+        font-size: 3em;
+    }
+
+    .logo-small {
+        font-size: 2em !important;
+    }
+
+    .logo .year {
+        font-size: 0.45em;
+    }
+
+    #insertCoinText {
+        font-size: 1.8em;
+        margin-bottom: 60px;
+    }
+
+    .menu-buttons-primary {
+        margin-top: 200px;
+    }
+
+    .btn-primary {
+        padding: 18px 50px;
+        font-size: 1.3em;
+    }
+
+    .btn-secondary {
+        padding: 12px 25px;
+        font-size: 0.9em;
+    }
+
+    .btn-tertiary {
+        padding: 8px 15px;
+        font-size: 0.75em;
+    }
+
+    .menu-buttons-tertiary {
+        gap: 15px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .synthwave-sun {
+        width: 180px;
+        height: 180px;
+        top: 5%;
+    }
+
+    .attract-hint {
+        font-size: 0.85em;
+    }
+}
+
 /* Touch device optimizations */
 @media (pointer: coarse) {
     /* Prevent text selection on touch */
@@ -910,53 +1218,81 @@ body {
 
     /* Larger tap targets for buttons */
     .btn {
-        padding: 22px 55px;
-        font-size: 1.4em;
-        min-height: 60px;
-        touch-action: manipulation; /* Allow button taps despite body touch-action: none */
+        min-height: 55px;
+        touch-action: manipulation;
     }
 
-    /* Adjust menu for touch */
-    .menu-content {
-        gap: 20px;
+    .btn-tertiary {
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+
+    /* Adjust attract mode for touch */
+    #insertCoinText {
+        cursor: pointer;
     }
 
     /* Make controls hint visible on mobile */
     .controls {
-        font-size: 0.8em;
-        line-height: 2;
+        font-size: 0.75em;
+        line-height: 1.8;
     }
 
     .controls::after {
-        content: 'Touch: Left side = Move | Right side = Fire/Bomb';
+        content: 'Touch: Left = Move | Right = Fire/Bomb';
         display: block;
         color: #ff00ff;
-        margin-top: 10px;
+        margin-top: 8px;
         font-weight: bold;
     }
 }
 
 /* Landscape orientation optimizations for mobile */
 @media (max-height: 500px) and (pointer: coarse) {
-    .menu-content {
-        margin-top: 20px;
-        gap: 10px;
+    .attract-mode {
+        padding-top: 20px;
+    }
+
+    .full-menu {
+        padding-top: 10px;
     }
 
     .logo {
-        font-size: 2.5em;
-        margin-bottom: 0.3em;
+        font-size: 2em;
+        margin-bottom: 0.2em;
+    }
+
+    .logo-small {
+        font-size: 1.5em !important;
+    }
+
+    #insertCoinText {
+        font-size: 1.4em;
+        margin-bottom: 30px;
+    }
+
+    .menu-buttons-primary {
+        margin-top: 120px;
     }
 
     .btn {
-        padding: 15px 40px;
+        padding: 12px 30px;
+        font-size: 1em;
+    }
+
+    .btn-primary {
+        padding: 14px 40px;
         font-size: 1.1em;
     }
 
     .synthwave-sun {
-        width: 80px;
-        height: 80px;
+        width: 100px;
+        height: 100px;
         top: 2%;
+    }
+
+    .menu-vignette {
+        display: none;
     }
 }
 
@@ -1216,11 +1552,22 @@ body {
     margin-top: 20px;
 }
 
-/* Secondary button style */
+/* Secondary button style - magenta accent */
 .btn-secondary {
-    background: linear-gradient(45deg, rgba(255, 0, 150, 0.1), rgba(0, 255, 255, 0.1));
+    background: rgba(10, 0, 30, 0.85);
     font-size: 1em;
-    padding: 12px 35px;
+    padding: 14px 35px;
+    border-color: #ff00ff;
+    color: #ff00ff;
+    text-shadow: 0 0 10px rgba(255, 0, 255, 0.6);
+    box-shadow:
+        0 0 12px rgba(255, 0, 255, 0.3),
+        inset 0 0 20px rgba(255, 0, 255, 0.03);
+}
+
+.btn-secondary:hover {
+    border-color: #ff66ff;
+    color: #ffffff;
 }
 
 /* ============================================
