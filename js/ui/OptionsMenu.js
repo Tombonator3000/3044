@@ -19,6 +19,40 @@ export class OptionsMenu {
         if (this.selectedIndex < 0) this.selectedIndex = 0;
 
         this.options = [
+            // ─── AUDIO SECTION ───
+            {
+                name: '── AUDIO ──',
+                type: 'header'
+            },
+            {
+                name: 'MASTER VOLUME',
+                type: 'slider',
+                value: this.loadSetting('masterVolume', 1.0),
+                getValue: () => Math.round(this.options[1].value * 100) + '%',
+                onLeft: () => { this.options[1].value = Math.max(0, this.options[1].value - 0.1); this.saveSetting('masterVolume', this.options[1].value); },
+                onRight: () => { this.options[1].value = Math.min(1, this.options[1].value + 0.1); this.saveSetting('masterVolume', this.options[1].value); }
+            },
+            {
+                name: 'MUSIC VOLUME',
+                type: 'slider',
+                value: this.loadSetting('musicVolume', 0.5),
+                getValue: () => Math.round(this.options[2].value * 100) + '%',
+                onLeft: () => { this.options[2].value = Math.max(0, this.options[2].value - 0.1); this.saveSetting('musicVolume', this.options[2].value); },
+                onRight: () => { this.options[2].value = Math.min(1, this.options[2].value + 0.1); this.saveSetting('musicVolume', this.options[2].value); }
+            },
+            {
+                name: 'SFX VOLUME',
+                type: 'slider',
+                value: this.loadSetting('sfxVolume', 0.7),
+                getValue: () => Math.round(this.options[3].value * 100) + '%',
+                onLeft: () => { this.options[3].value = Math.max(0, this.options[3].value - 0.1); this.saveSetting('sfxVolume', this.options[3].value); },
+                onRight: () => { this.options[3].value = Math.min(1, this.options[3].value + 0.1); this.saveSetting('sfxVolume', this.options[3].value); }
+            },
+            // ─── VISUALS SECTION ───
+            {
+                name: '── VISUALS ──',
+                type: 'header'
+            },
             {
                 name: 'HUD THEME',
                 type: 'theme',
@@ -28,35 +62,20 @@ export class OptionsMenu {
                 onSelect: () => this.applyTheme()
             },
             {
-                name: 'MUSIC VOLUME',
-                type: 'slider',
-                value: this.loadSetting('musicVolume', 0.5),
-                getValue: () => Math.round(this.options[1].value * 100) + '%',
-                onLeft: () => { this.options[1].value = Math.max(0, this.options[1].value - 0.1); this.saveSetting('musicVolume', this.options[1].value); },
-                onRight: () => { this.options[1].value = Math.min(1, this.options[1].value + 0.1); this.saveSetting('musicVolume', this.options[1].value); }
-            },
-            {
-                name: 'SFX VOLUME',
-                type: 'slider',
-                value: this.loadSetting('sfxVolume', 0.7),
-                getValue: () => Math.round(this.options[2].value * 100) + '%',
-                onLeft: () => { this.options[2].value = Math.max(0, this.options[2].value - 0.1); this.saveSetting('sfxVolume', this.options[2].value); },
-                onRight: () => { this.options[2].value = Math.min(1, this.options[2].value + 0.1); this.saveSetting('sfxVolume', this.options[2].value); }
-            },
-            {
                 name: 'SCREEN SHAKE',
                 type: 'toggle',
                 value: this.loadSetting('screenShake', true),
-                getValue: () => this.options[3].value ? 'ON' : 'OFF',
-                onSelect: () => { this.options[3].value = !this.options[3].value; this.saveSetting('screenShake', this.options[3].value); }
+                getValue: () => this.options[6].value ? 'ON' : 'OFF',
+                onSelect: () => { this.options[6].value = !this.options[6].value; this.saveSetting('screenShake', this.options[6].value); }
             },
             {
                 name: 'CRT EFFECTS',
                 type: 'toggle',
                 value: this.loadSetting('crtEffects', true),
-                getValue: () => this.options[4].value ? 'ON' : 'OFF',
-                onSelect: () => { this.options[4].value = !this.options[4].value; this.saveSetting('crtEffects', this.options[4].value); }
+                getValue: () => this.options[7].value ? 'ON' : 'OFF',
+                onSelect: () => { this.options[7].value = !this.options[7].value; this.saveSetting('crtEffects', this.options[7].value); }
             },
+            // ─── BACK ───
             {
                 name: 'BACK',
                 type: 'button',
@@ -64,7 +83,7 @@ export class OptionsMenu {
             }
         ];
 
-        this.currentOption = 0;
+        this.currentOption = 1; // Start at first selectable option (MASTER VOLUME)
         this.previewTheme = null;
 
         // Animation
@@ -97,6 +116,7 @@ export class OptionsMenu {
     show() {
         this.visible = true;
         this.openProgress = 0;
+        this.currentOption = 1; // Reset to first selectable option (MASTER VOLUME)
         // Refresh selected theme index - safe access
         const currentThemeId = this.hud?.currentThemeId || this.hud?.getThemeId?.() || 'neoArcade';
         this.selectedIndex = this.themes.findIndex(t => t.id === currentThemeId);
@@ -130,20 +150,33 @@ export class OptionsMenu {
         this.previewTheme = null;
     }
 
-    getMusicVolume() {
+    getMasterVolume() {
         return this.options[1].value;
     }
 
-    getSFXVolume() {
+    getMusicVolume() {
         return this.options[2].value;
     }
 
-    getScreenShake() {
+    getSFXVolume() {
         return this.options[3].value;
     }
 
+    getScreenShake() {
+        return this.options[6].value;
+    }
+
     getCRTEffects() {
-        return this.options[4].value;
+        return this.options[7].value;
+    }
+
+    // Helper to find next selectable option (skipping headers)
+    findNextOption(direction) {
+        let next = this.currentOption;
+        do {
+            next = (next + direction + this.options.length) % this.options.length;
+        } while (this.options[next].type === 'header' && next !== this.currentOption);
+        return next;
     }
 
     handleInput(key) {
@@ -158,12 +191,12 @@ export class OptionsMenu {
             case 'ArrowUp':
             case 'w':
             case 'W':
-                this.currentOption = (this.currentOption - 1 + this.options.length) % this.options.length;
+                this.currentOption = this.findNextOption(-1);
                 break;
             case 'ArrowDown':
             case 's':
             case 'S':
-                this.currentOption = (this.currentOption + 1) % this.options.length;
+                this.currentOption = this.findNextOption(1);
                 break;
             case 'ArrowLeft':
             case 'a':
@@ -209,9 +242,9 @@ export class OptionsMenu {
         ctx.fillStyle = `rgba(0, 0, 0, ${0.8 * this.openProgress})`;
         ctx.fillRect(0, 0, width, height);
 
-        // Menu panel
+        // Menu panel - taller to accommodate new options
         const panelWidth = 500;
-        const panelHeight = 400;
+        const panelHeight = 480;
         const panelX = (width - panelWidth) / 2;
         const panelY = (height - panelHeight) / 2;
 
@@ -244,6 +277,18 @@ export class OptionsMenu {
         this.options.forEach((option, i) => {
             const y = startY + i * optionHeight;
             const selected = i === this.currentOption;
+
+            // Render headers differently
+            if (option.type === 'header') {
+                ctx.font = 'bold 14px Courier New';
+                ctx.fillStyle = '#ff00ff';
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#ff00ff';
+                ctx.fillText(option.name, width / 2, y + 5);
+                ctx.shadowBlur = 0;
+                return;
+            }
 
             // Selection highlight
             if (selected) {
@@ -279,8 +324,8 @@ export class OptionsMenu {
             }
         });
 
-        // Theme preview (if selecting theme)
-        if (this.previewTheme && this.currentOption === 0) {
+        // Theme preview (if selecting theme - HUD THEME is at index 5)
+        if (this.previewTheme && this.currentOption === 5) {
             ctx.font = '12px Courier New';
             ctx.fillStyle = '#888888';
             ctx.textAlign = 'center';
