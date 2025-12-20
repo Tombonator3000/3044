@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Geometry 3044 - Icon Generator</title>
+    <style>
+        body {
+            background: #1a1a2e;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .icon-preview {
+            display: inline-block;
+            margin: 10px;
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid #333;
+            display: block;
+            margin-bottom: 5px;
+        }
+        button {
+            background: #ff00ff;
+            border: none;
+            color: #fff;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 5px;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #cc00cc;
+        }
+        h1 { color: #00ffff; }
+        h2 { color: #ff00ff; }
+        .instructions {
+            background: #0a0a15;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Geometry 3044 Icon Generator</h1>
+
+    <div class="instructions">
+        <h2>Instructions:</h2>
+        <p>1. Click "Generate All Icons" to create all icon sizes</p>
+        <p>2. Click "Download" under each icon to save it</p>
+        <p>3. Place all downloaded icons in the /icons/ folder</p>
+    </div>
+
+    <button onclick="generateAllIcons()">Generate All Icons</button>
+    <button onclick="downloadAll()">Download All Icons</button>
+
+    <div id="iconContainer"></div>
+
+    <script>
+        const sizes = [16, 32, 72, 96, 128, 144, 152, 180, 192, 384, 512];
+
+        function drawIcon(ctx, size) {
+            const s = size;
+            const center = s / 2;
+
+            // Background gradient
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, s);
+            bgGrad.addColorStop(0, '#1a0033');
+            bgGrad.addColorStop(0.5, '#0a0015');
+            bgGrad.addColorStop(1, '#000000');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, s, s);
+
+            // Stars
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            for (let i = 0; i < 8; i++) {
+                const x = Math.random() * s;
+                const y = Math.random() * s * 0.4;
+                const r = Math.random() * (s / 256) + (s / 512);
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Synthwave sun
+            const sunY = s * 0.75;
+            const sunR = s * 0.25;
+            const sunGrad = ctx.createLinearGradient(center, sunY - sunR, center, sunY + sunR);
+            sunGrad.addColorStop(0, '#ff6b35');
+            sunGrad.addColorStop(0.5, '#ff00ff');
+            sunGrad.addColorStop(1, '#8b00ff');
+            ctx.fillStyle = sunGrad;
+            ctx.beginPath();
+            ctx.arc(center, sunY, sunR, Math.PI, 0);
+            ctx.fill();
+
+            // Sun lines
+            ctx.fillStyle = '#0a0015';
+            const lineCount = 4;
+            for (let i = 0; i < lineCount; i++) {
+                const y = sunY - sunR + (i + 1) * (sunR / (lineCount + 1));
+                const h = (s / 128) * (i + 1);
+                ctx.fillRect(center - sunR, y, sunR * 2, h);
+            }
+
+            // Grid lines
+            ctx.strokeStyle = 'rgba(255, 0, 255, 0.3)';
+            ctx.lineWidth = s / 256;
+            const gridY = s * 0.85;
+            // Horizontal
+            ctx.beginPath();
+            ctx.moveTo(0, gridY);
+            ctx.lineTo(s, gridY);
+            ctx.stroke();
+            // Vertical perspective
+            for (let i = -2; i <= 2; i++) {
+                ctx.beginPath();
+                ctx.moveTo(center, s * 0.65);
+                ctx.lineTo(center + i * s * 0.3, s);
+                ctx.stroke();
+            }
+
+            // Player ship
+            const shipY = s * 0.25;
+            const shipSize = s * 0.25;
+
+            // Glow effect
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = s / 16;
+
+            // Ship body (triangle)
+            ctx.fillStyle = '#00ffff';
+            ctx.beginPath();
+            ctx.moveTo(center, shipY - shipSize * 0.5);
+            ctx.lineTo(center + shipSize * 0.4, shipY + shipSize * 0.3);
+            ctx.lineTo(center, shipY + shipSize * 0.1);
+            ctx.lineTo(center - shipSize * 0.4, shipY + shipSize * 0.3);
+            ctx.closePath();
+            ctx.fill();
+
+            // Wings
+            ctx.shadowColor = '#ff00ff';
+            ctx.fillStyle = '#ff00ff';
+            ctx.beginPath();
+            ctx.moveTo(center - shipSize * 0.4, shipY + shipSize * 0.3);
+            ctx.lineTo(center, shipY + shipSize * 0.1);
+            ctx.lineTo(center - shipSize * 0.6, shipY + shipSize * 0.5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(center + shipSize * 0.4, shipY + shipSize * 0.3);
+            ctx.lineTo(center, shipY + shipSize * 0.1);
+            ctx.lineTo(center + shipSize * 0.6, shipY + shipSize * 0.5);
+            ctx.closePath();
+            ctx.fill();
+
+            // Core
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(center, shipY, shipSize * 0.12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#00ffff';
+            ctx.beginPath();
+            ctx.arc(center, shipY, shipSize * 0.08, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Engine trail
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = s / 32;
+            ctx.fillStyle = '#00ffff';
+            ctx.beginPath();
+            ctx.moveTo(center, shipY + shipSize * 0.3);
+            ctx.lineTo(center + shipSize * 0.1, shipY + shipSize * 0.6);
+            ctx.lineTo(center, shipY + shipSize * 0.5);
+            ctx.lineTo(center - shipSize * 0.1, shipY + shipSize * 0.6);
+            ctx.closePath();
+            ctx.fill();
+
+            // Reset shadow
+            ctx.shadowBlur = 0;
+
+            // "3044" text (only for larger icons)
+            if (size >= 96) {
+                ctx.shadowColor = '#00ffff';
+                ctx.shadowBlur = s / 64;
+                ctx.fillStyle = '#ffffff';
+                ctx.font = `bold ${s * 0.1}px Arial Black, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.fillText('3044', center, s * 0.62);
+                ctx.shadowBlur = 0;
+            }
+
+            // Enemy shapes (only for larger icons)
+            if (size >= 128) {
+                ctx.strokeStyle = '#ff6b35';
+                ctx.lineWidth = s / 128;
+                // Left diamond
+                const eSize = s * 0.06;
+                ctx.beginPath();
+                ctx.moveTo(s * 0.2, s * 0.35);
+                ctx.lineTo(s * 0.2 + eSize, s * 0.35 + eSize);
+                ctx.lineTo(s * 0.2, s * 0.35 + eSize * 2);
+                ctx.lineTo(s * 0.2 - eSize, s * 0.35 + eSize);
+                ctx.closePath();
+                ctx.stroke();
+                // Right diamond
+                ctx.beginPath();
+                ctx.moveTo(s * 0.8, s * 0.35);
+                ctx.lineTo(s * 0.8 + eSize, s * 0.35 + eSize);
+                ctx.lineTo(s * 0.8, s * 0.35 + eSize * 2);
+                ctx.lineTo(s * 0.8 - eSize, s * 0.35 + eSize);
+                ctx.closePath();
+                ctx.stroke();
+            }
+        }
+
+        function generateIcon(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            drawIcon(ctx, size);
+            return canvas;
+        }
+
+        function generateAllIcons() {
+            const container = document.getElementById('iconContainer');
+            container.innerHTML = '<h2>Generated Icons:</h2>';
+
+            sizes.forEach(size => {
+                const div = document.createElement('div');
+                div.className = 'icon-preview';
+
+                const canvas = generateIcon(size);
+                canvas.id = `icon-${size}`;
+                div.appendChild(canvas);
+
+                const label = document.createElement('div');
+                label.textContent = `${size}x${size}`;
+                div.appendChild(label);
+
+                const btn = document.createElement('button');
+                btn.textContent = 'Download';
+                btn.onclick = () => downloadIcon(size);
+                div.appendChild(btn);
+
+                container.appendChild(div);
+            });
+
+            // Also generate apple-touch-icon
+            const appleDiv = document.createElement('div');
+            appleDiv.className = 'icon-preview';
+            const appleCanvas = generateIcon(180);
+            appleCanvas.id = 'icon-apple';
+            appleDiv.appendChild(appleCanvas);
+            const appleLabel = document.createElement('div');
+            appleLabel.textContent = 'apple-touch-icon';
+            appleDiv.appendChild(appleLabel);
+            const appleBtn = document.createElement('button');
+            appleBtn.textContent = 'Download';
+            appleBtn.onclick = () => {
+                const canvas = document.getElementById('icon-apple');
+                const link = document.createElement('a');
+                link.download = 'apple-touch-icon.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            };
+            appleDiv.appendChild(appleBtn);
+            container.appendChild(appleDiv);
+        }
+
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`icon-${size}`);
+            const link = document.createElement('a');
+            link.download = `icon-${size}x${size}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function downloadAll() {
+            sizes.forEach((size, index) => {
+                setTimeout(() => downloadIcon(size), index * 200);
+            });
+            // Apple touch icon
+            setTimeout(() => {
+                const canvas = document.getElementById('icon-apple');
+                if (canvas) {
+                    const link = document.createElement('a');
+                    link.download = 'apple-touch-icon.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                }
+            }, sizes.length * 200);
+        }
+
+        // Auto-generate on load
+        window.onload = generateAllIcons;
+    </script>
+</body>
+</html>

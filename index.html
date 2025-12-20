@@ -2,8 +2,32 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Geometry 3044 - Enhanced Arcade Edition</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Retro-inspired arcade shooter with synthwave aesthetics. Destroy geometric enemies, collect power-ups, and chase high scores!">
+    <meta name="theme-color" content="#ff00ff">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Geometry 3044">
+    <meta name="application-name" content="Geometry 3044">
+    <meta name="msapplication-TileColor" content="#0a0015">
+    <meta name="msapplication-config" content="none">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- App Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+    <link rel="mask-icon" href="icons/safari-pinned-tab.svg" color="#ff00ff">
+
+    <!-- Preconnect for performance -->
+    <link rel="preload" href="js/main.js" as="script" crossorigin>
+
     <link rel="stylesheet" href="styles.css?v=20241220">
 </head>
 <body>
@@ -377,5 +401,59 @@
 
     <!-- ES6 Module entry point -->
     <script type="module" src="js/main.js?v=20241219"></script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        // Register Service Worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('[PWA] Service Worker registered:', registration.scope);
+
+                        // Check for updates periodically
+                        setInterval(() => {
+                            registration.update();
+                        }, 60 * 60 * 1000); // Check every hour
+
+                        // Handle updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New version available
+                                    console.log('[PWA] New version available! Refresh to update.');
+                                    // Optional: Show update notification to user
+                                    if (window.showPWAUpdateNotification) {
+                                        window.showPWAUpdateNotification();
+                                    }
+                                }
+                            });
+                        });
+                    })
+                    .catch((error) => {
+                        console.warn('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+
+        // Handle PWA install prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing
+            e.preventDefault();
+            // Store the event for later use
+            deferredPrompt = e;
+            // Show install button in menu (if implemented)
+            console.log('[PWA] Install prompt ready');
+            window.pwaInstallPrompt = deferredPrompt;
+        });
+
+        // Track successful installations
+        window.addEventListener('appinstalled', () => {
+            console.log('[PWA] App installed successfully!');
+            deferredPrompt = null;
+        });
+    </script>
 </body>
 </html>
