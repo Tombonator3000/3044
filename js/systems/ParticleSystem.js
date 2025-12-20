@@ -12,9 +12,9 @@ const particlePerfSettings = {
     reducedParticles: false
 };
 
-// Detect low-perf devices
+// Detect low-perf devices - only reduce on very low-end devices
 const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-if (isMobileDevice || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)) {
+if (isMobileDevice || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2)) {
     particlePerfSettings.enableShadows = false;
     particlePerfSettings.reducedParticles = true;
 }

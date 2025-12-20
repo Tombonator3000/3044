@@ -7,8 +7,8 @@ import { config, getCurrentTheme } from '../config.js';
 // Performance settings - auto-adjusted based on device capability
 const perfSettings = {
     enableWaving: true,
-    maxImpacts: 5,           // Limit concurrent impacts
-    updateFrequency: 2,      // Update every N frames (1 = every frame)
+    maxImpacts: 10,          // Allow more concurrent impacts for better visual feedback
+    updateFrequency: 1,      // Update every frame for smooth animation
     drawIntersections: true,
     enableShadows: true,
     frameCounter: 0
@@ -16,14 +16,14 @@ const perfSettings = {
 
 // Detect if mobile or low-performance device
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-const isLowPerf = isMobile || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+const isLowPerf = isMobile || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2);
 
-// Adjust settings for low-performance devices
+// Adjust settings for very low-performance devices only
 if (isLowPerf) {
-    perfSettings.updateFrequency = 3;
-    perfSettings.maxImpacts = 3;
-    perfSettings.drawIntersections = false;
-    perfSettings.enableShadows = false;
+    perfSettings.updateFrequency = 2;
+    perfSettings.maxImpacts = 5;
+    perfSettings.drawIntersections = true;  // Keep intersections visible
+    perfSettings.enableShadows = false;     // Only disable shadows on mobile
 }
 
 // Grid state for wave simulation

@@ -18,7 +18,7 @@ import { RadicalSlang } from './effects/RadicalSlang.js';
 import { VHSEffect } from './effects/VHSEffect.js';
 import { SoundSystem } from './systems/SoundSystem.js';
 import { HUD } from './ui/HUD.js';
-import { drawThemedGrid, drawBackground } from './rendering/GridRenderer.js';
+import { drawWavingGrid, drawBackground, addGridImpact } from './rendering/GridRenderer.js';
 import { initCachedUI } from './globals.js';
 import { MobileControls } from './ui/MobileControls.js';
 import { MenuManager, GameSettings } from './ui/MenuManager.js';
@@ -1181,10 +1181,27 @@ function update(deltaTime) {
 
             if (particleSystem) {
                 particleSystem.addBossExplosion(gameState.boss.x, gameState.boss.y);
+                // Epic additional effects
+                if (particleSystem.megaComboExplosion) {
+                    particleSystem.megaComboExplosion(gameState.boss.x, gameState.boss.y, 5);
+                }
             }
 
             if (soundSystem) {
                 soundSystem.playExplosion();
+            }
+
+            // Show boss defeat phrase
+            if (radicalSlang?.showBossDefeatPhrase) {
+                radicalSlang.showBossDefeatPhrase(gameState.boss.x, gameState.boss.y);
+            }
+
+            // Massive grid impact for boss death
+            addGridImpact(gameState.boss.x, gameState.boss.y, 150, 400);
+
+            // Track boss kill
+            if (gameState.sessionStats) {
+                gameState.sessionStats.bossKills = (gameState.sessionStats.bossKills || 0) + 1;
             }
 
             gameState.boss = null;
@@ -1198,6 +1215,11 @@ function update(deltaTime) {
         // Check for wave complete
         if (waveManager.isWaveComplete()) {
             gameState.wave++;
+
+            // Show wave clear phrase
+            if (radicalSlang?.showWaveClearPhrase) {
+                radicalSlang.showWaveClearPhrase();
+            }
 
             // Update starfield theme
             if (starfield) starfield.updateTheme(gameState.wave);
@@ -1348,8 +1370,8 @@ function render() {
     // Starfield
     if (starfield) starfield.draw(ctx);
 
-    // Grid
-    drawThemedGrid(ctx, canvas, gameState.wave);
+    // Waving Grid (Geometry Wars-style with ripple effects)
+    drawWavingGrid(ctx, canvas, gameState.wave);
 
     // Zone system (behind everything)
     if (zoneSystem) zoneSystem.draw(ctx);
@@ -1480,8 +1502,8 @@ function menuLoop() {
         starfield.draw(ctx);
     }
 
-    // Draw grid (subtle)
-    drawThemedGrid(ctx, canvas, 1);
+    // Draw waving grid (subtle)
+    drawWavingGrid(ctx, canvas, 1);
 
     // VHS effect
     if (vhsEffect) vhsEffect.apply(ctx, canvas);
@@ -1511,6 +1533,14 @@ function spawnBoss() {
     if (vhsEffect) {
         vhsEffect.triggerGlitch(2, 60);
     }
+
+    // Show boss phrase
+    if (radicalSlang?.showBossPhrase) {
+        radicalSlang.showBossPhrase();
+    }
+
+    // Add massive grid impact for boss spawn
+    addGridImpact(canvas.width / 2, 100, 80, 250);
 
     // Trigger reactive music boss effect
     if (reactiveMusicSystem) {
@@ -1542,11 +1572,16 @@ function useBomb() {
     if (soundSystem) soundSystem.playBomb();
 
     // Screen shake
-    gameState.screenShake.intensity = 20;
-    gameState.screenShake.duration = 45;
+    gameState.screenShake.intensity = 25;
+    gameState.screenShake.duration = 60;
 
     // VHS glitch
-    if (vhsEffect) vhsEffect.triggerGlitch(2, 30);
+    if (vhsEffect) vhsEffect.triggerGlitch(2.5, 45);
+
+    // MASSIVE grid impact for bomb
+    if (player) {
+        addGridImpact(player.x, player.y, 200, 500);
+    }
 
     // Clear enemy bullets
     if (enemyBulletPool) enemyBulletPool.clear();
@@ -1566,18 +1601,36 @@ function useBomb() {
         gameState.boss.takeDamage(20);
     }
 
-    // Radial explosion from player
+    // Epic radial explosion from player
     if (player && particleSystem) {
+        // Use mega combo explosion for bomb
+        if (particleSystem.megaComboExplosion) {
+            particleSystem.megaComboExplosion(player.x, player.y, 5);
+        }
+
+        // Add synthwave explosion
+        if (particleSystem.synthwaveExplosion) {
+            particleSystem.synthwaveExplosion(player.x, player.y);
+        }
+
+        // Multiple shockwaves
+        if (particleSystem.addShockwave) {
+            particleSystem.addShockwave(player.x, player.y, '#ffff00', 200);
+            setTimeout(() => particleSystem.addShockwave(player.x, player.y, '#ff00ff', 250), 50);
+            setTimeout(() => particleSystem.addShockwave(player.x, player.y, '#00ffff', 300), 100);
+        }
+
+        // Traditional radial particles as well
         for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 16) {
             particleSystem.addParticle({
                 x: player.x,
                 y: player.y,
                 vx: Math.cos(angle) * 15,
                 vy: Math.sin(angle) * 15,
-                life: 30,
-                size: 8,
+                life: 40,
+                size: 10,
                 color: '#ffff00',
-                glow: true
+                type: 'star'
             });
         }
     }
@@ -1637,20 +1690,35 @@ function handlePlayerDeath() {
     gameState.combo = 0;
     if (radicalSlang) radicalSlang.resetCombo();
 
-    // Explosion
+    // Show danger phrase
+    if (radicalSlang?.showDangerPhrase && player) {
+        radicalSlang.showDangerPhrase(player.x, player.y);
+    }
+
+    // Epic death explosion
     if (particleSystem && player) {
-        particleSystem.addExplosion(player.x, player.y, '#00ff00', 30);
+        // Use epic death explosion if available
+        if (particleSystem.epicDeathExplosion) {
+            particleSystem.epicDeathExplosion(player.x, player.y, '#00ff00');
+        } else {
+            particleSystem.addExplosion(player.x, player.y, '#00ff00', 30);
+        }
+    }
+
+    // Massive grid impact for player death
+    if (player) {
+        addGridImpact(player.x, player.y, 100, 300);
     }
 
     // Sound
     if (soundSystem) soundSystem.playExplosion();
 
     // Screen shake
-    gameState.screenShake.intensity = 15;
-    gameState.screenShake.duration = 30;
+    gameState.screenShake.intensity = 20;
+    gameState.screenShake.duration = 45;
 
     // VHS glitch
-    if (vhsEffect) vhsEffect.triggerGlitch(2, 45);
+    if (vhsEffect) vhsEffect.triggerGlitch(2.5, 60);
 
     if (gameState.lives <= 0) {
         // Game over

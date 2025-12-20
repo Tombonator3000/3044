@@ -64,7 +64,7 @@ export const config = {
 
     // Particle settings
     particles: {
-        maxCount: 500
+        maxCount: 1000
     },
 
     // Screen shake presets

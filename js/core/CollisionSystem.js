@@ -807,9 +807,14 @@ export class CollisionSystem {
         gs.maxCombo = Math.max(gs.maxCombo || 0, gs.combo);
         gs.comboTimer = gs.comboTimeout || 180;
 
-        // Check for radical slang
+        // Check for radical slang (combo phrases)
         if (gs.radicalSlang?.checkCombo) {
             gs.radicalSlang.checkCombo(gs.combo);
+        }
+
+        // Show kill phrase occasionally (10% chance handled inside)
+        if (gs.radicalSlang?.showKillPhrase) {
+            gs.radicalSlang.showKillPhrase(enemy.x, enemy.y);
         }
 
         // === GRID RIPPLE EFFECT ===
