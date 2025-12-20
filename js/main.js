@@ -1096,18 +1096,20 @@ function updateAttractModeAI() {
 }
 
 function requestGameFullscreen() {
-    const gameContainer = document.getElementById('gameContainer') || document.documentElement;
-    const requestFullscreen = gameContainer.requestFullscreen
-        || gameContainer.webkitRequestFullscreen
-        || gameContainer.mozRequestFullScreen
-        || gameContainer.msRequestFullscreen;
+    // Use document.documentElement for fullscreen to ensure all game elements are visible
+    // (including pcLayout which is a sibling of gameContainer)
+    const fullscreenElement = document.documentElement;
+    const requestFullscreen = fullscreenElement.requestFullscreen
+        || fullscreenElement.webkitRequestFullscreen
+        || fullscreenElement.mozRequestFullScreen
+        || fullscreenElement.msRequestFullscreen;
 
     if (!requestFullscreen) {
         return;
     }
 
     try {
-        const fullscreenResult = requestFullscreen.call(gameContainer);
+        const fullscreenResult = requestFullscreen.call(fullscreenElement);
         if (fullscreenResult && typeof fullscreenResult.catch === 'function') {
             fullscreenResult.catch((error) => {
                 console.warn('⚠️ Fullscreen request was denied:', error);
@@ -1244,6 +1246,10 @@ function setupGameplayLayout() {
 }
 
 function initGame(isAttractMode = false) {
+    // Reset death screen state
+    deathScreenState = 'none';
+    isNewHighScore = false;
+
     // Clear previous state
     if (gameLoopId) {
         cancelAnimationFrame(gameLoopId);
@@ -2091,6 +2097,12 @@ function drawPauseScreen() {
 // PLAYER DEATH & GAME OVER
 // ============================================
 
+// Death screen state
+let deathScreenState = 'none'; // 'none', 'highscore_entry', 'death_choice'
+let playerInitials = ['A', 'A', 'A'];
+let currentInitialIndex = 0;
+let isNewHighScore = false;
+
 function handlePlayerDeath() {
     gameState.lives--;
 
@@ -2137,7 +2149,10 @@ function handlePlayerDeath() {
             soundSystem.playGameOver();
         }
 
-        // Save high score
+        // Check if this is a new high score (top 10)
+        isNewHighScore = menuManager?.isHighScore(gameState.score) || false;
+
+        // Update high score if needed
         if (gameState.score > gameState.highScore) {
             gameState.highScore = gameState.score;
             localStorage.setItem('geometry3044_highScore', gameState.highScore);
@@ -2172,6 +2187,15 @@ function handlePlayerDeath() {
                 gameModeManager.checkUnlocks(achievementSystem.stats);
             }
         }
+
+        // Set death screen state
+        if (isNewHighScore) {
+            deathScreenState = 'highscore_entry';
+            playerInitials = ['A', 'A', 'A'];
+            currentInitialIndex = 0;
+        } else {
+            deathScreenState = 'death_choice';
+        }
     } else {
         // Respawn
         if (player) {
@@ -2182,82 +2206,295 @@ function handlePlayerDeath() {
 
 function drawGameOverScreen() {
     // Darken
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
     ctx.fillRect(0, 0, canvas.logicalWidth, canvas.logicalHeight);
 
     ctx.save();
     ctx.textAlign = 'center';
 
-    // Game Over
-    ctx.font = 'bold 72px "Courier New", monospace';
-    ctx.fillStyle = '#ff0000';
-    ctx.shadowBlur = 30;
-    ctx.shadowColor = '#ff0000';
-    ctx.fillText('GAME OVER', canvas.logicalWidth / 2, canvas.logicalHeight / 2 - 60);
-
-    // Score
-    ctx.font = 'bold 36px "Courier New", monospace';
-    ctx.fillStyle = '#00ffff';
-    ctx.shadowColor = '#00ffff';
-    ctx.fillText(`SCORE: ${gameState.score.toLocaleString()}`, canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 10);
-
-    // Wave
-    ctx.font = '24px "Courier New", monospace';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(`REACHED WAVE ${gameState.wave}`, canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 50);
-
-    // Max combo
-    ctx.fillText(`MAX COMBO: ${gameState.maxCombo}x`, canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 80);
-
-    // High score
-    if (gameState.score >= gameState.highScore) {
-        ctx.font = 'bold 28px "Courier New", monospace';
-        ctx.fillStyle = '#ffd700';
-        ctx.shadowColor = '#ffd700';
-        ctx.fillText('★ NEW HIGH SCORE! ★', canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 130);
-    }
-
-    // Continue prompt
-    ctx.font = '20px "Courier New", monospace';
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowBlur = 0;
-
-    if (credits > 0) {
-        ctx.fillText(`Press SPACE to continue (${credits} credits)`, canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 180);
+    if (deathScreenState === 'highscore_entry') {
+        drawHighScoreEntryScreen();
     } else {
-        ctx.fillText('Press C to insert coin, SPACE to return to menu', canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 180);
+        drawDeathChoiceScreen();
     }
 
     ctx.restore();
+}
 
-    // Handle continue
-    if (keys[' '] || keys['Space']) {
-        keys[' '] = false;
-        keys['Space'] = false;
+function drawHighScoreEntryScreen() {
+    const centerX = canvas.logicalWidth / 2;
+    const centerY = canvas.logicalHeight / 2;
 
-        if (credits > 0) {
-            // Continue game
-            credits--;
-            updateCreditsDisplay();
+    // Title
+    ctx.font = 'bold 48px "Courier New", monospace';
+    ctx.fillStyle = '#ffd700';
+    ctx.shadowBlur = 30;
+    ctx.shadowColor = '#ffd700';
+    ctx.fillText('NEW HIGH SCORE!', centerX, centerY - 150);
 
-            gameState.lives = 3;
-            gameState.gameOver = false;
+    // Score display
+    ctx.font = 'bold 36px "Courier New", monospace';
+    ctx.fillStyle = '#00ffff';
+    ctx.shadowColor = '#00ffff';
+    ctx.fillText(gameState.score.toLocaleString(), centerX, centerY - 90);
 
-            if (player) {
-                player.respawn(canvas);
-            }
+    // Enter initials prompt
+    ctx.font = '24px "Courier New", monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowBlur = 0;
+    ctx.fillText('ENTER YOUR INITIALS', centerX, centerY - 40);
 
-            if (enemyBulletPool) enemyBulletPool.clear();
+    // Draw initials boxes
+    const boxWidth = 60;
+    const boxGap = 20;
+    const totalWidth = boxWidth * 3 + boxGap * 2;
+    const startX = centerX - totalWidth / 2;
 
-            if (soundSystem) soundSystem.playMusic('game');
-        } else {
-            // Return to menu
-            returnToMenu();
+    for (let i = 0; i < 3; i++) {
+        const x = startX + i * (boxWidth + boxGap);
+        const isSelected = i === currentInitialIndex;
+
+        // Box background
+        ctx.fillStyle = isSelected ? 'rgba(0, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(x, centerY, boxWidth, boxWidth);
+
+        // Box border
+        ctx.strokeStyle = isSelected ? '#00ffff' : '#666666';
+        ctx.lineWidth = isSelected ? 3 : 2;
+        ctx.strokeRect(x, centerY, boxWidth, boxWidth);
+
+        // Letter
+        ctx.font = 'bold 40px "Courier New", monospace';
+        ctx.fillStyle = isSelected ? '#00ffff' : '#ffffff';
+        ctx.shadowBlur = isSelected ? 15 : 0;
+        ctx.shadowColor = '#00ffff';
+        ctx.fillText(playerInitials[i], x + boxWidth / 2, centerY + boxWidth / 2 + 14);
+    }
+
+    // Up/Down arrows for selected letter
+    const selectedX = startX + currentInitialIndex * (boxWidth + boxGap) + boxWidth / 2;
+    const blink = Math.sin(Date.now() * 0.01) > 0;
+    if (blink) {
+        ctx.font = '24px "Courier New", monospace';
+        ctx.fillStyle = '#ffff00';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#ffff00';
+        ctx.fillText('▲', selectedX, centerY - 10);
+        ctx.fillText('▼', selectedX, centerY + boxWidth + 30);
+    }
+
+    // Instructions
+    ctx.font = '18px "Courier New", monospace';
+    ctx.fillStyle = '#888888';
+    ctx.shadowBlur = 0;
+    ctx.fillText('UP/DOWN: Change Letter   LEFT/RIGHT: Select   ENTER: Confirm', centerX, centerY + 130);
+    ctx.fillText('Press ESC to skip', centerX, centerY + 160);
+
+    // Handle input
+    handleHighScoreEntryInput();
+}
+
+function handleHighScoreEntryInput() {
+    // Change letter up
+    if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+        keys['ArrowUp'] = false;
+        keys['w'] = false;
+        keys['W'] = false;
+        const current = playerInitials[currentInitialIndex].charCodeAt(0);
+        playerInitials[currentInitialIndex] = String.fromCharCode(current >= 90 ? 65 : current + 1); // A-Z wrap
+        if (soundSystem) soundSystem.playPowerUp(0);
+    }
+
+    // Change letter down
+    if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+        keys['ArrowDown'] = false;
+        keys['s'] = false;
+        keys['S'] = false;
+        const current = playerInitials[currentInitialIndex].charCodeAt(0);
+        playerInitials[currentInitialIndex] = String.fromCharCode(current <= 65 ? 90 : current - 1); // A-Z wrap
+        if (soundSystem) soundSystem.playPowerUp(0);
+    }
+
+    // Move selection left
+    if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+        keys['ArrowLeft'] = false;
+        keys['a'] = false;
+        keys['A'] = false;
+        currentInitialIndex = (currentInitialIndex - 1 + 3) % 3;
+        if (soundSystem) soundSystem.playPowerUp(0);
+    }
+
+    // Move selection right
+    if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+        keys['ArrowRight'] = false;
+        keys['d'] = false;
+        keys['D'] = false;
+        currentInitialIndex = (currentInitialIndex + 1) % 3;
+        if (soundSystem) soundSystem.playPowerUp(0);
+    }
+
+    // Confirm/Submit
+    if (keys['Enter']) {
+        keys['Enter'] = false;
+        const initials = playerInitials.join('');
+        if (menuManager) {
+            menuManager.addHighScore(initials, gameState.score);
         }
+        if (soundSystem) soundSystem.playPowerUp(2);
+        deathScreenState = 'death_choice';
+    }
+
+    // Skip (ESC)
+    if (keys['Escape']) {
+        keys['Escape'] = false;
+        deathScreenState = 'death_choice';
     }
 }
 
+function drawDeathChoiceScreen() {
+    const centerX = canvas.logicalWidth / 2;
+    const centerY = canvas.logicalHeight / 2;
+
+    // Game Over title
+    ctx.font = 'bold 64px "Courier New", monospace';
+    ctx.fillStyle = '#ff0000';
+    ctx.shadowBlur = 30;
+    ctx.shadowColor = '#ff0000';
+    ctx.fillText('GAME OVER', centerX, centerY - 120);
+
+    // Score display
+    ctx.font = 'bold 32px "Courier New", monospace';
+    ctx.fillStyle = '#00ffff';
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 20;
+    ctx.fillText(`SCORE: ${gameState.score.toLocaleString()}`, centerX, centerY - 60);
+
+    // Stats
+    ctx.font = '20px "Courier New", monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowBlur = 0;
+    ctx.fillText(`Wave Reached: ${gameState.wave}   Max Combo: ${gameState.maxCombo}x`, centerX, centerY - 20);
+
+    // Options box
+    const boxY = centerY + 20;
+    const boxHeight = 160;
+    ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
+    ctx.fillRect(centerX - 250, boxY, 500, boxHeight);
+    ctx.strokeStyle = '#00ffff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(centerX - 250, boxY, 500, boxHeight);
+
+    // Option 1: Continue with credits
+    const option1Y = boxY + 50;
+    if (credits > 0) {
+        ctx.font = 'bold 24px "Courier New", monospace';
+        ctx.fillStyle = '#00ff00';
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#00ff00';
+        ctx.fillText(`[1] CONTINUE (${credits} CREDITS)`, centerX, option1Y);
+
+        ctx.font = '16px "Courier New", monospace';
+        ctx.fillStyle = '#888888';
+        ctx.shadowBlur = 0;
+        ctx.fillText('Use 1 credit to continue playing', centerX, option1Y + 25);
+    } else {
+        ctx.font = 'bold 24px "Courier New", monospace';
+        ctx.fillStyle = '#666666';
+        ctx.shadowBlur = 0;
+        ctx.fillText('[1] NO CREDITS', centerX, option1Y);
+
+        ctx.font = '16px "Courier New", monospace';
+        ctx.fillStyle = '#ff6666';
+        ctx.fillText('Press C to insert coin', centerX, option1Y + 25);
+    }
+
+    // Option 2: Return to menu
+    const option2Y = boxY + 120;
+    ctx.font = 'bold 24px "Courier New", monospace';
+    ctx.fillStyle = '#ff00ff';
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#ff00ff';
+    ctx.fillText('[2] RETURN TO MENU', centerX, option2Y);
+
+    // Footer hint
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillStyle = '#666666';
+    ctx.shadowBlur = 0;
+    ctx.fillText('Press 1, 2, or SPACE/ENTER', centerX, centerY + 210);
+
+    // Handle input
+    handleDeathChoiceInput();
+}
+
+function handleDeathChoiceInput() {
+    // Option 1: Continue (if credits available)
+    if (keys['1'] || keys['Digit1'] || keys['Numpad1']) {
+        keys['1'] = false;
+        keys['Digit1'] = false;
+        keys['Numpad1'] = false;
+
+        if (credits > 0) {
+            continueGame();
+        }
+    }
+
+    // Option 2: Return to menu
+    if (keys['2'] || keys['Digit2'] || keys['Numpad2'] || keys['Escape']) {
+        keys['2'] = false;
+        keys['Digit2'] = false;
+        keys['Numpad2'] = false;
+        keys['Escape'] = false;
+
+        deathScreenState = 'none';
+        returnToMenu();
+    }
+
+    // Space/Enter - Continue if credits, else return to menu
+    if (keys[' '] || keys['Space'] || keys['Enter']) {
+        keys[' '] = false;
+        keys['Space'] = false;
+        keys['Enter'] = false;
+
+        if (credits > 0) {
+            continueGame();
+        } else {
+            deathScreenState = 'none';
+            returnToMenu();
+        }
+    }
+
+    // C key - Insert coin
+    if (keys['c'] || keys['C']) {
+        keys['c'] = false;
+        keys['C'] = false;
+        addCredit();
+    }
+}
+
+function continueGame() {
+    credits--;
+    updateCreditsDisplay();
+
+    gameState.lives = 3;
+    gameState.gameOver = false;
+    deathScreenState = 'none';
+
+    if (player) {
+        player.respawn(canvas);
+    }
+
+    if (enemyBulletPool) enemyBulletPool.clear();
+
+    if (soundSystem) soundSystem.playMusic('game');
+
+    console.log('🎮 Game continued with credits');
+}
+
 function returnToMenu() {
+    // Reset death screen state
+    deathScreenState = 'none';
+    isNewHighScore = false;
+
     // Stop game
     if (gameLoopId) {
         cancelAnimationFrame(gameLoopId);
