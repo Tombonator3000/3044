@@ -604,9 +604,9 @@ export class Player {
                     ctx.shadowBlur = 20;
                     ctx.shadowColor = ctx.fillStyle;
                 } else {
-                    ctx.fillStyle = this.color;
+                    ctx.fillStyle = this.shipColor || this.color;
                     ctx.shadowBlur = 15;
-                    ctx.shadowColor = this.color;
+                    ctx.shadowColor = this.shipColor || this.color;
                 }
 
                 const size = (this.size * 0.5) * point.life;
@@ -644,9 +644,12 @@ export class Player {
 
         ctx.translate(this.x, this.y);
 
+        // Determine ship color based on modes
+        let activeColor = this.shipColor || config.colors.player;
+
         // Color effects for different modes
         if (this.feverMode > 0) {
-            this.color = `hsl(${this.rainbowHue}, 100%, 50%)`;
+            activeColor = `hsl(${this.rainbowHue}, 100%, 50%)`;
 
             for (let i = 0; i < 3; i++) {
                 ctx.strokeStyle = `hsla(${(this.rainbowHue + i * 30) % 360}, 100%, 50%, ${0.3 - i * 0.1})`;
@@ -658,51 +661,29 @@ export class Player {
                 ctx.stroke();
             }
         } else if (this.omegaMode > 0) {
-            this.color = '#ff0000';
+            activeColor = '#ff0000';
             ctx.strokeStyle = '#ff0000';
             ctx.lineWidth = 4;
             ctx.shadowBlur = 40;
             ctx.shadowColor = '#ff0000';
         } else if (this.ghostMode > 0) {
             ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
-            this.color = '#aaaaff';
+            activeColor = '#aaaaff';
         } else if (this.godMode > 0) {
-            this.color = `hsl(${(Date.now() * 0.5) % 360}, 100%, 70%)`;
+            activeColor = `hsl(${(Date.now() * 0.5) % 360}, 100%, 70%)`;
             ctx.shadowBlur = 50;
-            ctx.shadowColor = this.color;
-        } else {
-            this.color = config.colors.player;
+            ctx.shadowColor = activeColor;
         }
 
-        // Ship body
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = 3;
-        ctx.shadowBlur = 30;
-        ctx.shadowColor = this.color;
+        this.color = activeColor;
 
         // Flicker when invulnerable
         if (this.invulnerable && Math.floor(Date.now() / 100) % 2 === 0) {
             ctx.globalAlpha = 0.3;
         }
 
-        ctx.beginPath();
-        ctx.moveTo(0, -20);
-        ctx.lineTo(-15, 20);
-        ctx.lineTo(0, 10);
-        ctx.lineTo(15, 20);
-        ctx.closePath();
-        ctx.stroke();
-
-        ctx.fillStyle = this.color + '44';
-        ctx.fill();
-
-        // Inner highlight
-        ctx.globalAlpha = Math.min(ctx.globalAlpha || 1, 0.9);
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = this.color;
-        ctx.stroke();
+        // Draw ship based on ship type
+        this.drawShipByType(ctx, activeColor);
 
         // Vortex effect ring
         if (this.vortexActive > 0) {
@@ -789,5 +770,396 @@ export class Player {
         }
 
         ctx.restore();
+    }
+
+    /**
+     * Draw ship based on ship type - each ship has a unique design
+     */
+    drawShipByType(ctx, color) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = color;
+
+        switch (this.shipId) {
+            case 'glassCannon':
+                this.drawGlassCannonShip(ctx, color);
+                break;
+            case 'tank':
+                this.drawTankShip(ctx, color);
+                break;
+            case 'speedster':
+                this.drawSpeedsterShip(ctx, color);
+                break;
+            case 'retroClassic':
+                this.drawRetroClassicShip(ctx, color);
+                break;
+            case 'phantom':
+                this.drawPhantomShip(ctx, color);
+                break;
+            case 'berserker':
+                this.drawBerserkerShip(ctx, color);
+                break;
+            case 'synth':
+                this.drawSynthShip(ctx, color);
+                break;
+            case 'neonFalcon':
+            default:
+                this.drawNeonFalconShip(ctx, color);
+                break;
+        }
+    }
+
+    /**
+     * NEON FALCON - Classic balanced ship (default)
+     * Sleek arrow design with neon glow
+     */
+    drawNeonFalconShip(ctx, color) {
+        // Main body - sleek arrow
+        ctx.beginPath();
+        ctx.moveTo(0, -20);
+        ctx.lineTo(-15, 20);
+        ctx.lineTo(0, 10);
+        ctx.lineTo(15, 20);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = color + '44';
+        ctx.fill();
+
+        // Inner highlight
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.shadowBlur = 15;
+        ctx.stroke();
+
+        // Wing accents
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-8, 5);
+        ctx.lineTo(-12, 15);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(8, 5);
+        ctx.lineTo(12, 15);
+        ctx.stroke();
+    }
+
+    /**
+     * GLASS CANNON - Angular, aggressive design
+     * Sharp edges, red accents, looks dangerous
+     */
+    drawGlassCannonShip(ctx, color) {
+        // Sharp angular body
+        ctx.beginPath();
+        ctx.moveTo(0, -25);
+        ctx.lineTo(-10, -5);
+        ctx.lineTo(-18, 18);
+        ctx.lineTo(-5, 8);
+        ctx.lineTo(0, 20);
+        ctx.lineTo(5, 8);
+        ctx.lineTo(18, 18);
+        ctx.lineTo(10, -5);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = color + '33';
+        ctx.fill();
+
+        // Inner core - glowing energy
+        ctx.fillStyle = '#ffff00';
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#ffff00';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Danger stripes
+        ctx.strokeStyle = '#ff4400';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-6, -10);
+        ctx.lineTo(-10, 5);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(6, -10);
+        ctx.lineTo(10, 5);
+        ctx.stroke();
+    }
+
+    /**
+     * HEAVY TANK - Bulky, armored design
+     * Thick lines, hexagonal shape, looks sturdy
+     */
+    drawTankShip(ctx, color) {
+        ctx.lineWidth = 4;
+
+        // Hexagonal armored body
+        ctx.beginPath();
+        ctx.moveTo(0, -22);
+        ctx.lineTo(-18, -8);
+        ctx.lineTo(-18, 12);
+        ctx.lineTo(-10, 22);
+        ctx.lineTo(10, 22);
+        ctx.lineTo(18, 12);
+        ctx.lineTo(18, -8);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = color + '55';
+        ctx.fill();
+
+        // Armor plates
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-12, -5);
+        ctx.lineTo(-12, 10);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(12, -5);
+        ctx.lineTo(12, 10);
+        ctx.stroke();
+
+        // Shield generator in center
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#00ffff';
+        ctx.beginPath();
+        ctx.arc(0, 2, 6, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Front cannon
+        ctx.fillStyle = color;
+        ctx.fillRect(-3, -25, 6, 8);
+    }
+
+    /**
+     * SPEEDSTER - Streamlined, aerodynamic design
+     * Thin, elongated, built for speed
+     */
+    drawSpeedsterShip(ctx, color) {
+        ctx.lineWidth = 2;
+
+        // Ultra-slim body
+        ctx.beginPath();
+        ctx.moveTo(0, -28);
+        ctx.lineTo(-6, -10);
+        ctx.lineTo(-10, 15);
+        ctx.lineTo(-4, 8);
+        ctx.lineTo(0, 18);
+        ctx.lineTo(4, 8);
+        ctx.lineTo(10, 15);
+        ctx.lineTo(6, -10);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = color + '44';
+        ctx.fill();
+
+        // Speed lines (motion blur effect)
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        for (let i = 1; i <= 3; i++) {
+            ctx.beginPath();
+            ctx.moveTo(-4 - i * 3, 20 + i * 5);
+            ctx.lineTo(-4 - i * 3, 15);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(4 + i * 3, 20 + i * 5);
+            ctx.lineTo(4 + i * 3, 15);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        // Boost indicator
+        ctx.fillStyle = '#ffff00';
+        ctx.shadowColor = '#ffff00';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.arc(0, -15, 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    /**
+     * RETRO CLASSIC - Pixelated 8-bit style
+     * Blocky, nostalgic design
+     */
+    drawRetroClassicShip(ctx, color) {
+        const px = 4; // Pixel size
+        ctx.lineWidth = 1;
+        ctx.fillStyle = color;
+        ctx.shadowBlur = 15;
+
+        // Pixelated ship shape
+        const pixels = [
+            [0, -5],   // Top
+            [-1, -4], [0, -4], [1, -4],
+            [-1, -3], [0, -3], [1, -3],
+            [-2, -2], [-1, -2], [0, -2], [1, -2], [2, -2],
+            [-2, -1], [-1, -1], [0, -1], [1, -1], [2, -1],
+            [-3, 0], [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0], [3, 0],
+            [-3, 1], [-2, 1], [0, 1], [2, 1], [3, 1],
+            [-4, 2], [-3, 2], [0, 2], [3, 2], [4, 2],
+            [-4, 3], [0, 3], [4, 3],
+            [-4, 4], [4, 4],
+        ];
+
+        pixels.forEach(([px_x, px_y]) => {
+            ctx.fillRect(px_x * px - px/2, px_y * px - px/2, px, px);
+        });
+
+        // Outline
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-2 * px, -5 * px, 4 * px, 9 * px);
+    }
+
+    /**
+     * PHANTOM - Ethereal, ghostly design
+     * Translucent with phase effect
+     */
+    drawPhantomShip(ctx, color) {
+        const phase = Math.sin(Date.now() * 0.005) * 0.3;
+
+        // Ghostly outer aura
+        ctx.globalAlpha = 0.3 + phase;
+        ctx.fillStyle = color;
+        ctx.shadowBlur = 40;
+        ctx.beginPath();
+        ctx.arc(0, 0, 25, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 1;
+
+        // Ethereal body shape
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, -20);
+        ctx.quadraticCurveTo(-20, 0, -12, 20);
+        ctx.lineTo(0, 12);
+        ctx.lineTo(12, 20);
+        ctx.quadraticCurveTo(20, 0, 0, -20);
+        ctx.stroke();
+        ctx.fillStyle = color + '22';
+        ctx.fill();
+
+        // Inner spirit core
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = '#ffffff';
+        ctx.globalAlpha = 0.7 + phase;
+        ctx.beginPath();
+        ctx.arc(0, -2, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Phase ripples
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.4;
+        for (let i = 1; i <= 2; i++) {
+            ctx.beginPath();
+            ctx.arc(0, 0, 15 + i * 8 + phase * 5, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    /**
+     * BERSERKER - Aggressive, spiked design
+     * Angular with rage indicators
+     */
+    drawBerserkerShip(ctx, color) {
+        ctx.lineWidth = 3;
+
+        // Angry angular body
+        ctx.beginPath();
+        ctx.moveTo(0, -22);
+        ctx.lineTo(-8, -12);
+        ctx.lineTo(-20, -8); // Left spike
+        ctx.lineTo(-12, 0);
+        ctx.lineTo(-16, 18);
+        ctx.lineTo(-6, 12);
+        ctx.lineTo(0, 22);
+        ctx.lineTo(6, 12);
+        ctx.lineTo(16, 18);
+        ctx.lineTo(12, 0);
+        ctx.lineTo(20, -8);  // Right spike
+        ctx.lineTo(8, -12);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = color + '44';
+        ctx.fill();
+
+        // Rage eye in center
+        ctx.fillStyle = '#ff0000';
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 20;
+        const eyePulse = 3 + Math.sin(Date.now() * 0.01) * 1.5;
+        ctx.beginPath();
+        ctx.arc(0, -5, eyePulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Battle scars
+        ctx.strokeStyle = '#ffaa00';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-5, 2);
+        ctx.lineTo(-8, 10);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(5, 2);
+        ctx.lineTo(8, 10);
+        ctx.stroke();
+    }
+
+    /**
+     * SYNTHWAVE - Music-reactive, rhythmic design
+     * Flowing lines that pulse with beat
+     */
+    drawSynthShip(ctx, color) {
+        const beat = Math.sin(Date.now() * 0.008) * 0.5 + 0.5;
+        const pulse = 1 + beat * 0.15;
+
+        ctx.lineWidth = 2;
+
+        // Main flowing body
+        ctx.beginPath();
+        ctx.moveTo(0, -20 * pulse);
+        ctx.bezierCurveTo(-15, -10, -15, 10, -12, 20);
+        ctx.lineTo(0, 15);
+        ctx.lineTo(12, 20);
+        ctx.bezierCurveTo(15, 10, 15, -10, 0, -20 * pulse);
+        ctx.stroke();
+        ctx.fillStyle = color + '44';
+        ctx.fill();
+
+        // Sound wave rings
+        ctx.strokeStyle = '#ff00ff';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 3; i++) {
+            const ringPulse = (beat + i * 0.33) % 1;
+            ctx.globalAlpha = 1 - ringPulse;
+            ctx.beginPath();
+            ctx.arc(0, 0, 10 + ringPulse * 20, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        // Equalizer bars
+        ctx.fillStyle = '#00ffff';
+        ctx.shadowColor = '#00ffff';
+        for (let i = -2; i <= 2; i++) {
+            const barHeight = 3 + Math.sin(Date.now() * 0.01 + i) * 4;
+            ctx.fillRect(i * 4 - 1.5, 5 - barHeight, 3, barHeight);
+        }
+
+        // Central music note glow
+        ctx.fillStyle = color;
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = color;
+        ctx.beginPath();
+        ctx.arc(0, -5, 4 * pulse, 0, Math.PI * 2);
+        ctx.fill();
     }
 }
