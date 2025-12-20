@@ -30,6 +30,9 @@ export class HUD {
         this.width = CONFIG.screen.width;
         this.height = CONFIG.screen.height;
 
+        // Prefer DOM HUD for core stats if the layer exists
+        this.useDomHud = Boolean(document.getElementById('hudLayer'));
+
         // Animation state
         this.time = 0;
         this.flickerOffset = 0;
@@ -217,8 +220,13 @@ export class HUD {
             cachedUI.wave.textContent = gameState.wave;
             this.prevWave = gameState.wave;
         }
-        if (cachedUI.highScore && gameState.highScore !== this.prevHighScore) {
-            cachedUI.highScore.textContent = gameState.highScore.toLocaleString();
+        if (gameState.highScore !== this.prevHighScore) {
+            if (cachedUI.highScore) {
+                cachedUI.highScore.textContent = gameState.highScore.toLocaleString();
+            }
+            if (cachedUI.gameHighScore) {
+                cachedUI.gameHighScore.textContent = gameState.highScore.toLocaleString();
+            }
             this.prevHighScore = gameState.highScore;
         }
     }
@@ -235,10 +243,12 @@ export class HUD {
         this.drawThemeBackground(ctx);
 
         // Draw all HUD components
-        this.scoreDisplay.draw(ctx);
-        this.livesDisplay.draw(ctx);
-        this.waveDisplay.draw(ctx);
-        this.bombsDisplay.draw(ctx);
+        if (!this.useDomHud) {
+            this.scoreDisplay.draw(ctx);
+            this.livesDisplay.draw(ctx);
+            this.waveDisplay.draw(ctx);
+            this.bombsDisplay.draw(ctx);
+        }
         this.comboMeter.draw(ctx);
         this.bossHealthBar.draw(ctx);
         this.powerUpSlots.draw(ctx);

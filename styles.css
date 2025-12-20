@@ -1035,13 +1035,27 @@ body {
     100% { background-position: 0% 50%; }
 }
 
+#hudLayer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 12;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 20px;
+}
+
 #gameUI {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    right: 20px;
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
     display: none;
-    z-index: 5;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .ui-row {
@@ -1383,13 +1397,62 @@ body {
     text-transform: uppercase;
 }
 
-/* Mobile controls - hidden (using canvas-rendered controls instead) */
+#touchControlsLayer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 18;
+    pointer-events: none;
+}
+
 #mobileControls {
-    display: none !important;
+    position: absolute;
+    inset: 0;
+    pointer-events: auto;
 }
 
 .touch-button {
-    display: none !important;
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 2px solid rgba(0, 255, 255, 0.8);
+    background: rgba(0, 0, 0, 0.35);
+    color: #00ffff;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 0 12px rgba(0, 255, 255, 0.8);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.35);
+    user-select: none;
+    touch-action: none;
+}
+
+#touchJoystick {
+    left: 6%;
+    bottom: 8%;
+}
+
+#touchFire {
+    right: 8%;
+    bottom: 10%;
+    border-color: rgba(255, 0, 255, 0.8);
+    color: #ff66ff;
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.35);
+}
+
+#touchBomb {
+    right: 10%;
+    bottom: 28%;
+    width: 90px;
+    height: 90px;
+    border-color: rgba(255, 255, 0, 0.8);
+    color: #ffff66;
+    box-shadow: 0 0 20px rgba(255, 255, 0, 0.35);
 }
 
 /* ============================================
@@ -1398,6 +1461,24 @@ body {
 
 /* Medium screens */
 @media (max-width: 900px) {
+    #hudLayer {
+        padding: 12px;
+    }
+
+    #gameUI {
+        gap: 6px;
+    }
+
+    .ui-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .ui-element {
+        font-size: 1em;
+    }
+
     .game-title {
         font-size: 4em;
     }
@@ -1423,8 +1504,25 @@ body {
     }
 }
 
+@media (min-width: 901px) {
+    #touchControlsLayer {
+        display: none;
+    }
+}
+
 /* Small screens */
 @media (max-width: 600px) {
+    .touch-button {
+        width: 96px;
+        height: 96px;
+        font-size: 0.85em;
+    }
+
+    #touchBomb {
+        width: 78px;
+        height: 78px;
+    }
+
     .game-title {
         font-size: 2.8em;
         letter-spacing: 0.1em;

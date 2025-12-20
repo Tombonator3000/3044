@@ -20,7 +20,6 @@ import { SoundSystem } from './systems/SoundSystem.js';
 import { HUD } from './ui/HUD.js';
 import { drawWavingGrid, drawBackground, addGridImpact } from './rendering/GridRenderer.js';
 import { initCachedUI } from './globals.js';
-import { MobileControls } from './ui/MobileControls.js';
 import { MenuManager, GameSettings } from './ui/MenuManager.js';
 
 // New gameplay systems
@@ -54,7 +53,6 @@ let vhsEffect = null;
 let soundSystem = null;
 let hud = null;
 let powerUpManager = null;
-let mobileControls = null;
 let menuManager = null;
 
 // === NEW GAMEPLAY SYSTEMS ===
@@ -175,9 +173,8 @@ function init() {
     hud = new HUD();
     hud.resize(canvas.logicalWidth, canvas.logicalHeight);
 
-    // Initialize mobile controls
-    mobileControls = new MobileControls(canvas);
-    mobileControls.resize(canvas.logicalWidth, canvas.logicalHeight);
+    // Initialize DOM touch controls
+    initDomTouchControls();
 
     // Initialize new gameplay systems
     shipManager = new ShipManager();
@@ -218,7 +215,6 @@ function resizeCanvas() {
 
     if (starfield) starfield.resize(canvas.logicalWidth, canvas.logicalHeight);
     if (hud) hud.resize(canvas.logicalWidth, canvas.logicalHeight);
-    if (mobileControls) mobileControls.resize(canvas.logicalWidth, canvas.logicalHeight);
 }
 
 // ============================================
@@ -283,7 +279,7 @@ function initInput() {
         keys[e.code] = false;
     });
 
-    // Legacy touch controls - only used as fallback when MobileControls is not active
+    // Legacy touch controls - allow touch on canvas as fallback
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
@@ -297,17 +293,88 @@ function initInput() {
     });
 }
 
-function handleTouchStart(e) {
-    // Skip if mobileControls is handling touch
-    if (mobileControls && mobileControls.enabled) {
-        // Still handle attract mode exit and timeout reset
-        resetAttractModeTimeout();
-        if (attractMode) {
-            exitAttractMode();
-        }
-        return;
-    }
+function initDomTouchControls() {
+    const joystick = document.getElementById('touchJoystick');
+    const fireButton = document.getElementById('touchFire');
+    const bombButton = document.getElementById('touchBomb');
 
+    if (!joystick || !fireButton || !bombButton) return;
+
+    let joystickPointerId = null;
+
+    const updateJoystick = (event) => {
+        const rect = joystick.getBoundingClientRect();
+        const baseX = rect.left + rect.width / 2;
+        const baseY = rect.top + rect.height / 2;
+
+        touchJoystick.active = true;
+        touchJoystick.startX = baseX;
+        touchJoystick.startY = baseY;
+        touchJoystick.currentX = event.clientX;
+        touchJoystick.currentY = event.clientY;
+    };
+
+    joystick.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        joystickPointerId = event.pointerId;
+        joystick.setPointerCapture(event.pointerId);
+        updateJoystick(event);
+    });
+
+    joystick.addEventListener('pointermove', (event) => {
+        if (event.pointerId !== joystickPointerId) return;
+        event.preventDefault();
+        updateJoystick(event);
+    });
+
+    const endJoystick = (event) => {
+        if (event.pointerId !== joystickPointerId) return;
+        event.preventDefault();
+        joystickPointerId = null;
+        touchJoystick.active = false;
+    };
+
+    joystick.addEventListener('pointerup', endJoystick);
+    joystick.addEventListener('pointercancel', endJoystick);
+    joystick.addEventListener('pointerleave', endJoystick);
+
+    const handleFireStart = (event) => {
+        event.preventDefault();
+        fireButton.setPointerCapture(event.pointerId);
+        touchButtons.fire = true;
+    };
+
+    const handleFireEnd = (event) => {
+        event.preventDefault();
+        touchButtons.fire = false;
+    };
+
+    fireButton.addEventListener('pointerdown', handleFireStart);
+    fireButton.addEventListener('pointerup', handleFireEnd);
+    fireButton.addEventListener('pointercancel', handleFireEnd);
+    fireButton.addEventListener('pointerleave', handleFireEnd);
+
+    const handleBombStart = (event) => {
+        event.preventDefault();
+        bombButton.setPointerCapture(event.pointerId);
+        touchButtons.bomb = true;
+        if (gameState?.running && !gameState.paused) {
+            useBomb();
+        }
+    };
+
+    const handleBombEnd = (event) => {
+        event.preventDefault();
+        touchButtons.bomb = false;
+    };
+
+    bombButton.addEventListener('pointerdown', handleBombStart);
+    bombButton.addEventListener('pointerup', handleBombEnd);
+    bombButton.addEventListener('pointercancel', handleBombEnd);
+    bombButton.addEventListener('pointerleave', handleBombEnd);
+}
+
+function handleTouchStart(e) {
     e.preventDefault();
     resetAttractModeTimeout();
 
@@ -340,9 +407,6 @@ function handleTouchStart(e) {
 }
 
 function handleTouchMove(e) {
-    // Skip if mobileControls is handling touch
-    if (mobileControls && mobileControls.enabled) return;
-
     e.preventDefault();
 
     if (touchJoystick.active && e.touches[0]) {
@@ -354,9 +418,6 @@ function handleTouchMove(e) {
 }
 
 function handleTouchEnd(e) {
-    // Skip if mobileControls is handling touch
-    if (mobileControls && mobileControls.enabled) return;
-
     e.preventDefault();
     touchJoystick.active = false;
     touchButtons.fire = false;
@@ -1177,27 +1238,11 @@ function update(deltaTime) {
     // Update starfield
     if (starfield) starfield.update(adjustedDeltaTime);
 
-    // Update mobile controls and sync touch state
-    if (mobileControls && mobileControls.enabled) {
-        mobileControls.update(deltaTime);
-
-        // Sync mobile controls state with legacy touch variables
-        const movement = mobileControls.getMovement();
-        touchJoystick.active = mobileControls.joystick.active;
-        touchJoystick.startX = mobileControls.joystick.baseX;
-        touchJoystick.startY = mobileControls.joystick.baseY;
-        touchJoystick.currentX = mobileControls.joystick.stickX;
-        touchJoystick.currentY = mobileControls.joystick.stickY;
-
-        touchButtons.fire = mobileControls.isFiring();
-        touchButtons.bomb = mobileControls.isBombing();
-
-        // Trigger bomb on button press (not hold)
-        if (touchButtons.bomb && !bombPressedLastFrame && gameState?.running && !gameState.paused) {
-            useBomb();
-        }
-        bombPressedLastFrame = touchButtons.bomb;
+    // Trigger bomb on button press (not hold)
+    if (touchButtons.bomb && !bombPressedLastFrame && gameState?.running && !gameState.paused) {
+        useBomb();
     }
+    bombPressedLastFrame = touchButtons.bomb;
 
     // Update player
     if (player && player.isAlive) {
@@ -1490,11 +1535,6 @@ function render() {
     // Power-up manager UI
     if (powerUpManager) powerUpManager.drawUI(ctx);
 
-    // Mobile controls (rendered on top)
-    if (mobileControls && mobileControls.enabled) {
-        mobileControls.draw(ctx);
-    }
-
     // Slow motion overlay
     if (slowMotionSystem) {
         slowMotionSystem.draw(ctx, canvas);
@@ -1566,12 +1606,6 @@ function menuLoop() {
 
     // VHS effect
     if (vhsEffect) vhsEffect.apply(ctx, canvas);
-
-    // Update and draw mobile controls in menu
-    if (mobileControls && mobileControls.enabled) {
-        mobileControls.update(1);
-        mobileControls.draw(ctx);
-    }
 
     requestAnimationFrame(menuLoop);
 }
