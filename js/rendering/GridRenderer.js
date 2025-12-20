@@ -4,6 +4,28 @@
 
 import { config, getCurrentTheme } from '../config.js';
 
+// Performance settings - auto-adjusted based on device capability
+const perfSettings = {
+    enableWaving: true,
+    maxImpacts: 5,           // Limit concurrent impacts
+    updateFrequency: 2,      // Update every N frames (1 = every frame)
+    drawIntersections: true,
+    enableShadows: true,
+    frameCounter: 0
+};
+
+// Detect if mobile or low-performance device
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const isLowPerf = isMobile || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+
+// Adjust settings for low-performance devices
+if (isLowPerf) {
+    perfSettings.updateFrequency = 3;
+    perfSettings.maxImpacts = 3;
+    perfSettings.drawIntersections = false;
+    perfSettings.enableShadows = false;
+}
+
 // Grid state for wave simulation
 const gridState = {
     points: [],
@@ -49,18 +71,24 @@ function initGrid(canvas) {
  * Add an impact to the grid (causes ripple effect)
  */
 export function addGridImpact(x, y, force = 50, radius = 150) {
+    // Limit number of concurrent impacts for performance
+    if (gridState.impacts.length >= perfSettings.maxImpacts) {
+        gridState.impacts.shift(); // Remove oldest
+    }
+
     gridState.impacts.push({
         x,
         y,
         force,
         radius,
+        radiusSq: radius * radius, // Pre-compute for faster distance checks
         time: 0,
         maxTime: 60
     });
 }
 
 /**
- * Update grid physics
+ * Update grid physics - OPTIMIZED
  */
 function updateGrid(canvas) {
     if (!gridState.initialized || !canvas) {
@@ -68,65 +96,87 @@ function updateGrid(canvas) {
         return;
     }
 
-    gridState.time += 0.02;
+    // Skip frames for performance
+    perfSettings.frameCounter++;
+    if (perfSettings.frameCounter % perfSettings.updateFrequency !== 0) {
+        return;
+    }
 
-    // Update impacts
-    gridState.impacts = gridState.impacts.filter(impact => {
-        impact.time++;
-        return impact.time < impact.maxTime;
-    });
+    gridState.time += 0.02 * perfSettings.updateFrequency;
+
+    // Update impacts - remove expired ones
+    let i = gridState.impacts.length;
+    while (i--) {
+        gridState.impacts[i].time++;
+        if (gridState.impacts[i].time >= gridState.impacts[i].maxTime) {
+            gridState.impacts.splice(i, 1);
+        }
+    }
+
+    // Skip heavy physics if no impacts and grid is settled
+    const hasImpacts = gridState.impacts.length > 0;
 
     // Update each grid point
     const dampening = 0.92;
     const springStrength = 0.03;
     const neighborInfluence = 0.01;
+    const maxOffset = 30;
+    const rows = gridState.gridRows;
+    const cols = gridState.gridCols;
+    const points = gridState.points;
+    const time = gridState.time;
 
-    for (let row = 0; row < gridState.gridRows; row++) {
-        for (let col = 0; col < gridState.gridCols; col++) {
-            const point = gridState.points[row][col];
+    for (let row = 0; row < rows; row++) {
+        const pointRow = points[row];
+        const prevRow = row > 0 ? points[row - 1] : null;
+        const nextRow = row < rows - 1 ? points[row + 1] : null;
 
-            // Apply impacts
-            for (const impact of gridState.impacts) {
-                const dx = point.baseX - impact.x;
-                const dy = point.baseY - impact.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+        for (let col = 0; col < cols; col++) {
+            const point = pointRow[col];
 
-                if (dist < impact.radius) {
-                    const progress = impact.time / impact.maxTime;
-                    const wavePhase = (dist / impact.radius) * Math.PI * 2 - progress * Math.PI * 4;
-                    const waveStrength = Math.sin(wavePhase) * impact.force * (1 - progress) * (1 - dist / impact.radius);
+            // Apply impacts - use squared distance to avoid sqrt
+            if (hasImpacts) {
+                for (let j = 0; j < gridState.impacts.length; j++) {
+                    const impact = gridState.impacts[j];
+                    const dx = point.baseX - impact.x;
+                    const dy = point.baseY - impact.y;
+                    const distSq = dx * dx + dy * dy;
 
-                    if (dist > 0) {
-                        point.vx += (dx / dist) * waveStrength * 0.1;
-                        point.vy += (dy / dist) * waveStrength * 0.1;
+                    if (distSq < impact.radiusSq) {
+                        const dist = Math.sqrt(distSq);
+                        if (dist > 0) {
+                            const progress = impact.time / impact.maxTime;
+                            const distRatio = dist / impact.radius;
+                            const wavePhase = distRatio * 6.283185 - progress * 12.56637; // 2*PI and 4*PI
+                            const waveStrength = Math.sin(wavePhase) * impact.force * (1 - progress) * (1 - distRatio) * 0.1;
+                            const invDist = 1 / dist;
+                            point.vx += dx * invDist * waveStrength;
+                            point.vy += dy * invDist * waveStrength;
+                        }
                     }
                 }
             }
 
-            // Ambient wave motion
-            const ambientWave = Math.sin(gridState.time + col * 0.3) * Math.cos(gridState.time * 0.7 + row * 0.2) * 2;
-            point.vy += ambientWave * 0.01;
+            // Ambient wave motion - simplified trig
+            const ambientWave = Math.sin(time + col * 0.3) * Math.cos(time * 0.7 + row * 0.2) * 0.02;
+            point.vy += ambientWave;
 
             // Spring back to original position
-            point.vx += (point.baseX - (point.baseX + point.offsetX)) * springStrength;
-            point.vy += (point.baseY - (point.baseY + point.offsetY)) * springStrength;
+            point.vx -= point.offsetX * springStrength;
+            point.vy -= point.offsetY * springStrength;
 
-            // Neighbor influence (tension)
-            if (row > 0) {
-                const neighbor = gridState.points[row - 1][col];
-                point.vy += (neighbor.offsetY - point.offsetY) * neighborInfluence;
+            // Neighbor influence (tension) - inline for speed
+            if (prevRow) {
+                point.vy += (prevRow[col].offsetY - point.offsetY) * neighborInfluence;
             }
-            if (row < gridState.gridRows - 1) {
-                const neighbor = gridState.points[row + 1][col];
-                point.vy += (neighbor.offsetY - point.offsetY) * neighborInfluence;
+            if (nextRow) {
+                point.vy += (nextRow[col].offsetY - point.offsetY) * neighborInfluence;
             }
             if (col > 0) {
-                const neighbor = gridState.points[row][col - 1];
-                point.vx += (neighbor.offsetX - point.offsetX) * neighborInfluence;
+                point.vx += (pointRow[col - 1].offsetX - point.offsetX) * neighborInfluence;
             }
-            if (col < gridState.gridCols - 1) {
-                const neighbor = gridState.points[row][col + 1];
-                point.vx += (neighbor.offsetX - point.offsetX) * neighborInfluence;
+            if (col < cols - 1) {
+                point.vx += (pointRow[col + 1].offsetX - point.offsetX) * neighborInfluence;
             }
 
             // Apply velocity with dampening
@@ -135,10 +185,11 @@ function updateGrid(canvas) {
             point.offsetX += point.vx;
             point.offsetY += point.vy;
 
-            // Limit offset
-            const maxOffset = 30;
-            point.offsetX = Math.max(-maxOffset, Math.min(maxOffset, point.offsetX));
-            point.offsetY = Math.max(-maxOffset, Math.min(maxOffset, point.offsetY));
+            // Clamp offset
+            if (point.offsetX > maxOffset) point.offsetX = maxOffset;
+            else if (point.offsetX < -maxOffset) point.offsetX = -maxOffset;
+            if (point.offsetY > maxOffset) point.offsetY = maxOffset;
+            else if (point.offsetY < -maxOffset) point.offsetY = -maxOffset;
 
             // Update actual position
             point.x = point.baseX + point.offsetX;
@@ -147,8 +198,17 @@ function updateGrid(canvas) {
     }
 }
 
+// Pre-cached color strings for performance
+const colorCache = {
+    lastHue: -1,
+    horizontalColors: [],
+    verticalColors: [],
+    shadowColorH: '',
+    shadowColorV: ''
+};
+
 /**
- * Draw the waving grid - Geometry Wars style
+ * Draw the waving grid - Geometry Wars style - OPTIMIZED
  */
 export function drawWavingGrid(ctx, canvas, wave = 1) {
     if (!ctx || !canvas) return;
@@ -159,73 +219,85 @@ export function drawWavingGrid(ctx, canvas, wave = 1) {
     if (!gridState.initialized) return;
 
     const theme = getCurrentTheme(wave);
-    const time = Date.now() * 0.001;
+    const rows = gridState.gridRows;
+    const cols = gridState.gridCols;
+    const points = gridState.points;
+
+    // Only recalculate colors when hue changes
+    if (colorCache.lastHue !== theme.gridHue) {
+        colorCache.lastHue = theme.gridHue;
+        colorCache.horizontalColors = [];
+        colorCache.verticalColors = [];
+
+        for (let row = 0; row < rows; row++) {
+            const depthFade = 0.3 + (row / rows) * 0.7;
+            const alpha = (0.4 * depthFade).toFixed(2);
+            colorCache.horizontalColors[row] = `hsla(${theme.gridHue}, 100%, 50%, ${alpha})`;
+        }
+        for (let col = 0; col < cols; col++) {
+            const perspectiveFade = 0.5 + Math.abs(col / cols - 0.5) * 0.5;
+            const alpha = (0.32 * perspectiveFade).toFixed(2);
+            colorCache.verticalColors[col] = `hsla(${theme.gridHue + 30}, 100%, 50%, ${alpha})`;
+        }
+        colorCache.shadowColorH = `hsla(${theme.gridHue}, 100%, 50%, 0.5)`;
+        colorCache.shadowColorV = `hsla(${theme.gridHue + 30}, 100%, 50%, 0.4)`;
+    }
 
     ctx.save();
+    ctx.lineWidth = 1;
 
-    // Calculate grid intensity based on wave
-    const intensity = Math.min(0.3 + (wave * 0.02), 0.6);
-    const pulseIntensity = Math.sin(time * 2) * 0.1 + 0.9;
+    // Only enable shadows on high-performance devices
+    if (perfSettings.enableShadows) {
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = colorCache.shadowColorH;
+    }
 
-    // Draw horizontal lines
-    for (let row = 0; row < gridState.gridRows; row++) {
-        const rowProgress = row / gridState.gridRows;
-        const depthFade = 0.3 + rowProgress * 0.7;
-
-        ctx.strokeStyle = `hsla(${theme.gridHue}, 100%, 50%, ${intensity * depthFade * pulseIntensity})`;
-        ctx.lineWidth = 1;
-        ctx.shadowBlur = 8 * pulseIntensity;
-        ctx.shadowColor = `hsla(${theme.gridHue}, 100%, 50%, 0.5)`;
-
+    // Draw horizontal lines - batch by color groups
+    for (let row = 0; row < rows; row++) {
+        ctx.strokeStyle = colorCache.horizontalColors[row];
         ctx.beginPath();
-        for (let col = 0; col < gridState.gridCols; col++) {
-            const point = gridState.points[row][col];
-            if (col === 0) {
-                ctx.moveTo(point.x, point.y);
-            } else {
-                ctx.lineTo(point.x, point.y);
-            }
+        const pointRow = points[row];
+        ctx.moveTo(pointRow[0].x, pointRow[0].y);
+        for (let col = 1; col < cols; col++) {
+            ctx.lineTo(pointRow[col].x, pointRow[col].y);
         }
         ctx.stroke();
+    }
+
+    // Update shadow color for vertical lines
+    if (perfSettings.enableShadows) {
+        ctx.shadowColor = colorCache.shadowColorV;
     }
 
     // Draw vertical lines
-    for (let col = 0; col < gridState.gridCols; col++) {
-        const colProgress = col / gridState.gridCols;
-        const perspectiveFade = 0.5 + Math.abs(colProgress - 0.5) * 0.5;
-
-        ctx.strokeStyle = `hsla(${theme.gridHue + 30}, 100%, 50%, ${intensity * perspectiveFade * pulseIntensity * 0.8})`;
-        ctx.lineWidth = 1;
-        ctx.shadowBlur = 6 * pulseIntensity;
-        ctx.shadowColor = `hsla(${theme.gridHue + 30}, 100%, 50%, 0.4)`;
-
+    for (let col = 0; col < cols; col++) {
+        ctx.strokeStyle = colorCache.verticalColors[col];
         ctx.beginPath();
-        for (let row = 0; row < gridState.gridRows; row++) {
-            const point = gridState.points[row][col];
-            if (row === 0) {
-                ctx.moveTo(point.x, point.y);
-            } else {
-                ctx.lineTo(point.x, point.y);
-            }
+        ctx.moveTo(points[0][col].x, points[0][col].y);
+        for (let row = 1; row < rows; row++) {
+            ctx.lineTo(points[row][col].x, points[row][col].y);
         }
         ctx.stroke();
     }
 
-    // Draw intersection glow points
-    ctx.shadowBlur = 0;
-    for (let row = 0; row < gridState.gridRows; row += 2) {
-        for (let col = 0; col < gridState.gridCols; col += 2) {
-            const point = gridState.points[row][col];
-            const distortion = Math.abs(point.offsetX) + Math.abs(point.offsetY);
+    // Draw intersection glow points only on high-perf devices
+    if (perfSettings.drawIntersections) {
+        ctx.shadowBlur = 0;
+        const glowColor = `hsla(${theme.gridHue}, 100%, 70%, 0.3)`;
+        ctx.fillStyle = glowColor;
 
-            if (distortion > 2) {
-                const glowSize = Math.min(distortion * 0.3, 4);
-                const glowAlpha = Math.min(distortion * 0.02, 0.4);
+        for (let row = 0; row < rows; row += 2) {
+            const pointRow = points[row];
+            for (let col = 0; col < cols; col += 2) {
+                const point = pointRow[col];
+                const distortion = Math.abs(point.offsetX) + Math.abs(point.offsetY);
 
-                ctx.fillStyle = `hsla(${theme.gridHue}, 100%, 70%, ${glowAlpha})`;
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, glowSize, 0, Math.PI * 2);
-                ctx.fill();
+                if (distortion > 3) {
+                    const glowSize = Math.min(distortion * 0.25, 3);
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, glowSize, 0, 6.283185);
+                    ctx.fill();
+                }
             }
         }
     }
@@ -233,8 +305,13 @@ export function drawWavingGrid(ctx, canvas, wave = 1) {
     ctx.restore();
 }
 
+// Cached gradient for themed grid
+let cachedHorizonGradient = null;
+let cachedGradientHue = -1;
+let cachedGradientHeight = 0;
+
 /**
- * Original themed grid (kept for compatibility)
+ * Original themed grid (kept for compatibility) - OPTIMIZED
  */
 export function drawThemedGrid(ctx, canvas, wave = 1) {
     if (!ctx || !canvas) return;
@@ -243,50 +320,61 @@ export function drawThemedGrid(ctx, canvas, wave = 1) {
 
     ctx.save();
 
-    const pulse = Math.sin(Date.now() * 0.001) * 0.3 + 0.7;
-    const colorShift = Math.sin(Date.now() * 0.0005) * 30;
+    const now = Date.now();
+    const pulse = Math.sin(now * 0.001) * 0.3 + 0.7;
+    const hue = theme.gridHue + Math.sin(now * 0.0005) * 30;
+    const alpha = (0.15 * pulse).toFixed(2);
 
-    const hue = theme.gridHue + colorShift;
-    ctx.strokeStyle = `hsla(${hue}, 100%, 50%, ${0.15 * pulse})`;
+    ctx.strokeStyle = `hsla(${hue | 0}, 100%, 50%, ${alpha})`;
     ctx.lineWidth = 1;
-    ctx.shadowBlur = 8 * pulse;
-    ctx.shadowColor = `hsla(${hue}, 100%, 50%, 0.4)`;
+
+    // Only enable shadow on high-perf devices
+    if (perfSettings.enableShadows) {
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = `hsla(${hue | 0}, 100%, 50%, 0.4)`;
+    }
 
     const gridSize = 60;
-    const offset = (Date.now() * 0.02) % gridSize;
+    const offset = (now * 0.02) % gridSize;
+    const width = canvas.width;
+    const height = canvas.height;
+    const perspectiveFactor = 1 + (height - 400) / height * 0.5;
+    const halfWidth = width / 2;
 
-    // Vertical grid lines with perspective
-    for (let x = -gridSize; x < canvas.width + gridSize; x += gridSize) {
-        const perspectiveFactor = 1 + (canvas.height - 400) / canvas.height * 0.5;
+    // Batch all vertical lines into single path
+    ctx.beginPath();
+    for (let x = -gridSize; x < width + gridSize; x += gridSize) {
         const startX = x + offset;
-        const endX = (x - canvas.width / 2) * perspectiveFactor + canvas.width / 2 + offset;
-
-        ctx.beginPath();
+        const endX = (x - halfWidth) * perspectiveFactor + halfWidth + offset;
         ctx.moveTo(startX, 0);
-        ctx.lineTo(endX, canvas.height);
-        ctx.stroke();
+        ctx.lineTo(endX, height);
     }
+    ctx.stroke();
 
-    // Horizontal grid lines with depth fade
-    for (let y = 0; y < canvas.height; y += gridSize) {
-        const depthAlpha = 0.5 + (y / canvas.height) * 0.5;
-        ctx.strokeStyle = `hsla(${hue}, 100%, 50%, ${0.15 * pulse * depthAlpha})`;
-
-        ctx.beginPath();
+    // Batch all horizontal lines into single path
+    ctx.beginPath();
+    const baseAlpha = 0.15 * pulse;
+    ctx.strokeStyle = `hsla(${hue | 0}, 100%, 50%, ${(baseAlpha * 0.75).toFixed(2)})`;
+    for (let y = 0; y < height; y += gridSize) {
         ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
+        ctx.lineTo(width, y);
+    }
+    ctx.stroke();
+
+    // Cache horizon gradient
+    if (cachedGradientHue !== theme.gridHue || cachedGradientHeight !== height) {
+        cachedHorizonGradient = ctx.createLinearGradient(0, height - 150, 0, height);
+        cachedHorizonGradient.addColorStop(0, 'transparent');
+        cachedHorizonGradient.addColorStop(0.5, `hsla(${theme.gridHue}, 100%, 50%, 0.25)`);
+        cachedHorizonGradient.addColorStop(1, `hsla(${theme.gridHue + 60}, 100%, 50%, 0.35)`);
+        cachedGradientHue = theme.gridHue;
+        cachedGradientHeight = height;
     }
 
-    // Themed horizon gradient
+    ctx.shadowBlur = 0;
     ctx.globalAlpha = 0.12;
-    const gradient = ctx.createLinearGradient(0, canvas.height - 150, 0, canvas.height);
-    gradient.addColorStop(0, 'transparent');
-    gradient.addColorStop(0.5, `hsla(${theme.gridHue}, 100%, 50%, 0.25)`);
-    gradient.addColorStop(1, `hsla(${theme.gridHue + 60}, 100%, 50%, 0.35)`);
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, canvas.height - 150, canvas.width, 150);
+    ctx.fillStyle = cachedHorizonGradient;
+    ctx.fillRect(0, height - 150, width, 150);
 
     ctx.restore();
 }

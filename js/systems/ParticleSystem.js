@@ -1,9 +1,23 @@
 /**
  * Geometry 3044 - ParticleSystem Module
  * Handles all particle effects: explosions, trails, sparks, etc.
+ * OPTIMIZED for performance
  */
 
 import { CONFIG, getCurrentTheme } from '../config.js';
+
+// Performance settings for particles
+const particlePerfSettings = {
+    enableShadows: true,
+    reducedParticles: false
+};
+
+// Detect low-perf devices
+const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+if (isMobileDevice || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)) {
+    particlePerfSettings.enableShadows = false;
+    particlePerfSettings.reducedParticles = true;
+}
 
 /**
  * Particle Class
@@ -54,10 +68,8 @@ class Particle {
         const alpha = this.life / this.maxLife;
         const currentSize = this.size * (0.5 + alpha * 0.5);
 
-        ctx.save();
+        // Inline transform instead of save/restore for performance
         ctx.globalAlpha = alpha;
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.rotation);
 
         switch (this.type) {
             case 'spark':
@@ -102,172 +114,140 @@ class Particle {
             default:
                 this.drawDefault(ctx, currentSize);
         }
-
-        ctx.restore();
     }
 
     drawDefault(ctx, size) {
         ctx.fillStyle = this.color;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = this.color;
         ctx.beginPath();
-        ctx.arc(0, 0, size, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, size, 0, 6.283185);
         ctx.fill();
     }
 
     drawScore(ctx, size) {
-        // Score popup text
         ctx.font = `bold ${size}px "Courier New", monospace`;
         ctx.textAlign = 'center';
         ctx.fillStyle = this.color;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = this.color;
-        ctx.fillText(this.text || '+100', 0, 0);
+        ctx.fillText(this.text || '+100', this.x, this.y);
     }
 
     drawSpark(ctx, size) {
         ctx.strokeStyle = this.color;
         ctx.lineWidth = size / 2;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = this.color;
         ctx.beginPath();
-        ctx.moveTo(-size * 2, 0);
-        ctx.lineTo(size * 2, 0);
+        const cos = Math.cos(this.rotation);
+        const sin = Math.sin(this.rotation);
+        const len = size * 2;
+        ctx.moveTo(this.x - cos * len, this.y - sin * len);
+        ctx.lineTo(this.x + cos * len, this.y + sin * len);
         ctx.stroke();
     }
 
     drawTrail(ctx, size) {
-        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 2);
-        gradient.addColorStop(0, this.color);
-        gradient.addColorStop(1, 'transparent');
-        ctx.fillStyle = gradient;
+        // Simple circle instead of gradient for performance
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha *= 0.6;
         ctx.beginPath();
-        ctx.arc(0, 0, size * 2, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, size * 1.5, 0, 6.283185);
         ctx.fill();
     }
 
     drawExplosion(ctx, size) {
+        // Simplified to circle for performance
         ctx.fillStyle = this.color;
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = this.color;
-
-        // Star shape
         ctx.beginPath();
-        for (let i = 0; i < 5; i++) {
-            const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
-            const outerX = Math.cos(angle) * size;
-            const outerY = Math.sin(angle) * size;
-            const innerAngle = angle + Math.PI / 5;
-            const innerX = Math.cos(innerAngle) * (size / 2);
-            const innerY = Math.sin(innerAngle) * (size / 2);
-
-            if (i === 0) ctx.moveTo(outerX, outerY);
-            else ctx.lineTo(outerX, outerY);
-            ctx.lineTo(innerX, innerY);
-        }
-        ctx.closePath();
+        ctx.arc(this.x, this.y, size, 0, 6.283185);
         ctx.fill();
     }
 
     drawGlow(ctx, size) {
-        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 3);
-        gradient.addColorStop(0, this.color);
-        gradient.addColorStop(0.5, this.color + '88');
-        gradient.addColorStop(1, 'transparent');
-        ctx.fillStyle = gradient;
+        // Simple fading circle instead of expensive gradient
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha *= 0.5;
         ctx.beginPath();
-        ctx.arc(0, 0, size * 3, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, size * 2, 0, 6.283185);
         ctx.fill();
     }
 
     drawDebris(ctx, size) {
         ctx.fillStyle = this.color;
-        ctx.shadowBlur = 5;
-        ctx.shadowColor = this.color;
-        ctx.fillRect(-size / 2, -size / 2, size, size);
+        const halfSize = size / 2;
+        // Simple rotation using canvas transform only when needed
+        if (this.rotation !== 0) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.rotation);
+            ctx.fillRect(-halfSize, -halfSize, size, size);
+            ctx.restore();
+        } else {
+            ctx.fillRect(this.x - halfSize, this.y - halfSize, size, size);
+        }
     }
 
     drawShockwave(ctx, size) {
         const alpha = this.life / this.maxLife;
         ctx.strokeStyle = this.color;
-        ctx.lineWidth = 4 * alpha;
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = this.color;
+        ctx.lineWidth = 3 * alpha;
         ctx.beginPath();
-        ctx.arc(0, 0, size * (1 - alpha + 0.2), 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, size * (1 - alpha + 0.2), 0, 6.283185);
         ctx.stroke();
     }
 
     drawPixel(ctx, size) {
         const pixelSize = Math.max(2, size);
         ctx.fillStyle = this.color;
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = this.color;
-        // Draw as perfect square for 8-bit look
-        ctx.fillRect(-pixelSize / 2, -pixelSize / 2, pixelSize, pixelSize);
+        const half = pixelSize / 2;
+        ctx.fillRect(this.x - half, this.y - half, pixelSize, pixelSize);
     }
 
     drawRing(ctx, size) {
         ctx.strokeStyle = this.color;
         ctx.lineWidth = 2;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = this.color;
         ctx.beginPath();
-        ctx.arc(0, 0, size, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, size, 0, 6.283185);
         ctx.stroke();
     }
 
     drawLightning(ctx, size) {
         ctx.strokeStyle = this.color;
         ctx.lineWidth = 2;
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = this.color;
         ctx.beginPath();
-        ctx.moveTo(-size, -size);
-        ctx.lineTo(0, 0);
-        ctx.lineTo(-size * 0.3, size * 0.3);
-        ctx.lineTo(size, size);
+        ctx.moveTo(this.x - size, this.y - size);
+        ctx.lineTo(this.x, this.y);
+        ctx.lineTo(this.x - size * 0.3, this.y + size * 0.3);
+        ctx.lineTo(this.x + size, this.y + size);
         ctx.stroke();
     }
 
     drawFire(ctx, size) {
-        // Fire gradient from yellow to red to transparent
-        const gradient = ctx.createRadialGradient(0, size * 0.3, 0, 0, 0, size);
-        gradient.addColorStop(0, '#ffff00');
-        gradient.addColorStop(0.3, this.color);
-        gradient.addColorStop(0.7, '#ff0000');
-        gradient.addColorStop(1, 'transparent');
-        ctx.fillStyle = gradient;
+        // Simplified fire - just a colored circle
+        ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(0, 0, size, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, size, 0, 6.283185);
         ctx.fill();
     }
 
     drawSmoke(ctx, size) {
-        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
-        gradient.addColorStop(0, this.color);
-        gradient.addColorStop(1, 'transparent');
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha *= 0.4;
         ctx.beginPath();
-        ctx.arc(0, 0, size, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, size, 0, 6.283185);
         ctx.fill();
     }
 
     drawStar(ctx, size) {
         ctx.fillStyle = this.color;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = this.color;
-
-        // 4-pointed star
         ctx.beginPath();
-        for (let i = 0; i < 8; i++) {
-            const angle = (Math.PI * 2 * i) / 8 - Math.PI / 2;
-            const radius = i % 2 === 0 ? size : size * 0.4;
-            const x = Math.cos(angle) * radius;
-            const y = Math.sin(angle) * radius;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
+        // Simplified 4-pointed star
+        const x = this.x;
+        const y = this.y;
+        ctx.moveTo(x, y - size);
+        ctx.lineTo(x + size * 0.3, y - size * 0.3);
+        ctx.lineTo(x + size, y);
+        ctx.lineTo(x + size * 0.3, y + size * 0.3);
+        ctx.lineTo(x, y + size);
+        ctx.lineTo(x - size * 0.3, y + size * 0.3);
+        ctx.lineTo(x - size, y);
+        ctx.lineTo(x - size * 0.3, y - size * 0.3);
         ctx.closePath();
         ctx.fill();
     }

@@ -1,24 +1,36 @@
 // ============================================
-// GEOMETRY 3044 — VHS/CRT EFFECTS
+// GEOMETRY 3044 — VHS/CRT EFFECTS - OPTIMIZED
 // ============================================
+
+// Performance detection
+const isLowPerfDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
 
 export class VHSEffect {
     constructor() {
-        this.enabled = true;
-        this.scanlineIntensity = 0.15;
-        this.noiseIntensity = 0.03;
-        this.chromaticAberration = 2;
+        // Reduce or disable effects on low-perf devices
+        this.enabled = !isLowPerfDevice;
+        this.scanlineIntensity = isLowPerfDevice ? 0 : 0.12;
+        this.noiseIntensity = isLowPerfDevice ? 0 : 0.02;
+        this.chromaticAberration = isLowPerfDevice ? 0 : 1;
         this.glitchActive = false;
         this.glitchTimer = 0;
         this.glitchIntensity = 0;
 
         // Scanline pattern
         this.scanlineOffset = 0;
+        this.frameSkip = 0; // Skip frames for performance
 
         // Noise buffer
         this.noiseCanvas = null;
         this.noiseCtx = null;
-        this.initNoiseBuffer();
+        if (!isLowPerfDevice) {
+            this.initNoiseBuffer();
+        }
+
+        // Cache vignette gradient
+        this.vignetteGradient = null;
+        this.lastCanvasSize = { w: 0, h: 0 };
     }
 
     initNoiseBuffer() {
@@ -51,8 +63,15 @@ export class VHSEffect {
     }
 
     update() {
-        // Update scanline animation
-        this.scanlineOffset = (this.scanlineOffset + 1) % 4;
+        // Skip updates on low-perf devices
+        if (!this.enabled) return;
+
+        // Update scanline animation - less frequently
+        this.frameSkip++;
+        if (this.frameSkip >= 2) {
+            this.frameSkip = 0;
+            this.scanlineOffset = (this.scanlineOffset + 1) % 6;
+        }
 
         // Update glitch
         if (this.glitchTimer > 0) {
@@ -62,8 +81,8 @@ export class VHSEffect {
             }
         }
 
-        // Regenerate noise occasionally
-        if (Math.random() < 0.1) {
+        // Regenerate noise very occasionally (was 10%, now 2%)
+        if (this.noiseCanvas && Math.random() < 0.02) {
             this.generateNoise();
         }
     }
@@ -131,14 +150,10 @@ export class VHSEffect {
         ctx.globalAlpha = this.scanlineIntensity;
         ctx.fillStyle = '#000000';
 
-        for (let y = this.scanlineOffset; y < canvas.height; y += 4) {
+        // Draw fewer scanlines - every 6 pixels instead of 4
+        for (let y = this.scanlineOffset; y < canvas.height; y += 6) {
             ctx.fillRect(0, y, canvas.width, 2);
         }
-
-        // Moving scanline
-        const movingScanline = (Date.now() * 0.1) % canvas.height;
-        ctx.globalAlpha = 0.05;
-        ctx.fillRect(0, movingScanline, canvas.width, 10);
 
         ctx.restore();
     }
@@ -192,19 +207,21 @@ export class VHSEffect {
     }
 
     applyVignette(ctx, canvas) {
-        const gradient = ctx.createRadialGradient(
-            canvas.width / 2, canvas.height / 2, 0,
-            canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) * 0.7
-        );
+        // Cache gradient if canvas size hasn't changed
+        if (this.lastCanvasSize.w !== canvas.width || this.lastCanvasSize.h !== canvas.height) {
+            this.vignetteGradient = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, 0,
+                canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) * 0.7
+            );
+            this.vignetteGradient.addColorStop(0, 'transparent');
+            this.vignetteGradient.addColorStop(0.5, 'transparent');
+            this.vignetteGradient.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
+            this.lastCanvasSize.w = canvas.width;
+            this.lastCanvasSize.h = canvas.height;
+        }
 
-        gradient.addColorStop(0, 'transparent');
-        gradient.addColorStop(0.5, 'transparent');
-        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
-
-        ctx.save();
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = this.vignetteGradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.restore();
     }
 
     // CRT screen curvature effect (optional, performance heavy)
