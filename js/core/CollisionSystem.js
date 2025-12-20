@@ -192,6 +192,7 @@ export class CollisionSystem {
         this.stats.collisionsDetected = 0;
 
         const player = gameState.player;
+        const playerSize = player?.size || 20;
 
         // Player bullets vs enemies
         if (bulletPool) {
@@ -245,13 +246,14 @@ export class CollisionSystem {
         // Player bullets vs boss
         if (bulletPool && gameState.boss?.active) {
             const bullets = bulletPool.getActiveBullets?.() || bulletPool.bullets || [];
+            const bossHitbox = { x: gameState.boss.x, y: gameState.boss.y, size: gameState.boss.size };
 
             for (const bullet of bullets) {
                 if (!bullet.active || !bullet.isPlayer) continue;
 
                 this.stats.checksPerFrame++;
 
-                if (this.circleCollision(bullet, { x: gameState.boss.x, y: gameState.boss.y, size: gameState.boss.size })) {
+                if (this.circleCollision(bullet, bossHitbox)) {
                     this.stats.collisionsDetected++;
 
                     gameState.boss.takeDamage?.(bullet.damage || 10);
@@ -271,13 +273,12 @@ export class CollisionSystem {
         // Enemy bullets vs player
         if (enemyBulletPool && player?.isAlive && !player.invulnerable) {
             const bullets = enemyBulletPool.getActiveBullets?.() || enemyBulletPool.bullets || [];
+            const playerHitbox = { x: player.x, y: player.y, size: playerSize * 0.5 };
 
             for (const bullet of bullets) {
                 if (!bullet.active) continue;
 
                 this.stats.checksPerFrame++;
-
-                const playerHitbox = { x: player.x, y: player.y, size: (player.size || 20) * 0.5 };
 
                 if (this.circleCollision(bullet, playerHitbox)) {
                     this.stats.collisionsDetected++;
@@ -291,12 +292,12 @@ export class CollisionSystem {
 
         // Enemies vs player collision
         if (player?.isAlive && !player.invulnerable) {
+            const playerHitbox = { x: player.x, y: player.y, size: playerSize * 0.5 };
+
             for (const enemy of gameState.enemies) {
                 if (!enemy.active) continue;
 
                 this.stats.checksPerFrame++;
-
-                const playerHitbox = { x: player.x, y: player.y, size: (player.size || 20) * 0.5 };
 
                 if (this.circleCollision(enemy, playerHitbox)) {
                     this.stats.collisionsDetected++;
@@ -314,13 +315,13 @@ export class CollisionSystem {
 
         // Player vs power-ups
         if (player?.isAlive) {
+            const collectRadius = { x: player.x, y: player.y, size: playerSize * 1.5 };
+
             for (let i = gameState.powerUps.length - 1; i >= 0; i--) {
                 const powerUp = gameState.powerUps[i];
                 if (!powerUp.active) continue;
 
                 this.stats.checksPerFrame++;
-
-                const collectRadius = { x: player.x, y: player.y, size: (player.size || 20) * 1.5 };
 
                 if (this.circleCollision(powerUp, collectRadius)) {
                     this.stats.collisionsDetected++;
@@ -469,7 +470,7 @@ export class CollisionSystem {
 
                     // Trigger callback
                     if (this.callbacks.enemyHitByBullet) {
-                        this.callbacks.enemyHitByBullet(enemy, bullet, j, i);
+                        this.callbacks.enemyHitByBullet(enemy, bullet, null, i);
                     }
 
                     // Handle piercing bullets
