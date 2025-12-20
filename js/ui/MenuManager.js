@@ -129,6 +129,8 @@ export class MenuManager {
 
         // Initialize attract mode (arcade-style Press Start screen)
         this.initAttractMode();
+
+        this.updateScreenVisibility();
     }
 
     /**

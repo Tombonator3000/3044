@@ -1407,6 +1407,7 @@ body {
     height: 100vh;
     z-index: 18;
     pointer-events: none;
+    display: none;
     --touch-safe-top: max(16px, env(safe-area-inset-top));
     --touch-safe-bottom: max(24px, env(safe-area-inset-bottom));
     --touch-safe-side: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
