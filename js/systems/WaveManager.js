@@ -42,18 +42,23 @@ export class WaveManager {
         // Calculate enemies for this wave
         this.enemiesPerWave = this.calculateEnemiesPerWave(waveNum);
 
-        // Adjust spawn rate for higher waves
-        this.spawnDelay = Math.max(30, 90 - (waveNum * 3));
+        // Adjust spawn rate for higher waves (faster spawning)
+        // Wave 1: 60 frames, Wave 10: 30 frames, Wave 15+: 15 frames minimum
+        this.spawnDelay = Math.max(15, 60 - (waveNum * 3));
 
         console.log(`🌊 Wave ${waveNum} starting: ${this.enemiesPerWave} enemies, spawn delay: ${this.spawnDelay}`);
     }
 
     calculateEnemiesPerWave(wave) {
-        // Base enemies + scaling
-        const base = 5;
-        const perWave = 3;
-        const bonus = Math.floor(wave / 5) * 5;  // Bonus every 5 waves
+        // Base enemies + scaling (increased for more intense gameplay)
+        const base = 10;           // Increased from 5
+        const perWave = 5;         // Increased from 3
+        const bonus = Math.floor(wave / 5) * 8;  // Bonus every 5 waves (increased from 5)
 
+        // Wave 1: 10 + 5 + 0 = 15 enemies
+        // Wave 5: 10 + 25 + 8 = 43 enemies
+        // Wave 10: 10 + 50 + 16 = 76 enemies
+        // Wave 20: 10 + 100 + 32 = 142 enemies
         return base + (wave * perWave) + bonus;
     }
 
@@ -130,16 +135,18 @@ export class WaveManager {
         const padding = 50;
         let x, y;
 
+        // Spawn enemies just above visible screen (y = -5 to -15)
+        // so they appear immediately and can't be shot before they're visible
         switch (enemyType) {
             case 'divebomber':
                 // Divebombers come from top
                 x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
-                y = -30;
+                y = -5;
                 break;
 
             case 'sinewave':
-                // Sinewave enemies start from sides
-                x = Math.random() > 0.5 ? -30 : canvas.logicalWidth + 30;
+                // Sinewave enemies start from sides (just off screen)
+                x = Math.random() > 0.5 ? -5 : canvas.logicalWidth + 5;
                 y = 50 + Math.random() * 100;
                 break;
 
@@ -150,54 +157,54 @@ export class WaveManager {
             case 'pixelskull':
                 // Skulls phase in from anywhere at top
                 x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
-                y = -40;
+                y = -10;
                 break;
 
             case 'ghostbyte':
-                // Ghosts float in from sides
-                x = Math.random() > 0.5 ? -30 : canvas.logicalWidth + 30;
+                // Ghosts float in from sides (just off screen)
+                x = Math.random() > 0.5 ? -5 : canvas.logicalWidth + 5;
                 y = 30 + Math.random() * 150;
                 break;
 
             case 'laserdisc':
                 // Discs orbit in from corners
                 if (Math.random() > 0.5) {
-                    x = Math.random() > 0.5 ? -30 : canvas.logicalWidth + 30;
+                    x = Math.random() > 0.5 ? -5 : canvas.logicalWidth + 5;
                     y = 50 + Math.random() * 100;
                 } else {
                     x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
-                    y = -30;
+                    y = -5;
                 }
                 break;
 
             case 'vhstracker':
                 // VHS trackers glitch in from random top positions
                 x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
-                y = -40 - Math.random() * 30;
+                y = -10;
                 break;
 
             case 'arcadeboss':
                 // Arcade cabinets descend from center-top
                 x = canvas.logicalWidth * 0.3 + Math.random() * (canvas.logicalWidth * 0.4);
-                y = -60;
+                y = -15;
                 break;
 
             case 'synthwave':
                 // Synthwave enemies pulse in from center-top with spread
                 x = canvas.logicalWidth * 0.2 + Math.random() * (canvas.logicalWidth * 0.6);
-                y = -35;
+                y = -8;
                 break;
 
             case 'pixelinvader':
                 // Classic invaders line up at top like the original game
                 x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
-                y = -30;
+                y = -5;
                 break;
 
             default:
                 // Standard enemies from top
                 x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
-                y = -30 - Math.random() * 50;
+                y = -5 - Math.random() * 10;
         }
 
         return { x, y };
@@ -237,12 +244,20 @@ export class WaveManager {
             this.enemiesSpawned++;
             this.spawnTimer = this.spawnDelay;
 
-            // Spawn in pairs for later waves
-            if (this.wave >= 5 && Math.random() < 0.3 && this.enemiesSpawned < this.enemiesPerWave) {
+            // Spawn in pairs/groups for later waves (increased chance and earlier start)
+            if (this.wave >= 3 && Math.random() < 0.5 && this.enemiesSpawned < this.enemiesPerWave) {
                 const extraType = this.getEnemyTypeForWave(this.wave);
                 const extraPos = this.getSpawnPosition(canvas, extraType);
                 enemies.push(new Enemy(extraPos.x, extraPos.y, extraType, gameState));
                 this.enemiesSpawned++;
+
+                // Triple spawn chance for wave 10+
+                if (this.wave >= 10 && Math.random() < 0.4 && this.enemiesSpawned < this.enemiesPerWave) {
+                    const thirdType = this.getEnemyTypeForWave(this.wave);
+                    const thirdPos = this.getSpawnPosition(canvas, thirdType);
+                    enemies.push(new Enemy(thirdPos.x, thirdPos.y, thirdType, gameState));
+                    this.enemiesSpawned++;
+                }
             }
         }
 
