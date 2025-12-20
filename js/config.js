@@ -138,6 +138,81 @@ export const config = {
         medium: 480,        // 8 seconds
         long: 600,          // 10 seconds
         veryLong: 900       // 15 seconds
+    },
+
+    // Difficulty multipliers - drastically different per level
+    difficulty: {
+        easy: {
+            name: 'EASY',
+            // Player advantages
+            lives: 5,                    // More lives
+            bombs: 5,                    // More bombs
+            playerSpeed: 1.1,            // Slightly faster player
+            // Enemy nerfs
+            enemyCount: 0.5,             // Half the enemies
+            enemySpeed: 0.6,             // Much slower enemies
+            enemyFireRate: 2.0,          // Enemies shoot half as often (higher = slower)
+            enemyBulletSpeed: 0.5,       // Slower bullets
+            enemyHP: 0.7,                // Less HP
+            spawnDelay: 1.5,             // Slower spawning
+            // Rewards
+            scoreMultiplier: 0.5,        // Half score
+            powerUpDropRate: 1.5,        // More power-ups
+            // Wave progression
+            waveScaling: 0.5             // Slower difficulty ramp
+        },
+        normal: {
+            name: 'NORMAL',
+            // Balanced settings
+            lives: 3,
+            bombs: 3,
+            playerSpeed: 1.0,
+            enemyCount: 1.0,
+            enemySpeed: 1.0,
+            enemyFireRate: 1.0,
+            enemyBulletSpeed: 1.0,
+            enemyHP: 1.0,
+            spawnDelay: 1.0,
+            scoreMultiplier: 1.0,
+            powerUpDropRate: 1.0,
+            waveScaling: 1.0
+        },
+        hard: {
+            name: 'HARD',
+            // Player disadvantages
+            lives: 2,                    // Fewer lives
+            bombs: 2,                    // Fewer bombs
+            playerSpeed: 1.0,
+            // Enemy buffs
+            enemyCount: 1.5,             // 50% more enemies
+            enemySpeed: 1.4,             // Faster enemies
+            enemyFireRate: 0.7,          // Enemies shoot 43% faster
+            enemyBulletSpeed: 1.3,       // Faster bullets
+            enemyHP: 1.3,                // More HP
+            spawnDelay: 0.7,             // Faster spawning
+            // Rewards
+            scoreMultiplier: 1.5,        // 50% more score
+            powerUpDropRate: 0.8,        // Fewer power-ups
+            waveScaling: 1.3             // Faster difficulty ramp
+        },
+        extreme: {
+            name: 'EXTREME',
+            // Brutal settings
+            lives: 1,                    // One life only!
+            bombs: 1,                    // One bomb only!
+            playerSpeed: 0.9,            // Slightly slower player
+            // Nightmare enemies
+            enemyCount: 2.0,             // Double enemies
+            enemySpeed: 1.8,             // Much faster enemies
+            enemyFireRate: 0.5,          // Enemies shoot twice as fast
+            enemyBulletSpeed: 1.6,       // Very fast bullets
+            enemyHP: 1.5,                // More HP
+            spawnDelay: 0.4,             // Rapid spawning
+            // Rewards
+            scoreMultiplier: 3.0,        // Triple score!
+            powerUpDropRate: 0.5,        // Rare power-ups
+            waveScaling: 1.8             // Aggressive difficulty ramp
+        }
     }
 };
 
@@ -211,6 +286,11 @@ export function updateConfig(width, height) {
     config.height = height;
     config.screen.width = width;
     config.screen.height = height;
+}
+
+// Get difficulty settings for current difficulty level
+export function getDifficultySettings(difficultyName = 'normal') {
+    return config.difficulty[difficultyName] || config.difficulty.normal;
 }
 
 // ============================================

@@ -3,7 +3,8 @@
  * Centralized game state management
  */
 
-import { CONFIG } from '../config.js';
+import { CONFIG, getDifficultySettings } from '../config.js';
+import { GameSettings } from '../ui/MenuManager.js';
 
 /**
  * GameState class - manages all game state
@@ -17,11 +18,16 @@ export class GameState {
      * Reset game state to initial values
      */
     reset() {
+        // Get difficulty settings
+        const difficulty = getDifficultySettings(GameSettings.difficulty);
+        this.difficultySettings = difficulty;
+        this.difficultyName = GameSettings.difficulty;
+
         // Core game state
         this.score = 0;
         this.highScore = this.loadHighScore();
-        this.lives = CONFIG.game.initialLives;
-        this.bombs = CONFIG.game.initialBombs;
+        this.lives = difficulty.lives;
+        this.bombs = difficulty.bombs;
         this.wave = 1;
 
         // Game flow state
@@ -101,8 +107,9 @@ export class GameState {
      * @param {boolean} useCombo - Whether to apply combo multiplier
      */
     addScore(points, useCombo = true) {
-        const multiplier = useCombo ? Math.max(1, this.combo) : 1;
-        const totalPoints = points * multiplier;
+        const comboMultiplier = useCombo ? Math.max(1, this.combo) : 1;
+        const difficultyMultiplier = this.difficultySettings?.scoreMultiplier || 1;
+        const totalPoints = Math.floor(points * comboMultiplier * difficultyMultiplier);
         this.score += totalPoints;
 
         // Check for new high score

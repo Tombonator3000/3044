@@ -31,7 +31,7 @@ export class WaveManager {
         this.bossWaves = [5, 10, 15, 20, 25, 30];
     }
 
-    startWave(waveNum) {
+    startWave(waveNum, gameState = null) {
         this.wave = waveNum;
         this.enemiesSpawned = 0;
         this.waveComplete = false;
@@ -40,26 +40,32 @@ export class WaveManager {
         this.waveStartTimer = this.waveStartDelay;
         this.waveActive = false;
 
-        // Calculate enemies for this wave
-        this.enemiesPerWave = this.calculateEnemiesPerWave(waveNum);
+        // Get difficulty settings
+        const difficulty = gameState?.difficultySettings || { enemyCount: 1.0, spawnDelay: 1.0, waveScaling: 1.0 };
+        this.currentDifficulty = difficulty;
 
-        // Adjust spawn rate for higher waves (faster spawning)
+        // Calculate enemies for this wave with difficulty multiplier
+        const baseEnemies = this.calculateEnemiesPerWave(waveNum, difficulty.waveScaling);
+        this.enemiesPerWave = Math.max(5, Math.floor(baseEnemies * difficulty.enemyCount));
+
+        // Adjust spawn rate for higher waves (faster spawning) with difficulty multiplier
         // Wave 1: 60 frames, Wave 10: 30 frames, Wave 15+: 15 frames minimum
-        this.spawnDelay = Math.max(15, 60 - (waveNum * 3));
+        const baseSpawnDelay = Math.max(15, 60 - (waveNum * 3));
+        this.spawnDelay = Math.max(8, Math.floor(baseSpawnDelay * difficulty.spawnDelay));
 
-        logger.game(`Wave ${waveNum} starting: ${this.enemiesPerWave} enemies, spawn delay: ${this.spawnDelay}`);
+        logger.game(`Wave ${waveNum} starting: ${this.enemiesPerWave} enemies, spawn delay: ${this.spawnDelay}, difficulty: ${difficulty.name || 'normal'}`);
     }
 
-    calculateEnemiesPerWave(wave) {
+    calculateEnemiesPerWave(wave, waveScaling = 1.0) {
         // Base enemies + scaling (increased for more intense gameplay)
-        const base = 10;           // Increased from 5
-        const perWave = 5;         // Increased from 3
-        const bonus = Math.floor(wave / 5) * 8;  // Bonus every 5 waves (increased from 5)
+        // waveScaling affects how fast difficulty ramps up per wave
+        const base = 10;
+        const perWave = Math.floor(5 * waveScaling);
+        const bonus = Math.floor(wave / 5) * Math.floor(8 * waveScaling);
 
-        // Wave 1: 10 + 5 + 0 = 15 enemies
-        // Wave 5: 10 + 25 + 8 = 43 enemies
-        // Wave 10: 10 + 50 + 16 = 76 enemies
-        // Wave 20: 10 + 100 + 32 = 142 enemies
+        // Normal difficulty - Wave 1: 10 + 5 + 0 = 15 enemies
+        // Easy difficulty (0.5x scaling) - Wave 1: 10 + 2 + 0 = 12 enemies
+        // Extreme difficulty (1.8x scaling) - Wave 1: 10 + 9 + 0 = 19 enemies
         return base + (wave * perWave) + bonus;
     }
 

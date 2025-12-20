@@ -260,9 +260,18 @@ export class Enemy {
         const currentWave = (gameState && gameState.wave) ? gameState.wave : 1;
         const intelligenceLevel = Math.min(Math.floor(currentWave / 3), 5);
 
+        // Get difficulty settings (default to normal if not available)
+        const difficulty = gameState?.difficultySettings || {
+            enemySpeed: 1.0,
+            enemyFireRate: 1.0,
+            enemyBulletSpeed: 1.0,
+            enemyHP: 1.0
+        };
+        this.difficultySettings = difficulty;
+
         // Setup enemy from configuration (defaults to triangle if unknown type)
         const cfg = ENEMY_CONFIG[type] || ENEMY_CONFIG.triangle;
-        this.setupFromConfig(cfg, currentWave, intelligenceLevel);
+        this.setupFromConfig(cfg, currentWave, intelligenceLevel, difficulty);
 
         // Store original values for fever mode
         this.originalBehavior = this.behavior;
@@ -275,8 +284,19 @@ export class Enemy {
     /**
      * Applies configuration to this enemy instance
      * Handles scaling calculations for wave and intelligence level
+     * @param {Object} cfg - Enemy configuration
+     * @param {number} wave - Current wave number
+     * @param {number} intelligence - Intelligence level (0-5)
+     * @param {Object} difficulty - Difficulty settings with multipliers
      */
-    setupFromConfig(cfg, wave, intelligence) {
+    setupFromConfig(cfg, wave, intelligence, difficulty = {}) {
+        const {
+            enemySpeed = 1.0,
+            enemyFireRate = 1.0,
+            enemyBulletSpeed = 1.0,
+            enemyHP = 1.0
+        } = difficulty;
+
         // Static properties
         this.sides = cfg.sides;
         this.size = cfg.size;
@@ -290,24 +310,30 @@ export class Enemy {
         if (cfg.customDraw) this.customDraw = cfg.customDraw;
         if (cfg.bulletPattern) this.bulletPattern = cfg.bulletPattern;
 
-        // Scaled HP: base + floor(wave * waveScale)
-        this.hp = this.calcScaledInt(cfg.hp, wave);
+        // Scaled HP with difficulty multiplier
+        const baseHP = this.calcScaledInt(cfg.hp, wave);
+        this.hp = Math.max(1, Math.ceil(baseHP * enemyHP));
 
-        // Scaled speed with optional min
-        this.speed = this.calcScaledValue(cfg.speed, wave);
+        // Scaled speed with difficulty multiplier
+        const baseSpeed = this.calcScaledValue(cfg.speed, wave);
+        this.speed = baseSpeed * enemySpeed;
 
         // Scaled points
         this.points = this.calcScaledInt(cfg.points, wave);
 
-        // Scaled fire rate (decreases with intelligence)
-        this.fireRate = cfg.fireRate
+        // Scaled fire rate with difficulty multiplier
+        // Higher enemyFireRate = slower shooting (easy mode)
+        // Lower enemyFireRate = faster shooting (hard mode)
+        const baseFireRate = cfg.fireRate
             ? this.calcScaledValue(cfg.fireRate, intelligence, 'intScale')
             : 999;
+        this.fireRate = Math.max(20, Math.floor(baseFireRate * enemyFireRate));
 
-        // Scaled bullet speed (optional - some enemies don't shoot)
-        this.bulletSpeed = cfg.bulletSpeed
+        // Scaled bullet speed with difficulty multiplier
+        const baseBulletSpeed = cfg.bulletSpeed
             ? this.calcScaledValue(cfg.bulletSpeed, intelligence, 'intScale')
             : 0;
+        this.bulletSpeed = baseBulletSpeed * enemyBulletSpeed;
 
         // Scaled dodge chance (optional)
         this.dodgeChance = cfg.dodgeChance
