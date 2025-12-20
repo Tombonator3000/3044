@@ -44,8 +44,8 @@ function initGrid(canvas) {
     if (!canvas) return;
 
     gridState.cellSize = 40;
-    gridState.gridCols = Math.ceil(canvas.width / gridState.cellSize) + 2;
-    gridState.gridRows = Math.ceil(canvas.height / gridState.cellSize) + 2;
+    gridState.gridCols = Math.ceil(canvas.logicalWidth / gridState.cellSize) + 2;
+    gridState.gridRows = Math.ceil(canvas.logicalHeight / gridState.cellSize) + 2;
     gridState.points = [];
 
     for (let row = 0; row < gridState.gridRows; row++) {
@@ -336,8 +336,8 @@ export function drawThemedGrid(ctx, canvas, wave = 1) {
 
     const gridSize = 60;
     const offset = (now * 0.02) % gridSize;
-    const width = canvas.width;
-    const height = canvas.height;
+    const width = canvas.logicalWidth;
+    const height = canvas.logicalHeight;
     const perspectiveFactor = 1 + (height - 400) / height * 0.5;
     const halfWidth = width / 2;
 
@@ -385,14 +385,14 @@ export function drawBackground(ctx, canvas, wave = 1) {
 
     const theme = getCurrentTheme(wave);
 
-    const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.logicalHeight);
     bgGradient.addColorStop(0, theme.bgStart);
     bgGradient.addColorStop(0.3, theme.bgEnd);
     bgGradient.addColorStop(0.7, '#000011');
     bgGradient.addColorStop(1, '#000000');
 
     ctx.fillStyle = bgGradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, canvas.logicalWidth, canvas.logicalHeight);
 }
 
 /**

@@ -415,7 +415,7 @@ export class ShipManager {
         ctx.fillStyle = '#00ffff';
         ctx.shadowBlur = 20;
         ctx.shadowColor = '#00ffff';
-        ctx.fillText('SELECT YOUR SHIP', canvas.width / 2, 80);
+        ctx.fillText('SELECT YOUR SHIP', canvas.logicalWidth / 2, 80);
 
         // Draw each ship
         ships.forEach((ship, index) => {

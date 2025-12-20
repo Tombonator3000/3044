@@ -176,10 +176,10 @@ export class BulletPool {
 
             // Bounce off walls
             if (bullet.bounce && bullet.bounceHits < bullet.bounceCount) {
-                if (bullet.x < 0 || bullet.x > canvas.width) {
+                if (bullet.x < 0 || bullet.x > canvas.logicalWidth) {
                     bullet.vx *= -1;
                     bullet.bounceHits++;
-                    bullet.x = Math.max(0, Math.min(canvas.width, bullet.x));
+                    bullet.x = Math.max(0, Math.min(canvas.logicalWidth, bullet.x));
                 }
                 if (bullet.y < 0) {
                     bullet.vy *= -1;
@@ -189,8 +189,8 @@ export class BulletPool {
             }
 
             // Deactivate if off screen or expired
-            if (bullet.x < -50 || bullet.x > canvas.width + 50 ||
-                bullet.y < -50 || bullet.y > canvas.height + 50 ||
+            if (bullet.x < -50 || bullet.x > canvas.logicalWidth + 50 ||
+                bullet.y < -50 || bullet.y > canvas.logicalHeight + 50 ||
                 bullet.lifetime > bullet.maxLifetime) {
                 bullet.active = false;
             }

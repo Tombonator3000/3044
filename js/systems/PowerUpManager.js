@@ -255,7 +255,7 @@ export class PowerUpManager {
             ctx.save();
             ctx.globalAlpha = 0.7;
             ctx.fillStyle = '#ffff00';
-            ctx.fillRect(canvas.width / 2 - 50, 10, timerWidth, 5);
+            ctx.fillRect(canvas.logicalWidth / 2 - 50, 10, timerWidth, 5);
             ctx.restore();
         }
     }

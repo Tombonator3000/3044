@@ -524,7 +524,7 @@ export class AchievementSystem {
 
         const width = 300;
         const height = 80;
-        const x = canvas.width - width - 20;
+        const x = canvas.logicalWidth - width - 20;
         const y = 20 + (1 - progress) * -100;
         const alpha = progress;
 
@@ -570,7 +570,7 @@ export class AchievementSystem {
         const startY = 100 - scrollOffset;
         const cardHeight = 70;
         const cardWidth = 400;
-        const startX = (canvas.width - cardWidth) / 2;
+        const startX = (canvas.logicalWidth - cardWidth) / 2;
 
         ctx.save();
 
@@ -580,21 +580,21 @@ export class AchievementSystem {
         ctx.fillStyle = '#ffd700';
         ctx.shadowBlur = 20;
         ctx.shadowColor = '#ffd700';
-        ctx.fillText('ACHIEVEMENTS', canvas.width / 2, 60);
+        ctx.fillText('ACHIEVEMENTS', canvas.logicalWidth / 2, 60);
 
         // Progress
         const unlocked = this.unlockedAchievements.length;
         const total = Object.keys(this.achievements).length;
         ctx.font = '16px "Courier New", monospace';
         ctx.fillStyle = '#00ffff';
-        ctx.fillText(`${unlocked}/${total} Unlocked`, canvas.width / 2, 85);
+        ctx.fillText(`${unlocked}/${total} Unlocked`, canvas.logicalWidth / 2, 85);
 
         // Draw each achievement
         let y = startY;
         for (const id in this.achievements) {
             const achievement = this.achievements[id];
 
-            if (y > -cardHeight && y < canvas.height) {
+            if (y > -cardHeight && y < canvas.logicalHeight) {
                 const alpha = achievement.unlocked ? 1 : 0.5;
                 ctx.globalAlpha = alpha;
 

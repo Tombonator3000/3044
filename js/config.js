@@ -3,13 +3,13 @@
 // ============================================
 
 export const config = {
-    width: 800,
-    height: 600,
+    width: 900,
+    height: 900,
 
     // Screen configuration (updated dynamically)
     screen: {
-        width: 800,
-        height: 600
+        width: 900,
+        height: 900
     },
 
     // Colors

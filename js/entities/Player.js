@@ -134,27 +134,27 @@ export class Player {
 
             // Wrap horizontally
             if (this.x < -this.size) {
-                this.x = canvas.width + this.size;
-            } else if (this.x > canvas.width + this.size) {
+                this.x = canvas.logicalWidth + this.size;
+            } else if (this.x > canvas.logicalWidth + this.size) {
                 this.x = -this.size;
             }
 
             // Wrap vertically
             if (this.y < -this.size) {
-                this.y = canvas.height + this.size;
-            } else if (this.y > canvas.height + this.size) {
+                this.y = canvas.logicalHeight + this.size;
+            } else if (this.y > canvas.logicalHeight + this.size) {
                 this.y = -this.size;
             }
         } else {
             // Standard bounded movement
-            this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x + dx));
-            this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y + dy));
+            this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x + dx));
+            this.y = Math.max(this.size, Math.min(canvas.logicalHeight - this.size, this.y + dy));
         }
 
         // Update mirror ship
         if (this.mirrorShip > 0) {
             this.mirrorShip--;
-            this.mirrorX = canvas.width - this.x;
+            this.mirrorX = canvas.logicalWidth - this.x;
             this.mirrorY = this.y;
         }
 
@@ -525,8 +525,8 @@ export class Player {
     }
 
     respawn(canvas) {
-        this.x = canvas ? canvas.width / 2 : 400;
-        this.y = canvas ? canvas.height - 100 : 500;
+        this.x = canvas ? canvas.logicalWidth / 2 : 400;
+        this.y = canvas ? canvas.logicalHeight - 100 : 500;
         this.isAlive = true;
         this.invulnerable = true;
         this.invulnerableTimer = 180;

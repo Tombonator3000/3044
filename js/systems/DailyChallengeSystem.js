@@ -312,7 +312,7 @@ export class DailyChallengeSystem {
 
         ctx.save();
 
-        const x = canvas.width / 2;
+        const x = canvas.logicalWidth / 2;
         const startY = 150;
 
         // Title
@@ -374,7 +374,7 @@ export class DailyChallengeSystem {
         const timeLeft = this.getTimeUntilNextChallenge();
         ctx.font = '14px "Courier New", monospace';
         ctx.fillStyle = '#666666';
-        ctx.fillText(`Next challenge in: ${timeLeft.hours}h ${timeLeft.minutes}m`, x, canvas.height - 50);
+        ctx.fillText(`Next challenge in: ${timeLeft.hours}h ${timeLeft.minutes}m`, x, canvas.logicalHeight - 50);
 
         ctx.restore();
     }

@@ -129,7 +129,7 @@ export class PowerUp {
         this.lifetime--;
 
         // Deactivate if off screen or expired
-        if (this.y > canvas.height + 50 || this.lifetime <= 0) {
+        if (this.y > canvas.logicalHeight + 50 || this.lifetime <= 0) {
             this.active = false;
         }
     }

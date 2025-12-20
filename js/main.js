@@ -36,6 +36,7 @@ import { AchievementSystem } from './systems/AchievementSystem.js';
 
 // === GLOBAL STATE ===
 let canvas, ctx;
+const LOGICAL_CANVAS_SIZE = 900;
 let gameState = null;
 let gameLoopId = null;
 let lastTime = 0;
@@ -142,6 +143,8 @@ function init() {
     }
 
     ctx = canvas.getContext('2d');
+    canvas.logicalWidth = LOGICAL_CANVAS_SIZE;
+    canvas.logicalHeight = LOGICAL_CANVAS_SIZE;
 
     // Set canvas size
     resizeCanvas();
@@ -162,7 +165,7 @@ function init() {
     soundSystem = new SoundSystem();
 
     // Initialize starfield for menu
-    starfield = new Starfield(canvas.width, canvas.height);
+    starfield = new Starfield(canvas.logicalWidth, canvas.logicalHeight);
 
     // Initialize VHS effect
     vhsEffect = new VHSEffect();
@@ -170,11 +173,11 @@ function init() {
 
     // Initialize HUD
     hud = new HUD();
-    hud.resize(canvas.width, canvas.height);
+    hud.resize(canvas.logicalWidth, canvas.logicalHeight);
 
     // Initialize mobile controls
     mobileControls = new MobileControls(canvas);
-    mobileControls.resize(canvas.width, canvas.height);
+    mobileControls.resize(canvas.logicalWidth, canvas.logicalHeight);
 
     // Initialize new gameplay systems
     shipManager = new ShipManager();
@@ -183,7 +186,7 @@ function init() {
     achievementSystem = new AchievementSystem();
 
     // Update config
-    updateConfig(canvas.width, canvas.height);
+    updateConfig(canvas.logicalWidth, canvas.logicalHeight);
 
     // Setup menu
     setupMenu();
@@ -196,20 +199,26 @@ function init() {
     // Start attract mode timer
     resetAttractModeTimeout();
 
-    console.log('✅ Canvas initialized:', canvas.width, 'x', canvas.height);
+    console.log('✅ Canvas initialized:', canvas.logicalWidth, 'x', canvas.logicalHeight);
     console.log('🎮 Geometry 3044 — Ready!');
     console.log('💡 Press START GAME to play');
 }
 
 function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.logicalWidth = LOGICAL_CANVAS_SIZE;
+    canvas.logicalHeight = LOGICAL_CANVAS_SIZE;
+    canvas.width = canvas.logicalWidth * dpr;
+    canvas.height = canvas.logicalHeight * dpr;
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    updateConfig(canvas.width, canvas.height);
+    updateConfig(canvas.logicalWidth, canvas.logicalHeight);
 
-    if (starfield) starfield.resize(canvas.width, canvas.height);
-    if (hud) hud.resize(canvas.width, canvas.height);
-    if (mobileControls) mobileControls.resize(canvas.width, canvas.height);
+    if (starfield) starfield.resize(canvas.logicalWidth, canvas.logicalHeight);
+    if (hud) hud.resize(canvas.logicalWidth, canvas.logicalHeight);
+    if (mobileControls) mobileControls.resize(canvas.logicalWidth, canvas.logicalHeight);
 }
 
 // ============================================
@@ -309,11 +318,11 @@ function handleTouchStart(e) {
 
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
+    const x = (touch.clientX - rect.left) * (canvas.logicalWidth / rect.width);
+    const y = (touch.clientY - rect.top) * (canvas.logicalHeight / rect.height);
 
     // Left half = joystick
-    if (x < canvas.width / 2) {
+    if (x < canvas.logicalWidth / 2) {
         touchJoystick.active = true;
         touchJoystick.startX = x;
         touchJoystick.startY = y;
@@ -321,7 +330,7 @@ function handleTouchStart(e) {
         touchJoystick.currentY = y;
     } else {
         // Right half - top = bomb, bottom = fire
-        if (y < canvas.height / 2) {
+        if (y < canvas.logicalHeight / 2) {
             touchButtons.bomb = true;
             if (gameState?.running) useBomb();
         } else {
@@ -339,8 +348,8 @@ function handleTouchMove(e) {
     if (touchJoystick.active && e.touches[0]) {
         const touch = e.touches[0];
         const rect = canvas.getBoundingClientRect();
-        touchJoystick.currentX = touch.clientX - rect.left;
-        touchJoystick.currentY = touch.clientY - rect.top;
+        touchJoystick.currentX = (touch.clientX - rect.left) * (canvas.logicalWidth / rect.width);
+        touchJoystick.currentY = (touch.clientY - rect.top) * (canvas.logicalHeight / rect.height);
     }
 }
 
@@ -842,8 +851,8 @@ function startAttractMode() {
 
     // Create AI controller
     attractModeAI = {
-        targetX: canvas.width / 2,
-        targetY: canvas.height - 100,
+        targetX: canvas.logicalWidth / 2,
+        targetY: canvas.logicalHeight - 100,
         shootTimer: 0,
         moveTimer: 0
     };
@@ -893,7 +902,7 @@ function updateAttractModeAI() {
     // Move toward enemy centroid or dodge bullets
     if (nearestEnemy) {
         attractModeAI.targetX = nearestEnemy.x;
-        attractModeAI.targetY = Math.min(nearestEnemy.y + 100, canvas.height - 100);
+        attractModeAI.targetY = Math.min(nearestEnemy.y + 100, canvas.logicalHeight - 100);
     }
 
     // Dodge enemy bullets
@@ -1008,7 +1017,7 @@ function initGame(isAttractMode = false) {
     grazingSystem = new GrazingSystem();
     riskRewardSystem = new RiskRewardSystem();
     slowMotionSystem = new SlowMotionSystem();
-    zoneSystem = new ZoneSystem(canvas.width, canvas.height);
+    zoneSystem = new ZoneSystem(canvas.logicalWidth, canvas.logicalHeight);
     reactiveMusicSystem = new ReactiveMusicSystem(soundSystem);
 
     // Initialize reactive music
@@ -1018,13 +1027,13 @@ function initGame(isAttractMode = false) {
 
     // Reset starfield
     if (starfield) {
-        starfield.resize(canvas.width, canvas.height);
+        starfield.resize(canvas.logicalWidth, canvas.logicalHeight);
     } else {
-        starfield = new Starfield(canvas.width, canvas.height);
+        starfield = new Starfield(canvas.logicalWidth, canvas.logicalHeight);
     }
 
     // Create player
-    player = new Player(canvas.width / 2, canvas.height - 100);
+    player = new Player(canvas.logicalWidth / 2, canvas.logicalHeight - 100);
 
     // Apply selected ship stats
     const shipLives = shipManager?.applyShipStats(player) || 3;
@@ -1206,13 +1215,13 @@ function update(deltaTime) {
             gameState.enemies.splice(i, 1);
             continue;
         }
-        enemy.update(player?.x || canvas.width / 2, player?.y || canvas.height - 100,
+        enemy.update(player?.x || canvas.logicalWidth / 2, player?.y || canvas.logicalHeight - 100,
                     canvas, enemyBulletPool, gameState, particleSystem);
     }
 
     // Update boss
     if (gameState.boss) {
-        gameState.boss.update(player?.x || canvas.width / 2, player?.y || canvas.height - 100,
+        gameState.boss.update(player?.x || canvas.logicalWidth / 2, player?.y || canvas.logicalHeight - 100,
                              enemyBulletPool, gameState, particleSystem);
 
         if (!gameState.boss.active) {
@@ -1392,7 +1401,7 @@ function update(deltaTime) {
     if (currentExtraLives > previousExtraLives && gameState.score > 0) {
         gameState.lives++;
         if (particleSystem) {
-            particleSystem.addPowerUpCollect(canvas.width / 2, canvas.height / 2, '#ff6666');
+            particleSystem.addPowerUpCollect(canvas.logicalWidth / 2, canvas.logicalHeight / 2, '#ff6666');
         }
         if (soundSystem) soundSystem.playPowerUp(3);
     }
@@ -1405,7 +1414,7 @@ function update(deltaTime) {
 function render() {
     // Clear
     ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, canvas.logicalWidth, canvas.logicalHeight);
 
     ctx.save();
 
@@ -1468,7 +1477,7 @@ function render() {
     }
 
     // Radical slang
-    if (radicalSlang) radicalSlang.draw(ctx, canvas.width, canvas.height);
+    if (radicalSlang) radicalSlang.draw(ctx, canvas.logicalWidth, canvas.logicalHeight);
 
     // Wave text
     if (waveManager) waveManager.drawWaveText(ctx, canvas);
@@ -1515,7 +1524,7 @@ function drawModeHUD(ctx, modeInfo) {
     ctx.shadowBlur = 10;
     ctx.shadowColor = '#ffff00';
 
-    const x = canvas.width - 20;
+    const x = canvas.logicalWidth - 20;
     const y = 60;
 
     if (modeInfo.showTimer) {
@@ -1544,7 +1553,7 @@ function menuLoop() {
 
     // Clear
     ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, canvas.logicalWidth, canvas.logicalHeight);
 
     // Draw starfield
     if (starfield) {
@@ -1590,7 +1599,7 @@ function spawnBoss() {
     }
 
     // Add massive grid impact for boss spawn
-    addGridImpact(canvas.width / 2, 100, 80, 250);
+    addGridImpact(canvas.logicalWidth / 2, 100, 80, 250);
 
     // Trigger reactive music boss effect
     if (reactiveMusicSystem) {
@@ -1711,7 +1720,7 @@ function togglePause() {
 function drawPauseScreen() {
     // Darken
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, canvas.logicalWidth, canvas.logicalHeight);
 
     // Pause text
     ctx.save();
@@ -1720,12 +1729,12 @@ function drawPauseScreen() {
     ctx.fillStyle = '#00ffff';
     ctx.shadowBlur = 30;
     ctx.shadowColor = '#00ffff';
-    ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2 - 20);
+    ctx.fillText('PAUSED', canvas.logicalWidth / 2, canvas.logicalHeight / 2 - 20);
 
     ctx.font = '24px "Courier New", monospace';
     ctx.fillStyle = '#ffffff';
     ctx.shadowBlur = 0;
-    ctx.fillText('Press P or ESC to continue', canvas.width / 2, canvas.height / 2 + 40);
+    ctx.fillText('Press P or ESC to continue', canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 40);
     ctx.restore();
 }
 
@@ -1825,7 +1834,7 @@ function handlePlayerDeath() {
 function drawGameOverScreen() {
     // Darken
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, canvas.logicalWidth, canvas.logicalHeight);
 
     ctx.save();
     ctx.textAlign = 'center';
@@ -1835,28 +1844,28 @@ function drawGameOverScreen() {
     ctx.fillStyle = '#ff0000';
     ctx.shadowBlur = 30;
     ctx.shadowColor = '#ff0000';
-    ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 60);
+    ctx.fillText('GAME OVER', canvas.logicalWidth / 2, canvas.logicalHeight / 2 - 60);
 
     // Score
     ctx.font = 'bold 36px "Courier New", monospace';
     ctx.fillStyle = '#00ffff';
     ctx.shadowColor = '#00ffff';
-    ctx.fillText(`SCORE: ${gameState.score.toLocaleString()}`, canvas.width / 2, canvas.height / 2 + 10);
+    ctx.fillText(`SCORE: ${gameState.score.toLocaleString()}`, canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 10);
 
     // Wave
     ctx.font = '24px "Courier New", monospace';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(`REACHED WAVE ${gameState.wave}`, canvas.width / 2, canvas.height / 2 + 50);
+    ctx.fillText(`REACHED WAVE ${gameState.wave}`, canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 50);
 
     // Max combo
-    ctx.fillText(`MAX COMBO: ${gameState.maxCombo}x`, canvas.width / 2, canvas.height / 2 + 80);
+    ctx.fillText(`MAX COMBO: ${gameState.maxCombo}x`, canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 80);
 
     // High score
     if (gameState.score >= gameState.highScore) {
         ctx.font = 'bold 28px "Courier New", monospace';
         ctx.fillStyle = '#ffd700';
         ctx.shadowColor = '#ffd700';
-        ctx.fillText('★ NEW HIGH SCORE! ★', canvas.width / 2, canvas.height / 2 + 130);
+        ctx.fillText('★ NEW HIGH SCORE! ★', canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 130);
     }
 
     // Continue prompt
@@ -1865,9 +1874,9 @@ function drawGameOverScreen() {
     ctx.shadowBlur = 0;
 
     if (credits > 0) {
-        ctx.fillText(`Press SPACE to continue (${credits} credits)`, canvas.width / 2, canvas.height / 2 + 180);
+        ctx.fillText(`Press SPACE to continue (${credits} credits)`, canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 180);
     } else {
-        ctx.fillText('Press C to insert coin, SPACE to return to menu', canvas.width / 2, canvas.height / 2 + 180);
+        ctx.fillText('Press C to insert coin, SPACE to return to menu', canvas.logicalWidth / 2, canvas.logicalHeight / 2 + 180);
     }
 
     ctx.restore();
@@ -1942,13 +1951,13 @@ function drawAttractModeOverlay() {
     ctx.fillStyle = '#ff00ff';
     ctx.shadowBlur = 15;
     ctx.shadowColor = '#ff00ff';
-    ctx.fillText('★ DEMO MODE ★', canvas.width / 2, 40);
+    ctx.fillText('★ DEMO MODE ★', canvas.logicalWidth / 2, 40);
 
     // Promo text
     ctx.font = 'bold 28px "Courier New", monospace';
     ctx.fillStyle = '#00ffff';
     ctx.shadowColor = '#00ffff';
-    ctx.fillText(promoTexts[currentPromoIndex], canvas.width / 2, canvas.height - 60);
+    ctx.fillText(promoTexts[currentPromoIndex], canvas.logicalWidth / 2, canvas.logicalHeight - 60);
 
     // Press any key
     const blink = Math.sin(Date.now() * 0.005) > 0;
@@ -1956,7 +1965,7 @@ function drawAttractModeOverlay() {
         ctx.font = '18px "Courier New", monospace';
         ctx.fillStyle = '#ffff00';
         ctx.shadowColor = '#ffff00';
-        ctx.fillText('PRESS ANY KEY TO START', canvas.width / 2, canvas.height - 25);
+        ctx.fillText('PRESS ANY KEY TO START', canvas.logicalWidth / 2, canvas.logicalHeight - 25);
     }
 
     ctx.restore();

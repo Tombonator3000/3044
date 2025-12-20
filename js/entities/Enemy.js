@@ -371,7 +371,7 @@ export class Enemy {
         }
 
         // Remove if off screen
-        if (this.y > canvas.height + 50 || this.x < -50 || this.x > canvas.width + 50) {
+        if (this.y > canvas.logicalHeight + 50 || this.x < -50 || this.x > canvas.logicalWidth + 50) {
             this.active = false;
         }
     }
@@ -383,7 +383,7 @@ export class Enemy {
         this.y += this.speed;
 
         // Bounds
-        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
+        this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
     patrolBehavior(canvas) {
@@ -392,7 +392,7 @@ export class Enemy {
         this.y += this.speed * 0.5;
 
         // Bounds
-        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
+        this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
     sniperBehavior(playerX, playerY, canvas) {
@@ -405,7 +405,7 @@ export class Enemy {
             this.x += Math.sign(dx) * Math.min(0.5, Math.abs(dx) * 0.005);
         }
 
-        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
+        this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
     diveBehavior(playerX, playerY, canvas) {
@@ -428,7 +428,7 @@ export class Enemy {
 
     sinewaveBehavior(canvas) {
         this.y += this.speed;
-        this.x = (canvas.width / 2) + Math.sin(this.moveTimer * this.sineFrequency + this.sineOffset) * this.sineAmplitude;
+        this.x = (canvas.logicalWidth / 2) + Math.sin(this.moveTimer * this.sineFrequency + this.sineOffset) * this.sineAmplitude;
     }
 
     fleeBehavior(playerX, playerY, canvas) {
@@ -442,8 +442,8 @@ export class Enemy {
             this.y += (dy / dist) * this.speed * 0.5;
         }
 
-        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
-        this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y));
+        this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
+        this.y = Math.max(this.size, Math.min(canvas.logicalHeight - this.size, this.y));
     }
 
     // ============================================
@@ -474,7 +474,7 @@ export class Enemy {
             this.y += this.speed * 0.3;
         }
 
-        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
+        this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
     ghostBehavior(playerX, playerY, canvas) {
@@ -491,7 +491,7 @@ export class Enemy {
         // Transparency fluctuation - become intangible sometimes
         this.transparency = 0.4 + Math.sin(this.ghostTimer * 0.03) * 0.6;
 
-        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
+        this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
     orbitBehavior(playerX, playerY, canvas) {
@@ -508,7 +508,7 @@ export class Enemy {
         this.x = this.orbitCenter.x + Math.cos(this.orbitAngle) * this.orbitRadius;
         this.y = this.orbitCenter.y + Math.sin(this.orbitAngle) * this.orbitRadius * 0.5;
 
-        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
+        this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
     glitchBehavior(playerX, playerY, canvas) {
@@ -533,8 +533,8 @@ export class Enemy {
             this.y += (Math.random() - 0.5) * 50;
         }
 
-        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
-        this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y));
+        this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
+        this.y = Math.max(this.size, Math.min(canvas.logicalHeight - this.size, this.y));
     }
 
     bossBehavior(playerX, playerY, canvas) {
@@ -547,7 +547,7 @@ export class Enemy {
             this.x += Math.sin(this.moveTimer * 0.02) * this.speed * 2;
         }
 
-        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
+        this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
     pulseBehavior(playerX, playerY, canvas) {
@@ -555,7 +555,7 @@ export class Enemy {
 
         // Pulsing movement with wave pattern
         const pulseOffset = Math.sin(this.pulsePhase) * this.waveAmplitude;
-        this.x = (canvas.width / 2) + pulseOffset + Math.sin(this.moveTimer * 0.03) * 50;
+        this.x = (canvas.logicalWidth / 2) + pulseOffset + Math.sin(this.moveTimer * 0.03) * 50;
         this.y += this.speed;
 
         // Update neon trail
@@ -567,7 +567,7 @@ export class Enemy {
             return t.life > 0;
         });
 
-        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
+        this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
     invaderBehavior(canvas) {
@@ -580,7 +580,7 @@ export class Enemy {
             this.x += this.stepDirection * this.stepDistance;
 
             // Hit edge - descend and reverse
-            if (this.x >= canvas.width - this.size || this.x <= this.size) {
+            if (this.x >= canvas.logicalWidth - this.size || this.x <= this.size) {
                 this.stepDirection *= -1;
                 this.y += this.descendAmount;
             }
