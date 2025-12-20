@@ -1285,12 +1285,12 @@ function update(deltaTime) {
 
     // Update player
     if (player && player.isAlive) {
-        player.update(keys, canvas, bulletPool, gameState, touchJoystick, touchButtons, particleSystem, soundSystem);
+        player.update(keys, canvas, bulletPool, gameState, touchJoystick, touchButtons, particleSystem, soundSystem, adjustedDeltaTime);
     }
 
     // Update bullets
-    if (bulletPool) bulletPool.update(canvas, gameState);
-    if (enemyBulletPool) enemyBulletPool.update(canvas, gameState);
+    if (bulletPool) bulletPool.update(canvas, gameState, adjustedDeltaTime);
+    if (enemyBulletPool) enemyBulletPool.update(canvas, gameState, adjustedDeltaTime);
 
     // Update enemies
     for (let i = gameState.enemies.length - 1; i >= 0; i--) {
@@ -1300,13 +1300,13 @@ function update(deltaTime) {
             continue;
         }
         enemy.update(player?.x || canvas.logicalWidth / 2, player?.y || canvas.logicalHeight - 100,
-                    canvas, enemyBulletPool, gameState, particleSystem);
+                    canvas, enemyBulletPool, gameState, particleSystem, adjustedDeltaTime);
     }
 
     // Update boss
     if (gameState.boss) {
         gameState.boss.update(player?.x || canvas.logicalWidth / 2, player?.y || canvas.logicalHeight - 100,
-                             enemyBulletPool, gameState, particleSystem);
+                             enemyBulletPool, gameState, particleSystem, adjustedDeltaTime);
 
         if (!gameState.boss.active) {
             // Boss defeated!

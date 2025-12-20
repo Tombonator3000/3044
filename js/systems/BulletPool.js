@@ -134,7 +134,8 @@ export class BulletPool {
         return this.spawn(x, y, vx, vy, isPlayer, options);
     }
 
-    update(canvas, gameState) {
+    update(canvas, gameState, deltaTime = 1) {
+        const scaledDeltaTime = Math.max(deltaTime, 0);
         this._activeCount = 0;
         this._playerBulletCount = 0;
 
@@ -161,7 +162,7 @@ export class BulletPool {
 
                     // Normalize angle difference
                     const normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
-                    const newAngle = currentAngle + normalizedDiff * bullet.homingStrength;
+                    const newAngle = currentAngle + normalizedDiff * bullet.homingStrength * scaledDeltaTime;
 
                     const speed = Math.hypot(bullet.vx, bullet.vy);
                     bullet.vx = Math.cos(newAngle) * speed;
@@ -170,9 +171,9 @@ export class BulletPool {
             }
 
             // Move
-            bullet.x += bullet.vx;
-            bullet.y += bullet.vy;
-            bullet.lifetime++;
+            bullet.x += bullet.vx * scaledDeltaTime;
+            bullet.y += bullet.vy * scaledDeltaTime;
+            bullet.lifetime += scaledDeltaTime;
 
             // Bounce off walls
             if (bullet.bounce && bullet.bounceHits < bullet.bounceCount) {
