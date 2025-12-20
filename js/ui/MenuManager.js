@@ -78,6 +78,9 @@ export class MenuManager {
         this.insertCoinBlink = true;
         this.blinkTimer = 0;
 
+        // Attract mode state (arcade-style "Press Start" screen)
+        this.inAttractMode = true;
+
         // Callbacks
         this.onStartGame = null;
         this.onContinue = null;
@@ -121,6 +124,93 @@ export class MenuManager {
 
         // Initialize insert coin blink
         this.startInsertCoinBlink();
+
+        // Initialize attract mode (arcade-style Press Start screen)
+        this.initAttractMode();
+    }
+
+    /**
+     * Initialize attract mode - arcade-style "Press Start" screen
+     * Shows minimal UI until player presses a key or clicks
+     */
+    initAttractMode() {
+        const attractMode = document.getElementById('attractMode');
+        const fullMenu = document.getElementById('fullMenu');
+
+        if (!attractMode || !fullMenu) {
+            console.log('Attract mode elements not found, using legacy mode');
+            return;
+        }
+
+        // Start in attract mode
+        this.inAttractMode = true;
+        attractMode.classList.remove('hidden');
+        fullMenu.classList.remove('visible');
+
+        // Handler for exiting attract mode
+        const exitAttractMode = (e) => {
+            if (!this.inAttractMode) return;
+
+            // Only respond to specific keys/clicks
+            if (e.type === 'keydown') {
+                const validKeys = ['Enter', ' ', 'Escape', 'c', 'C'];
+                if (!validKeys.includes(e.key)) return;
+            }
+
+            this.showFullMenu();
+        };
+
+        // Listen for key press or click to exit attract mode
+        document.addEventListener('keydown', exitAttractMode);
+        attractMode.addEventListener('click', exitAttractMode);
+
+        // Also exit when clicking INSERT COIN text specifically
+        const insertCoinText = document.getElementById('insertCoinText');
+        if (insertCoinText) {
+            insertCoinText.style.cursor = 'pointer';
+            insertCoinText.addEventListener('click', exitAttractMode);
+        }
+    }
+
+    /**
+     * Exit attract mode and show full menu
+     */
+    showFullMenu() {
+        if (!this.inAttractMode) return;
+
+        const attractMode = document.getElementById('attractMode');
+        const fullMenu = document.getElementById('fullMenu');
+
+        if (attractMode && fullMenu) {
+            this.inAttractMode = false;
+
+            // Animate out attract mode
+            attractMode.classList.add('hidden');
+
+            // Show full menu with animation
+            setTimeout(() => {
+                fullMenu.classList.add('visible');
+            }, 200);
+
+            console.log('Exited attract mode, showing full menu');
+        }
+    }
+
+    /**
+     * Return to attract mode (e.g., after timeout)
+     */
+    returnToAttractMode() {
+        const attractMode = document.getElementById('attractMode');
+        const fullMenu = document.getElementById('fullMenu');
+
+        if (attractMode && fullMenu) {
+            this.inAttractMode = true;
+            fullMenu.classList.remove('visible');
+
+            setTimeout(() => {
+                attractMode.classList.remove('hidden');
+            }, 300);
+        }
     }
 
     /**
@@ -202,9 +292,17 @@ export class MenuManager {
 
     /**
      * Show main menu
+     * @param {boolean} returnToAttract - If true, return to attract mode
      */
-    showMainMenu() {
+    showMainMenu(returnToAttract = false) {
         this.transitionTo(MenuState.MAIN);
+
+        if (returnToAttract) {
+            this.returnToAttractMode();
+        } else {
+            // Go directly to full menu (skip attract mode)
+            this.showFullMenu();
+        }
     }
 
     /**

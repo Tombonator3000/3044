@@ -16,23 +16,50 @@
             <div class="cyber-grid-overlay"></div>
             <div class="holographic-interference"></div>
             <div class="menu-scanlines"></div>
+            <div class="menu-vignette"></div>
 
             <!-- Synthwave decorative elements -->
             <div class="synthwave-sun"></div>
             <div class="synthwave-mountains"></div>
 
-            <!-- Menu Content Container - Organized vertically -->
-            <div class="menu-content">
+            <!-- ATTRACT MODE: Title + INSERT COIN (shown first) -->
+            <div class="attract-mode" id="attractMode">
                 <h1 class="logo">Geometry <span class="year">3044</span></h1>
 
-                <div class="menu-buttons">
-                    <button class="btn" id="startGameBtn">Start Game</button>
+                <div id="menuHighScore" class="attract-high-score">
+                    HIGH SCORE: <span id="highScoreDisplay">0</span>
+                </div>
+
+                <div id="insertCoinText">
+                    PRESS START
+                </div>
+
+                <div class="attract-hint">
+                    C: INSERT COIN
+                </div>
+            </div>
+
+            <!-- FULL MENU: Shown after pressing start (below horizon) -->
+            <div class="full-menu" id="fullMenu">
+                <h1 class="logo logo-small">Geometry <span class="year">3044</span></h1>
+
+                <!-- Primary Actions -->
+                <div class="menu-buttons-primary">
+                    <button class="btn btn-primary" id="startGameBtn">Start Game</button>
+                </div>
+
+                <!-- Secondary Actions (grouped) -->
+                <div class="menu-buttons-secondary">
                     <button class="btn btn-secondary" id="selectShipBtn">Select Ship</button>
                     <button class="btn btn-secondary" id="gameModeBtn">Game Mode</button>
-                    <button class="btn btn-secondary" id="dailyChallengeBtn">Daily Challenge</button>
-                    <button class="btn btn-secondary" id="achievementsBtn">Achievements</button>
-                    <button class="btn btn-secondary" id="highScoresBtn">High Scores</button>
                     <button class="btn btn-secondary" id="optionsBtn">Options</button>
+                </div>
+
+                <!-- Tertiary Actions (smaller icons/text) -->
+                <div class="menu-buttons-tertiary">
+                    <button class="btn-tertiary" id="dailyChallengeBtn">Daily Challenge</button>
+                    <button class="btn-tertiary" id="achievementsBtn">Achievements</button>
+                    <button class="btn-tertiary" id="highScoresBtn">High Scores</button>
                 </div>
 
                 <div id="creditsDisplay">
@@ -40,16 +67,7 @@
                 </div>
 
                 <div class="controls">
-                    WASD/Arrows: Move | Space: Shoot | B: Bomb | P: Pause<br>
-                    <span class="coin-hint">C: INSERT COIN</span>
-                </div>
-
-                <div id="menuHighScore">
-                    HIGH SCORE: <span id="highScoreDisplay">0</span>
-                </div>
-
-                <div id="insertCoinText">
-                    INSERT COIN
+                    WASD/Arrows: Move | Space: Shoot | B: Bomb | P: Pause
                 </div>
             </div>
         </div>
