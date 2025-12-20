@@ -271,12 +271,15 @@ export class MenuManager {
         if (cachedUI.continueScreen) cachedUI.continueScreen.style.display = 'none';
         if (cachedUI.highScoreEntryScreen) cachedUI.highScoreEntryScreen.style.display = 'none';
         if (cachedUI.highScoreListScreen) cachedUI.highScoreListScreen.style.display = 'none';
+        if (cachedUI.gameHighScore) cachedUI.gameHighScore.style.display = 'none';
 
         const pauseOverlay = document.getElementById('pauseOverlay');
         if (pauseOverlay) pauseOverlay.style.display = 'none';
 
         const optionsScreen = document.getElementById('optionsScreen');
         if (optionsScreen) optionsScreen.style.display = 'none';
+        const touchControlsLayer = document.getElementById('touchControlsLayer');
+        if (touchControlsLayer) touchControlsLayer.style.display = 'none';
 
         // Show appropriate screen
         switch (this.currentState) {
@@ -284,13 +287,15 @@ export class MenuManager {
                 if (cachedUI.menuScreen) cachedUI.menuScreen.style.display = 'flex';
                 break;
             case MenuState.GAME:
-                // Canvas-based HUD is now used instead of DOM elements
-                // if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'block';
+                if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'flex';
+                if (cachedUI.gameHighScore) cachedUI.gameHighScore.style.display = 'block';
+                if (touchControlsLayer) touchControlsLayer.style.display = 'block';
                 break;
             case MenuState.PAUSED:
-                // Canvas-based HUD is now used instead of DOM elements
-                // if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'block';
+                if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'flex';
+                if (cachedUI.gameHighScore) cachedUI.gameHighScore.style.display = 'block';
                 if (pauseOverlay) pauseOverlay.style.display = 'flex';
+                if (touchControlsLayer) touchControlsLayer.style.display = 'block';
                 break;
             case MenuState.GAME_OVER:
                 if (cachedUI.gameOverScreen) cachedUI.gameOverScreen.style.display = 'flex';
