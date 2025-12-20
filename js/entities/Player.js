@@ -387,90 +387,100 @@ export class Player {
             chainRange: this.chainRange
         };
 
-        // Sidescroller mode: shoot horizontally to the right (R-Type style)
-        if (this.sidescrollerMode) {
-            const bulletSpeed = 14; // Horizontal speed (positive = right)
-            switch (this.weaponLevel) {
-                case 1:
-                    bulletPool.spawn?.(this.x + 20, this.y, bulletSpeed, 0, true, bulletOptions);
-                    break;
-                case 2:
-                    bulletPool.spawn?.(this.x + 15, this.y - 8, bulletSpeed, 0, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 15, this.y + 8, bulletSpeed, 0, true, bulletOptions);
-                    break;
-                case 3:
-                    bulletPool.spawn?.(this.x + 20, this.y, bulletSpeed, 0, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 10, this.y - 12, bulletSpeed, -1, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 10, this.y + 12, bulletSpeed, 1, true, bulletOptions);
-                    break;
-                case 4:
-                    bulletPool.spawn?.(this.x + 20, this.y - 8, bulletSpeed, 0, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 20, this.y + 8, bulletSpeed, 0, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 10, this.y - 16, bulletSpeed, -2, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 10, this.y + 16, bulletSpeed, 2, true, bulletOptions);
-                    break;
-                default:
-                    // Level 5+
-                    bulletPool.spawn?.(this.x + 20, this.y, bulletSpeed * 1.2, 0, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 15, this.y - 10, bulletSpeed, -1, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 15, this.y + 10, bulletSpeed, 1, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 5, this.y - 20, bulletSpeed * 0.9, -2, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 5, this.y + 20, bulletSpeed * 0.9, 2, true, bulletOptions);
-            }
+        const patterns = this.getWeaponPattern(this.weaponLevel);
+        const baseSpeed = this.sidescrollerMode ? 14 : 12;
 
-            // Spread shot for sidescroller
-            if (this.hasSpread) {
-                const spreadAngle = Math.PI / 8;
-                for (let i = 0; i < this.spreadCount; i++) {
-                    const angle = spreadAngle * (i - (this.spreadCount - 1) / 2);
-                    bulletPool.spawn?.(this.x + 10, this.y,
-                        Math.cos(angle) * 10 + 8, // Add forward momentum
-                        Math.sin(angle) * 10,
-                        true, { ...bulletOptions, color: '#ffff00', size: 4 });
-                }
-            }
-        } else {
-            // Normal vertical shooting (up)
-            const bulletSpeed = -12;
-            switch (this.weaponLevel) {
-                case 1:
-                    bulletPool.spawn?.(this.x, this.y - 20, 0, bulletSpeed, true, bulletOptions);
-                    break;
-                case 2:
-                    bulletPool.spawn?.(this.x - 8, this.y - 15, 0, bulletSpeed, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 8, this.y - 15, 0, bulletSpeed, true, bulletOptions);
-                    break;
-                case 3:
-                    bulletPool.spawn?.(this.x, this.y - 20, 0, bulletSpeed, true, bulletOptions);
-                    bulletPool.spawn?.(this.x - 12, this.y - 10, -1, bulletSpeed, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 12, this.y - 10, 1, bulletSpeed, true, bulletOptions);
-                    break;
-                case 4:
-                    bulletPool.spawn?.(this.x - 8, this.y - 20, 0, bulletSpeed, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 8, this.y - 20, 0, bulletSpeed, true, bulletOptions);
-                    bulletPool.spawn?.(this.x - 16, this.y - 10, -2, bulletSpeed, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 16, this.y - 10, 2, bulletSpeed, true, bulletOptions);
-                    break;
-                default:
-                    // Level 5+
-                    bulletPool.spawn?.(this.x, this.y - 20, 0, bulletSpeed * 1.2, true, bulletOptions);
-                    bulletPool.spawn?.(this.x - 10, this.y - 15, -1, bulletSpeed, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 10, this.y - 15, 1, bulletSpeed, true, bulletOptions);
-                    bulletPool.spawn?.(this.x - 20, this.y - 5, -2, bulletSpeed * 0.9, true, bulletOptions);
-                    bulletPool.spawn?.(this.x + 20, this.y - 5, 2, bulletSpeed * 0.9, true, bulletOptions);
-            }
+        for (const bullet of patterns) {
+            const { offsetX, offsetY, velocityX, velocityY, speedMult = 1 } = bullet;
+            const speed = baseSpeed * speedMult;
 
-            // Spread shot for normal mode
-            if (this.hasSpread) {
-                const spreadAngle = Math.PI / 8;
-                for (let i = 0; i < this.spreadCount; i++) {
-                    const angle = -Math.PI / 2 + spreadAngle * (i - (this.spreadCount - 1) / 2);
-                    bulletPool.spawn?.(this.x, this.y - 10,
-                        Math.cos(angle) * 10,
-                        Math.sin(angle) * 10,
-                        true, { ...bulletOptions, color: '#ffff00', size: 4 });
-                }
-            }
+            // Transform coordinates based on mode
+            // Sidescroller: shoots right (positive X), vertical: shoots up (negative Y)
+            const [finalOffsetX, finalOffsetY] = this.sidescrollerMode
+                ? [offsetY, -offsetX]  // Rotate 90° for sidescroller
+                : [offsetX, offsetY];
+
+            const [finalVelX, finalVelY] = this.sidescrollerMode
+                ? [speed + velocityY, velocityX]  // Rotate velocity for sidescroller
+                : [velocityX, -speed + velocityY];
+
+            bulletPool.spawn?.(
+                this.x + finalOffsetX,
+                this.y + finalOffsetY,
+                finalVelX,
+                finalVelY,
+                true,
+                bulletOptions
+            );
+        }
+
+        // Spread shot
+        if (this.hasSpread) {
+            this.fireSpreadShot(bulletPool, bulletOptions);
+        }
+    }
+
+    /**
+     * Returns weapon pattern configuration for the given level.
+     * Each bullet definition uses a normalized coordinate system:
+     * - offsetX/Y: position offset from player (positive Y = forward)
+     * - velocityX/Y: additional velocity adjustments
+     * - speedMult: speed multiplier (default 1)
+     */
+    getWeaponPattern(level) {
+        const patterns = {
+            1: [
+                { offsetX: 0, offsetY: -20, velocityX: 0, velocityY: 0 }
+            ],
+            2: [
+                { offsetX: -8, offsetY: -15, velocityX: 0, velocityY: 0 },
+                { offsetX: 8, offsetY: -15, velocityX: 0, velocityY: 0 }
+            ],
+            3: [
+                { offsetX: 0, offsetY: -20, velocityX: 0, velocityY: 0 },
+                { offsetX: -12, offsetY: -10, velocityX: -1, velocityY: 0 },
+                { offsetX: 12, offsetY: -10, velocityX: 1, velocityY: 0 }
+            ],
+            4: [
+                { offsetX: -8, offsetY: -20, velocityX: 0, velocityY: 0 },
+                { offsetX: 8, offsetY: -20, velocityX: 0, velocityY: 0 },
+                { offsetX: -16, offsetY: -10, velocityX: -2, velocityY: 0 },
+                { offsetX: 16, offsetY: -10, velocityX: 2, velocityY: 0 }
+            ],
+            5: [
+                { offsetX: 0, offsetY: -20, velocityX: 0, velocityY: 0, speedMult: 1.2 },
+                { offsetX: -10, offsetY: -15, velocityX: -1, velocityY: 0 },
+                { offsetX: 10, offsetY: -15, velocityX: 1, velocityY: 0 },
+                { offsetX: -20, offsetY: -5, velocityX: -2, velocityY: 0, speedMult: 0.9 },
+                { offsetX: 20, offsetY: -5, velocityX: 2, velocityY: 0, speedMult: 0.9 }
+            ]
+        };
+
+        return patterns[Math.min(level, 5)] || patterns[5];
+    }
+
+    /**
+     * Fires spread shot bullets in a fan pattern
+     */
+    fireSpreadShot(bulletPool, bulletOptions) {
+        const spreadAngle = Math.PI / 8;
+        const spreadOptions = { ...bulletOptions, color: '#ffff00', size: 4 };
+
+        // Base angle: right for sidescroller, up for vertical
+        const baseAngle = this.sidescrollerMode ? 0 : -Math.PI / 2;
+        const forwardMomentum = this.sidescrollerMode ? 8 : 0;
+        const spawnOffset = this.sidescrollerMode ? { x: 10, y: 0 } : { x: 0, y: -10 };
+
+        for (let i = 0; i < this.spreadCount; i++) {
+            const angle = baseAngle + spreadAngle * (i - (this.spreadCount - 1) / 2);
+            bulletPool.spawn?.(
+                this.x + spawnOffset.x,
+                this.y + spawnOffset.y,
+                Math.cos(angle) * 10 + forwardMomentum,
+                Math.sin(angle) * 10,
+                true,
+                spreadOptions
+            );
         }
     }
 
