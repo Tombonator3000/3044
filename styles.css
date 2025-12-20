@@ -40,6 +40,17 @@ body {
     background: #000;
 }
 
+@supports (height: 100dvh) {
+    @media (pointer: coarse) {
+        #gameContainer,
+        #gameCanvas,
+        #hudLayer,
+        #touchControlsLayer {
+            height: 100dvh;
+        }
+    }
+}
+
 /* ============================================
    MENU SCREEN - Main Container
    ============================================ */
