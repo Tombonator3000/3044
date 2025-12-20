@@ -1193,4 +1193,110 @@ export class ParticleSystem {
             });
         }
     }
+
+    /**
+     * Ship-specific death explosion with unique visual effects
+     * Creates particles matching the ship's color and style
+     */
+    shipDeathExplosion(x, y, shipId = 'neonFalcon', shipColor = '#00ff00') {
+        const adjustedCount = getAdjustedCount(40);
+
+        // Ship-specific color palette
+        const colorPalettes = {
+            neonFalcon: [shipColor, '#00ffaa', '#aaffff', '#ffffff'],
+            glassCannon: ['#ff0000', '#ff4400', '#ff8800', '#ffff00', '#ffffff'],
+            tank: ['#0088ff', '#00aaff', '#00ddff', '#aaddff', '#ffffff'],
+            speedster: ['#ffff00', '#ffff88', '#ffffaa', '#ffffff'],
+            retroClassic: ['#00ffff', '#00ff88', '#88ffff', '#ffffff'],
+            phantom: ['#aa00ff', '#cc44ff', '#dd88ff', '#ffffff'],
+            berserker: ['#ff6600', '#ff8800', '#ffaa00', '#ffcc00', '#ffffff'],
+            synth: ['#ff00ff', '#ff44ff', '#ff88ff', '#ffaaff', '#ffffff']
+        };
+
+        const colors = colorPalettes[shipId] || [shipColor, '#ffffff'];
+
+        // Main colored explosion burst
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + Math.random() * 0.3;
+            const speed = 6 + Math.random() * 10;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                size: 4 + Math.random() * 6,
+                life: 50 + Math.random() * 40,
+                friction: 0.96,
+                type: Math.random() > 0.5 ? 'explosion' : 'star'
+            });
+        }
+
+        // Ship silhouette debris (triangular pieces)
+        for (let i = 0; i < 8; i++) {
+            const angle = (Math.PI * 2 * i) / 8;
+            const speed = 4 + Math.random() * 6;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: shipColor,
+                size: 8 + Math.random() * 6,
+                life: 70 + Math.random() * 30,
+                friction: 0.97,
+                gravity: 0.08,
+                type: 'debris',
+                rotationSpeed: (Math.random() - 0.5) * 0.4
+            });
+        }
+
+        // Inner bright core flash
+        const coreFlash = this.getParticle();
+        coreFlash.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#ffffff',
+            size: 60,
+            life: 20,
+            friction: 1,
+            type: 'glow'
+        });
+
+        // Ship-colored ring shockwaves
+        for (let ring = 0; ring < 3; ring++) {
+            setTimeout(() => {
+                this.addShockwave(x, y, colors[ring % colors.length], 80 + ring * 40);
+            }, ring * 60);
+        }
+
+        // Spark trails outward
+        for (let i = 0; i < 16; i++) {
+            const angle = (Math.PI * 2 * i) / 16;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * 12,
+                vy: Math.sin(angle) * 12,
+                color: colors[i % colors.length],
+                size: 3,
+                life: 35,
+                friction: 0.93,
+                type: 'spark',
+                rotation: angle
+            });
+        }
+
+        // Rising embers (ship-specific effect)
+        for (let i = 0; i < 12; i++) {
+            const particle = this.getParticle();
+            particle.reset(x + (Math.random() - 0.5) * 40, y + (Math.random() - 0.5) * 40, {
+                vx: (Math.random() - 0.5) * 3,
+                vy: -2 - Math.random() * 4,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                size: 3 + Math.random() * 3,
+                life: 60 + Math.random() * 40,
+                friction: 0.99,
+                gravity: -0.03,
+                type: 'fire'
+            });
+        }
+    }
 }

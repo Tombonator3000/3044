@@ -440,27 +440,22 @@ export class ShipManager {
             ctx.shadowBlur = ship.unlocked ? 10 : 0;
             ctx.fillText(ship.name, x + shipWidth / 2, y + 25);
 
-            // Ship preview (simple triangle)
+            // Ship preview - unique design per ship type
             ctx.save();
             ctx.translate(x + shipWidth / 2, y + 80);
 
             if (ship.unlocked) {
                 ctx.strokeStyle = ship.color;
                 ctx.fillStyle = ship.color + '44';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = ship.color;
             } else {
                 ctx.strokeStyle = '#444444';
                 ctx.fillStyle = '#22222244';
             }
 
             ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(0, -25);
-            ctx.lineTo(-20, 25);
-            ctx.lineTo(0, 15);
-            ctx.lineTo(20, 25);
-            ctx.closePath();
-            ctx.stroke();
-            ctx.fill();
+            this.drawShipPreview(ctx, ship.id, ship.color, ship.unlocked);
             ctx.restore();
 
             // Stats bars
@@ -519,5 +514,200 @@ export class ShipManager {
 
         ctx.fillStyle = color;
         ctx.fillRect(barX, y, barWidth * Math.min(1, value), barHeight);
+    }
+
+    /**
+     * Draw ship preview with unique design per ship type
+     */
+    drawShipPreview(ctx, shipId, color, unlocked) {
+        const c = unlocked ? color : '#444444';
+        const fill = unlocked ? color + '44' : '#22222244';
+
+        switch (shipId) {
+            case 'glassCannon':
+                // Sharp angular design
+                ctx.beginPath();
+                ctx.moveTo(0, -20);
+                ctx.lineTo(-8, -4);
+                ctx.lineTo(-14, 14);
+                ctx.lineTo(-4, 6);
+                ctx.lineTo(0, 16);
+                ctx.lineTo(4, 6);
+                ctx.lineTo(14, 14);
+                ctx.lineTo(8, -4);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fillStyle = fill;
+                ctx.fill();
+                if (unlocked) {
+                    ctx.fillStyle = '#ffff00';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+
+            case 'tank':
+                // Hexagonal armored design
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(0, -18);
+                ctx.lineTo(-14, -6);
+                ctx.lineTo(-14, 10);
+                ctx.lineTo(-8, 18);
+                ctx.lineTo(8, 18);
+                ctx.lineTo(14, 10);
+                ctx.lineTo(14, -6);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fillStyle = fill;
+                ctx.fill();
+                if (unlocked) {
+                    ctx.strokeStyle = '#00ffff';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(0, 2, 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                break;
+
+            case 'speedster':
+                // Ultra-slim design
+                ctx.beginPath();
+                ctx.moveTo(0, -22);
+                ctx.lineTo(-5, -8);
+                ctx.lineTo(-8, 12);
+                ctx.lineTo(-3, 6);
+                ctx.lineTo(0, 14);
+                ctx.lineTo(3, 6);
+                ctx.lineTo(8, 12);
+                ctx.lineTo(5, -8);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fillStyle = fill;
+                ctx.fill();
+                if (unlocked) {
+                    // Speed lines
+                    ctx.globalAlpha = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(-6, 16);
+                    ctx.lineTo(-6, 22);
+                    ctx.moveTo(6, 16);
+                    ctx.lineTo(6, 22);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+                break;
+
+            case 'retroClassic':
+                // Pixelated design
+                const px = 3;
+                ctx.fillStyle = unlocked ? color : '#444444';
+                const pixels = [
+                    [0, -5], [-1, -4], [0, -4], [1, -4],
+                    [-1, -3], [0, -3], [1, -3],
+                    [-2, -2], [-1, -2], [0, -2], [1, -2], [2, -2],
+                    [-2, -1], [0, -1], [2, -1],
+                    [-3, 0], [-2, 0], [0, 0], [2, 0], [3, 0],
+                    [-3, 1], [0, 1], [3, 1],
+                    [-3, 2], [3, 2]
+                ];
+                pixels.forEach(([px_x, px_y]) => {
+                    ctx.fillRect(px_x * px - px/2, px_y * px - px/2, px, px);
+                });
+                break;
+
+            case 'phantom':
+                // Ghostly curved design
+                ctx.globalAlpha = unlocked ? 0.3 : 0.1;
+                ctx.beginPath();
+                ctx.arc(0, 0, 20, 0, Math.PI * 2);
+                ctx.fillStyle = fill;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, -16);
+                ctx.quadraticCurveTo(-16, 0, -10, 16);
+                ctx.lineTo(0, 10);
+                ctx.lineTo(10, 16);
+                ctx.quadraticCurveTo(16, 0, 0, -16);
+                ctx.stroke();
+                ctx.fillStyle = fill;
+                ctx.fill();
+                break;
+
+            case 'berserker':
+                // Spiked aggressive design
+                ctx.beginPath();
+                ctx.moveTo(0, -18);
+                ctx.lineTo(-6, -10);
+                ctx.lineTo(-16, -6);
+                ctx.lineTo(-10, 0);
+                ctx.lineTo(-12, 14);
+                ctx.lineTo(-5, 10);
+                ctx.lineTo(0, 18);
+                ctx.lineTo(5, 10);
+                ctx.lineTo(12, 14);
+                ctx.lineTo(10, 0);
+                ctx.lineTo(16, -6);
+                ctx.lineTo(6, -10);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fillStyle = fill;
+                ctx.fill();
+                if (unlocked) {
+                    ctx.fillStyle = '#ff0000';
+                    ctx.beginPath();
+                    ctx.arc(0, -4, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+
+            case 'synth':
+                // Flowing music design
+                ctx.beginPath();
+                ctx.moveTo(0, -16);
+                ctx.bezierCurveTo(-12, -8, -12, 8, -10, 16);
+                ctx.lineTo(0, 12);
+                ctx.lineTo(10, 16);
+                ctx.bezierCurveTo(12, 8, 12, -8, 0, -16);
+                ctx.stroke();
+                ctx.fillStyle = fill;
+                ctx.fill();
+                if (unlocked) {
+                    // Sound wave bars
+                    ctx.fillStyle = '#00ffff';
+                    for (let i = -2; i <= 2; i++) {
+                        const h = 3 + Math.abs(i) * 1.5;
+                        ctx.fillRect(i * 3 - 1, 4 - h, 2, h);
+                    }
+                }
+                break;
+
+            case 'neonFalcon':
+            default:
+                // Classic arrow design
+                ctx.beginPath();
+                ctx.moveTo(0, -16);
+                ctx.lineTo(-12, 16);
+                ctx.lineTo(0, 8);
+                ctx.lineTo(12, 16);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fillStyle = fill;
+                ctx.fill();
+                // Wing accents
+                if (unlocked) {
+                    ctx.beginPath();
+                    ctx.moveTo(-6, 4);
+                    ctx.lineTo(-9, 12);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(6, 4);
+                    ctx.lineTo(9, 12);
+                    ctx.stroke();
+                }
+                break;
+        }
     }
 }

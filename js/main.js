@@ -2209,13 +2209,17 @@ function handlePlayerDeath() {
         radicalSlang.showDangerPhrase(player.x, player.y);
     }
 
-    // Epic death explosion
+    // Epic death explosion with ship-specific particles
     if (particleSystem && player) {
-        // Use epic death explosion if available
-        if (particleSystem.epicDeathExplosion) {
-            particleSystem.epicDeathExplosion(player.x, player.y, '#00ff00');
+        // Use ship-specific death explosion if available
+        if (particleSystem.shipDeathExplosion) {
+            const shipColor = player.shipColor || '#00ff00';
+            const shipId = player.shipId || 'neonFalcon';
+            particleSystem.shipDeathExplosion(player.x, player.y, shipId, shipColor);
+        } else if (particleSystem.epicDeathExplosion) {
+            particleSystem.epicDeathExplosion(player.x, player.y, player.shipColor || '#00ff00');
         } else {
-            particleSystem.addExplosion(player.x, player.y, '#00ff00', 30);
+            particleSystem.addExplosion(player.x, player.y, player.shipColor || '#00ff00', 30);
         }
     }
 
