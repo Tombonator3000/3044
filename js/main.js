@@ -1009,6 +1009,29 @@ function updateAttractModeAI() {
     }
 }
 
+function requestGameFullscreen() {
+    const gameContainer = document.getElementById('gameContainer') || document.documentElement;
+    const requestFullscreen = gameContainer.requestFullscreen
+        || gameContainer.webkitRequestFullscreen
+        || gameContainer.mozRequestFullScreen
+        || gameContainer.msRequestFullscreen;
+
+    if (!requestFullscreen) {
+        return;
+    }
+
+    try {
+        const fullscreenResult = requestFullscreen.call(gameContainer);
+        if (fullscreenResult && typeof fullscreenResult.catch === 'function') {
+            fullscreenResult.catch((error) => {
+                console.warn('⚠️ Fullscreen request was denied:', error);
+            });
+        }
+    } catch (error) {
+        console.warn('⚠️ Fullscreen request failed:', error);
+    }
+}
+
 // ============================================
 // GAME START
 // ============================================
@@ -1034,6 +1057,8 @@ window.startGame = function() {
 
     credits--;
     updateCreditsDisplay();
+
+    requestGameFullscreen();
 
     // Exit attract mode if active
     if (attractMode) {
