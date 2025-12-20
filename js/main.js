@@ -3,7 +3,7 @@
 // ============================================
 
 // === IMPORTS ===
-import { config, getCurrentTheme, updateConfig } from './config.js';
+import { config, getCurrentTheme, updateConfig, getDifficultySettings } from './config.js';
 import { Player } from './entities/Player.js';
 import { Enemy } from './entities/Enemy.js';
 import { Boss } from './entities/Boss.js';
@@ -1622,8 +1622,15 @@ function initGame(isAttractMode = false) {
         starfield = new Starfield(canvas.logicalWidth, canvas.logicalHeight);
     }
 
+    // Get difficulty settings FIRST
+    const difficultySettings = getDifficultySettings(GameSettings.difficulty);
+    console.log(`🎮 Starting game with difficulty: ${difficultySettings.name}`);
+
     // Create player
     player = new Player(canvas.logicalWidth / 2, canvas.logicalHeight - 100);
+
+    // Apply difficulty speed modifier to player
+    player.speed = player.speed * difficultySettings.playerSpeed;
 
     // Apply selected ship stats
     const shipLives = shipManager?.applyShipStats(player) || 3;
@@ -1640,8 +1647,8 @@ function initGame(isAttractMode = false) {
         paused: false,
         gameOver: false,
         score: 0,
-        lives: modeSettings.lives || shipLives,
-        bombs: modeSettings.bombs || 3,
+        lives: modeSettings.lives || difficultySettings.lives || shipLives,
+        bombs: modeSettings.bombs || difficultySettings.bombs || 3,
         wave: 1,
         combo: 0,
         maxCombo: 0,
@@ -1674,7 +1681,11 @@ function initGame(isAttractMode = false) {
         // Game mode settings
         gameMode: gameModeManager?.currentMode || 'classic',
         canShoot: modeSettings.canShoot !== false,
-        scoreMultiplier: modeSettings.scoreMultiplier || 1.0
+        scoreMultiplier: (modeSettings.scoreMultiplier || 1.0) * difficultySettings.scoreMultiplier,
+
+        // Difficulty settings for enemies and wave manager
+        difficultySettings: difficultySettings,
+        difficultyName: GameSettings.difficulty
     };
 
     applyGameSettings();
@@ -1684,8 +1695,8 @@ function initGame(isAttractMode = false) {
         gameModeManager.initializeMode(gameState);
     }
 
-    // Start wave 1
-    waveManager.startWave(1);
+    // Start wave 1 with difficulty settings
+    waveManager.startWave(1, gameState);
 
     // Reset keys
     keys = {};
@@ -1859,7 +1870,7 @@ function update(deltaTime) {
             if (waveManager.isBossWave() || gameState.wave % 5 === 0) {
                 spawnBoss();
             } else {
-                waveManager.startWave(gameState.wave);
+                waveManager.startWave(gameState.wave, gameState);
             }
         }
     }
