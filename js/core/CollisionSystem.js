@@ -273,7 +273,8 @@ export class CollisionSystem {
         // Enemy bullets vs player
         if (enemyBulletPool && player?.isAlive && !player.invulnerable) {
             const bullets = enemyBulletPool.getActiveBullets?.() || enemyBulletPool.bullets || [];
-            const playerHitbox = { x: player.x, y: player.y, size: playerSize * 0.5 };
+            // Player hitbox increased from 0.5 to 0.7 for more challenging collision
+            const playerHitbox = { x: player.x, y: player.y, size: playerSize * 0.7 };
 
             for (const bullet of bullets) {
                 if (!bullet.active) continue;
@@ -292,7 +293,8 @@ export class CollisionSystem {
 
         // Enemies vs player collision
         if (player?.isAlive && !player.invulnerable) {
-            const playerHitbox = { x: player.x, y: player.y, size: playerSize * 0.5 };
+            // Player hitbox increased from 0.5 to 0.7 for more challenging collision
+            const playerHitbox = { x: player.x, y: player.y, size: playerSize * 0.7 };
 
             for (const enemy of gameState.enemies) {
                 if (!enemy.active) continue;
@@ -384,8 +386,9 @@ export class CollisionSystem {
 
             const bulletRadius = bullet.radius || CONFIG.bullets.enemyRadius;
 
+            // Player hitbox increased from 0.6 to 0.75 for more challenging collision
             if (this.circleCollision(
-                { x: player.x, y: player.y, radius: playerRadius * 0.6 },
+                { x: player.x, y: player.y, radius: playerRadius * 0.75 },
                 { x: bullet.x, y: bullet.y, radius: bulletRadius }
             )) {
                 this.stats.collisionsDetected++;
@@ -419,9 +422,10 @@ export class CollisionSystem {
 
             const enemyRadius = enemy.size || 20;
 
+            // Player hitbox increased from 0.6 to 0.75 for more challenging collision
             if (this.circleCollision(
-                { x: player.x, y: player.y, radius: playerRadius * 0.6 },
-                { x: enemy.x, y: enemy.y, radius: enemyRadius * 0.8 }
+                { x: player.x, y: player.y, radius: playerRadius * 0.75 },
+                { x: enemy.x, y: enemy.y, radius: enemyRadius * 0.85 }
             )) {
                 this.stats.collisionsDetected++;
 

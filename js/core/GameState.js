@@ -122,10 +122,15 @@ export class GameState {
             this.saveHighScore();
         }
 
-        // Check for extra life milestone
-        if (this.score >= this.nextLifeScore) {
+        // Check for extra life milestones (use while to catch multiple thresholds)
+        while (this.score >= this.nextLifeScore && this.lives < CONFIG.game.maxLives) {
             this.addLife();
             this.nextLifeScore += CONFIG.game.newLifeScoreThreshold;
+        }
+
+        // Sanity check - hard cap lives at maxLives
+        if (this.lives > CONFIG.game.maxLives) {
+            this.lives = CONFIG.game.maxLives;
         }
 
         return totalPoints;
@@ -168,9 +173,19 @@ export class GameState {
     addLife() {
         if (this.lives < CONFIG.game.maxLives) {
             this.lives++;
+            // Extra safety: clamp to maxLives
+            this.lives = Math.min(this.lives, CONFIG.game.maxLives);
             return true;
         }
         return false;
+    }
+
+    /**
+     * Get current lives (with safety clamp)
+     */
+    getLives() {
+        // Always return clamped value
+        return Math.min(Math.max(this.lives, 0), CONFIG.game.maxLives);
     }
 
     /**
