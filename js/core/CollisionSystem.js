@@ -830,6 +830,16 @@ export class CollisionSystem {
         const gs = this.gameState;
         if (!gs) return;
 
+        // Track kill in bestiary
+        if (gs.bestiary && enemy.type) {
+            gs.bestiary.recordKill(enemy.type, gs.wave || 1);
+        }
+
+        // Track session stats
+        if (gs.sessionStats) {
+            gs.sessionStats.kills = (gs.sessionStats.kills || 0) + 1;
+        }
+
         // Calculate score with multiplier
         const baseScore = enemy.points || 100;
         const multiplier = 1 + Math.floor((gs.combo || 0) / 5);

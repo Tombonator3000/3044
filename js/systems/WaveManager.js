@@ -317,6 +317,11 @@ export class WaveManager {
             enemy.sidescrollerMode = sidescrollerMode;
             enemies.push(enemy);
 
+            // Track encounter in bestiary (first time seeing this enemy type)
+            if (gameState?.bestiary) {
+                gameState.bestiary.recordEncounter(enemyType, this.wave);
+            }
+
             this.enemiesSpawned++;
             this.spawnTimer = this.spawnDelay;
 
@@ -327,6 +332,12 @@ export class WaveManager {
                 const extraEnemy = new Enemy(extraPos.x, extraPos.y, extraType, gameState);
                 extraEnemy.sidescrollerMode = sidescrollerMode;
                 enemies.push(extraEnemy);
+
+                // Track encounter in bestiary
+                if (gameState?.bestiary) {
+                    gameState.bestiary.recordEncounter(extraType, this.wave);
+                }
+
                 this.enemiesSpawned++;
 
                 // Triple spawn chance for wave 10+
@@ -336,6 +347,12 @@ export class WaveManager {
                     const thirdEnemy = new Enemy(thirdPos.x, thirdPos.y, thirdType, gameState);
                     thirdEnemy.sidescrollerMode = sidescrollerMode;
                     enemies.push(thirdEnemy);
+
+                    // Track encounter in bestiary
+                    if (gameState?.bestiary) {
+                        gameState.bestiary.recordEncounter(thirdType, this.wave);
+                    }
+
                     this.enemiesSpawned++;
                 }
             }

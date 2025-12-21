@@ -34,6 +34,8 @@ import { ShipManager } from './systems/ShipManager.js';
 import { GameModeManager } from './systems/GameModeManager.js';
 import { DailyChallengeSystem } from './systems/DailyChallengeSystem.js';
 import { AchievementSystem } from './systems/AchievementSystem.js';
+import { EnemyBestiary } from './systems/EnemyBestiary.js';
+import { BestiaryScreen } from './ui/BestiaryScreen.js';
 
 // === GLOBAL STATE ===
 let canvas, ctx;
@@ -73,6 +75,8 @@ let shipManager = null;
 let gameModeManager = null;
 let dailyChallengeSystem = null;
 let achievementSystem = null;
+let enemyBestiary = null;
+let bestiaryScreen = null;
 
 // Achievement notification state
 let achievementNotification = null;
@@ -286,6 +290,8 @@ function init() {
     gameModeManager = new GameModeManager();
     dailyChallengeSystem = new DailyChallengeSystem();
     achievementSystem = new AchievementSystem();
+    enemyBestiary = new EnemyBestiary();
+    bestiaryScreen = new BestiaryScreen(enemyBestiary);
 
     // Initialize music manager (will load music on first user interaction)
     musicManager = new MusicManager();
@@ -637,6 +643,7 @@ function setupMenu() {
     setupGameModeScreen();
     setupDailyChallengeScreen();
     setupAchievementsScreen();
+    setupBestiaryScreen();
 }
 
 // ============================================
@@ -1173,6 +1180,26 @@ function populateAchievements() {
 }
 
 // ============================================
+// BESTIARY SCREEN
+// ============================================
+
+function setupBestiaryScreen() {
+    const bestiaryBtn = document.getElementById('bestiaryBtn');
+
+    if (bestiaryBtn) {
+        bestiaryBtn.addEventListener('click', () => {
+            resetAttractModeTimeout();
+            if (bestiaryScreen) {
+                bestiaryScreen.onClose = () => {
+                    showScreen('menuScreen');
+                };
+                bestiaryScreen.show();
+            }
+        });
+    }
+}
+
+// ============================================
 // SCREEN NAVIGATION HELPER
 // ============================================
 
@@ -1181,7 +1208,7 @@ function showScreen(screenId) {
     const screens = [
         'menuScreen', 'shipSelectScreen', 'gameModeScreen',
         'dailyChallengeScreen', 'achievementsScreen',
-        'optionsScreen', 'highScoreListScreen'
+        'optionsScreen', 'highScoreListScreen', 'bestiaryScreen'
     ];
 
     screens.forEach(id => {
@@ -1732,6 +1759,9 @@ function initGame(isAttractMode = false) {
             powerUpsCollected: 0,
             bossKills: 0
         },
+
+        // Enemy bestiary for tracking discoveries
+        bestiary: enemyBestiary,
 
         // Game mode settings
         gameMode: gameModeManager?.currentMode || 'classic',
@@ -2614,6 +2644,11 @@ function handlePlayerDeath() {
             if (newAchievements.length > 0) {
                 achievementNotification = newAchievements[0];
                 achievementNotificationTimer = 0;
+            }
+
+            // Save bestiary data
+            if (enemyBestiary) {
+                enemyBestiary.forceSave();
             }
 
             // Check for new ship/mode unlocks

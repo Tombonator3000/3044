@@ -23,13 +23,30 @@ export const MenuState = {
 
 // Game settings with defaults
 export const GameSettings = {
+    // Audio settings
     soundEnabled: true,
     musicEnabled: true,
+    masterVolume: 1.0,
+    musicVolume: 0.5,
+    sfxVolume: 0.7,
+
+    // Visual settings
     vhsEffect: true,
     scanlines: true,
     screenShake: true,
     particleIntensity: 'high', // low, medium, high
+    neonGlowIntensity: 'high', // low, medium, high
+    backgroundGrid: true,
+    showFPS: false,
+    reducedFlash: false,
+
+    // Gameplay settings
     difficulty: 'normal', // easy, normal, hard, extreme
+    autoFire: false,
+    bulletTrails: true,
+    enemyBulletSize: 'normal', // small, normal, large (accessibility)
+    showDamageNumbers: true,
+    sidescrollerMode: false, // Alternative game mode
 
     // Load from localStorage
     load() {
@@ -50,11 +67,23 @@ export const GameSettings = {
             const toSave = {
                 soundEnabled: this.soundEnabled,
                 musicEnabled: this.musicEnabled,
+                masterVolume: this.masterVolume,
+                musicVolume: this.musicVolume,
+                sfxVolume: this.sfxVolume,
                 vhsEffect: this.vhsEffect,
                 scanlines: this.scanlines,
                 screenShake: this.screenShake,
                 particleIntensity: this.particleIntensity,
-                difficulty: this.difficulty
+                neonGlowIntensity: this.neonGlowIntensity,
+                backgroundGrid: this.backgroundGrid,
+                showFPS: this.showFPS,
+                reducedFlash: this.reducedFlash,
+                difficulty: this.difficulty,
+                autoFire: this.autoFire,
+                bulletTrails: this.bulletTrails,
+                enemyBulletSize: this.enemyBulletSize,
+                showDamageNumbers: this.showDamageNumbers,
+                sidescrollerMode: this.sidescrollerMode
             };
             localStorage.setItem('geometry3044_settings', JSON.stringify(toSave));
         } catch (e) {
@@ -661,12 +690,42 @@ export class MenuManager {
         this.updateToggle('vhsToggle', GameSettings.vhsEffect);
         this.updateToggle('scanlinesToggle', GameSettings.scanlines);
         this.updateToggle('screenShakeToggle', GameSettings.screenShake);
+        this.updateToggle('backgroundGridToggle', GameSettings.backgroundGrid);
+        this.updateToggle('showFPSToggle', GameSettings.showFPS);
+        this.updateToggle('reducedFlashToggle', GameSettings.reducedFlash);
+        this.updateToggle('autoFireToggle', GameSettings.autoFire);
+        this.updateToggle('bulletTrailsToggle', GameSettings.bulletTrails);
+        this.updateToggle('showDamageNumbersToggle', GameSettings.showDamageNumbers);
+        this.updateToggle('sidescrollerModeToggle', GameSettings.sidescrollerMode);
+
+        // Update volume sliders
+        this.updateSlider('masterVolumeSlider', 'masterVolumeValue', GameSettings.masterVolume);
+        this.updateSlider('musicVolumeSlider', 'musicVolumeValue', GameSettings.musicVolume);
+        this.updateSlider('sfxVolumeSlider', 'sfxVolumeValue', GameSettings.sfxVolume);
 
         // Update particle intensity selector
         const particleButtons = document.querySelectorAll('.particle-btn');
         particleButtons.forEach(btn => {
             btn.classList.remove('active');
             if (btn.dataset.value === GameSettings.particleIntensity) {
+                btn.classList.add('active');
+            }
+        });
+
+        // Update neon glow intensity selector
+        const glowButtons = document.querySelectorAll('.glow-btn');
+        glowButtons.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.value === GameSettings.neonGlowIntensity) {
+                btn.classList.add('active');
+            }
+        });
+
+        // Update enemy bullet size selector
+        const bulletSizeButtons = document.querySelectorAll('.bullet-size-btn');
+        bulletSizeButtons.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.value === GameSettings.enemyBulletSize) {
                 btn.classList.add('active');
             }
         });
@@ -679,6 +738,56 @@ export class MenuManager {
                 btn.classList.add('active');
             }
         });
+    }
+
+    /**
+     * Update a slider's visual state
+     */
+    updateSlider(sliderId, valueId, value) {
+        const slider = document.getElementById(sliderId);
+        const valueDisplay = document.getElementById(valueId);
+        if (slider) {
+            slider.value = Math.round(value * 100);
+        }
+        if (valueDisplay) {
+            valueDisplay.textContent = Math.round(value * 100) + '%';
+        }
+    }
+
+    /**
+     * Set a volume setting
+     */
+    setVolume(setting, value) {
+        GameSettings[setting] = value;
+        this.updateOptionsUI();
+        GameSettings.save();
+        if (this.onSettingsChanged) {
+            this.onSettingsChanged(GameSettings);
+        }
+    }
+
+    /**
+     * Set neon glow intensity
+     */
+    setNeonGlowIntensity(value) {
+        GameSettings.neonGlowIntensity = value;
+        this.updateOptionsUI();
+        GameSettings.save();
+        if (this.onSettingsChanged) {
+            this.onSettingsChanged(GameSettings);
+        }
+    }
+
+    /**
+     * Set enemy bullet size
+     */
+    setEnemyBulletSize(value) {
+        GameSettings.enemyBulletSize = value;
+        this.updateOptionsUI();
+        GameSettings.save();
+        if (this.onSettingsChanged) {
+            this.onSettingsChanged(GameSettings);
+        }
     }
 
     /**
@@ -762,7 +871,14 @@ export class MenuManager {
             { id: 'musicToggle', setting: 'musicEnabled' },
             { id: 'vhsToggle', setting: 'vhsEffect' },
             { id: 'scanlinesToggle', setting: 'scanlines' },
-            { id: 'screenShakeToggle', setting: 'screenShake' }
+            { id: 'screenShakeToggle', setting: 'screenShake' },
+            { id: 'backgroundGridToggle', setting: 'backgroundGrid' },
+            { id: 'showFPSToggle', setting: 'showFPS' },
+            { id: 'reducedFlashToggle', setting: 'reducedFlash' },
+            { id: 'autoFireToggle', setting: 'autoFire' },
+            { id: 'bulletTrailsToggle', setting: 'bulletTrails' },
+            { id: 'showDamageNumbersToggle', setting: 'showDamageNumbers' },
+            { id: 'sidescrollerModeToggle', setting: 'sidescrollerMode' }
         ];
 
         toggleBindings.forEach(({ id, setting }) => {
@@ -772,10 +888,38 @@ export class MenuManager {
             }
         });
 
+        // Volume sliders
+        const volumeSliders = [
+            { id: 'masterVolumeSlider', setting: 'masterVolume' },
+            { id: 'musicVolumeSlider', setting: 'musicVolume' },
+            { id: 'sfxVolumeSlider', setting: 'sfxVolume' }
+        ];
+
+        volumeSliders.forEach(({ id, setting }) => {
+            const slider = document.getElementById(id);
+            if (slider) {
+                slider.addEventListener('input', (e) => {
+                    this.setVolume(setting, e.target.value / 100);
+                });
+            }
+        });
+
         // Particle intensity buttons
         const particleButtons = document.querySelectorAll('.particle-btn');
         particleButtons.forEach(btn => {
             btn.addEventListener('click', () => this.setParticleIntensity(btn.dataset.value));
+        });
+
+        // Neon glow intensity buttons
+        const glowButtons = document.querySelectorAll('.glow-btn');
+        glowButtons.forEach(btn => {
+            btn.addEventListener('click', () => this.setNeonGlowIntensity(btn.dataset.value));
+        });
+
+        // Enemy bullet size buttons
+        const bulletSizeButtons = document.querySelectorAll('.bullet-size-btn');
+        bulletSizeButtons.forEach(btn => {
+            btn.addEventListener('click', () => this.setEnemyBulletSize(btn.dataset.value));
         });
 
         // Difficulty buttons

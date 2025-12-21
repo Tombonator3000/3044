@@ -20,3 +20,4 @@ export { ShipManager, SHIPS } from './ShipManager.js';
 export { GameModeManager, GAME_MODES } from './GameModeManager.js';
 export { DailyChallengeSystem, CHALLENGE_MODIFIERS } from './DailyChallengeSystem.js';
 export { AchievementSystem, ACHIEVEMENTS } from './AchievementSystem.js';
+export { EnemyBestiary, ENEMY_DATA, ENEMY_TYPES } from './EnemyBestiary.js';
