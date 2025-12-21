@@ -19,7 +19,24 @@ export class Starfield {
         // Sidescroller mode flag
         this.sidescrollerMode = false;
 
+        // Performance: Detect mobile for optimizations
+        this.isMobile = this.detectMobile();
+
+        // Performance: Cache current frame time for draw calls
+        this._frameTime = 0;
+
         console.log(`⭐ Enhanced starfield created with ${this.layers.length} star layers, ${this.nebulae.length} main nebulae, and ${this.distantNebulae.length} distant nebulae`);
+    }
+
+    /**
+     * Detect if device is mobile/touch
+     */
+    detectMobile() {
+        return (
+            'ontouchstart' in window ||
+            navigator.maxTouchPoints > 0 ||
+            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        );
     }
 
     /**
@@ -212,13 +229,21 @@ export class Starfield {
     draw(ctx) {
         if (!ctx) return;
 
+        // Performance: Cache time once per frame instead of calling Date.now() for each star
+        this._frameTime = Date.now();
+
         // Draw distant nebulae first (background)
-        for (const nebula of this.distantNebulae) {
-            this.drawNebula(ctx, nebula);
+        // Performance: Skip distant nebulae on mobile
+        if (!this.isMobile) {
+            for (const nebula of this.distantNebulae) {
+                this.drawNebula(ctx, nebula);
+            }
         }
 
         // Draw stars layer by layer (back to front)
-        for (let i = 0; i < this.layers.length; i++) {
+        // Performance: On mobile, skip the first layer (most distant, least visible)
+        const startLayer = this.isMobile ? 1 : 0;
+        for (let i = startLayer; i < this.layers.length; i++) {
             const layer = this.layers[i];
             const layerAlpha = 0.3 + (i / this.layers.length) * 0.7;
 
@@ -228,13 +253,16 @@ export class Starfield {
         }
 
         // Draw main nebulae (foreground glow)
-        for (const nebula of this.nebulae) {
-            this.drawNebula(ctx, nebula);
+        // Performance: Draw fewer nebulae on mobile
+        const nebulaLimit = this.isMobile ? 2 : this.nebulae.length;
+        for (let i = 0; i < nebulaLimit; i++) {
+            this.drawNebula(ctx, this.nebulae[i]);
         }
     }
 
     drawStar(ctx, star, layerAlpha) {
-        const time = Date.now() * star.twinkleSpeed + star.twinkleOffset;
+        // Performance: Use cached frame time instead of Date.now() per star
+        const time = this._frameTime * star.twinkleSpeed + star.twinkleOffset;
         const twinkle = 0.7 + Math.sin(time) * 0.3;
         const alpha = star.brightness * twinkle * layerAlpha;
 
@@ -242,8 +270,8 @@ export class Starfield {
         ctx.globalAlpha = Math.min(alpha, 0.9);
         ctx.fillStyle = star.color;
 
-        // Larger stars get glow
-        if (star.size > 2) {
+        // Larger stars get glow - skip on mobile for performance
+        if (star.size > 2 && !this.isMobile) {
             ctx.shadowBlur = star.size * 3;
             ctx.shadowColor = star.color;
         }
@@ -252,8 +280,8 @@ export class Starfield {
         ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
         ctx.fill();
 
-        // Draw cross-sparkle for bright stars
-        if (star.size > 2.5 && alpha > 0.6) {
+        // Draw cross-sparkle for bright stars - skip on mobile for performance
+        if (!this.isMobile && star.size > 2.5 && alpha > 0.6) {
             ctx.strokeStyle = star.color;
             ctx.lineWidth = 0.5;
             ctx.globalAlpha = alpha * 0.5;
@@ -271,27 +299,37 @@ export class Starfield {
     }
 
     drawNebula(ctx, nebula) {
-        const time = Date.now();
+        // Performance: Use cached frame time instead of Date.now() per nebula
+        const time = this._frameTime;
         const pulse = nebula.pulseSpeed ?
             1 + Math.sin(time * nebula.pulseSpeed + (nebula.pulseOffset || 0)) * 0.2 : 1;
 
         ctx.save();
 
-        const gradient = ctx.createRadialGradient(
-            nebula.x, nebula.y, 0,
-            nebula.x, nebula.y, nebula.radius * pulse
-        );
+        // Performance: On mobile, use simpler rendering without gradients
+        if (this.isMobile) {
+            ctx.globalAlpha = nebula.alpha * pulse * 0.5;
+            ctx.fillStyle = nebula.color;
+            ctx.beginPath();
+            ctx.arc(nebula.x, nebula.y, nebula.radius * pulse * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            const gradient = ctx.createRadialGradient(
+                nebula.x, nebula.y, 0,
+                nebula.x, nebula.y, nebula.radius * pulse
+            );
 
-        gradient.addColorStop(0, nebula.color + '40');  // Center more visible
-        gradient.addColorStop(0.3, nebula.color + '20');
-        gradient.addColorStop(0.6, nebula.color + '10');
-        gradient.addColorStop(1, 'transparent');
+            gradient.addColorStop(0, nebula.color + '40');  // Center more visible
+            gradient.addColorStop(0.3, nebula.color + '20');
+            gradient.addColorStop(0.6, nebula.color + '10');
+            gradient.addColorStop(1, 'transparent');
 
-        ctx.globalAlpha = nebula.alpha * pulse;
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(nebula.x, nebula.y, nebula.radius * pulse, 0, Math.PI * 2);
-        ctx.fill();
+            ctx.globalAlpha = nebula.alpha * pulse;
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(nebula.x, nebula.y, nebula.radius * pulse, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
         ctx.restore();
     }
