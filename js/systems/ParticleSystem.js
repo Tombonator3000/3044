@@ -133,7 +133,8 @@ class Particle {
         const alpha = this.life / this.maxLife;
         const currentSize = this.size * (0.5 + alpha * 0.5);
 
-        // Inline transform instead of save/restore for performance
+        // Save context state for this particle
+        ctx.save();
         ctx.globalAlpha = alpha;
 
         switch (this.type) {
@@ -190,6 +191,9 @@ class Particle {
             default:
                 this.drawDefault(ctx, currentSize);
         }
+
+        // Restore context state after drawing
+        ctx.restore();
     }
 
     drawDefault(ctx, size) {
@@ -207,20 +211,36 @@ class Particle {
     }
 
     drawSpark(ctx, size) {
+        const cos = Math.cos(this.rotation);
+        const sin = Math.sin(this.rotation);
+        const len = size * 3;  // Longer sparks
+
+        // First layer: Solid spark with source-over for visibility
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';  // ENHANCED: Additive blending
+        ctx.globalCompositeOperation = 'source-over';
         ctx.strokeStyle = this.color;
-        ctx.lineWidth = Math.max(2, size / 2);  // ENHANCED: Minimum width
+        ctx.lineWidth = Math.max(3, size / 2);
+        ctx.lineCap = 'round';
 
         if (particlePerfSettings.enableShadows) {
-            ctx.shadowBlur = 8;
+            ctx.shadowBlur = 10;
             ctx.shadowColor = this.color;
         }
 
         ctx.beginPath();
-        const cos = Math.cos(this.rotation);
-        const sin = Math.sin(this.rotation);
-        const len = size * 2.5;  // ENHANCED: Longer sparks
+        ctx.moveTo(this.x - cos * len, this.y - sin * len);
+        ctx.lineTo(this.x + cos * len, this.y + sin * len);
+        ctx.stroke();
+        ctx.restore();
+
+        // Second layer: Additive glow
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = Math.max(5, size);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
         ctx.moveTo(this.x - cos * len, this.y - sin * len);
         ctx.lineTo(this.x + cos * len, this.y + sin * len);
         ctx.stroke();
@@ -340,77 +360,108 @@ class Particle {
     /**
      * Geometry Wars-style LINE particle with motion blur trail
      * This is the signature look of Geometry Wars explosions
-     * ENHANCED: Thicker lines, brighter colors, additive blending for glow
+     * FIXED: Use source-over as base with bright colors, then add glow layer
      */
     drawLine(ctx, alpha) {
         const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
         // Minimum length even when slow, so particles remain visible
-        const dynamicLength = Math.max(8, this.length * (0.5 + speed * 0.3));
-        // Ensure minimum alpha for visibility
-        const visibleAlpha = Math.max(0.3, alpha);
+        const dynamicLength = Math.max(12, this.length * (0.5 + speed * 0.25));
+        // Ensure minimum alpha for visibility - higher minimum
+        const visibleAlpha = Math.max(0.5, alpha);
 
-        // Draw motion blur trail
+        // Draw at particle's actual position (no translate needed for simple drawing)
+        const cos = Math.cos(this.rotation);
+        const sin = Math.sin(this.rotation);
+        const halfLen = dynamicLength / 2;
+
+        // Calculate line endpoints
+        const x1 = this.x - cos * halfLen;
+        const y1 = this.y - sin * halfLen;
+        const x2 = this.x + cos * halfLen;
+        const y2 = this.y + sin * halfLen;
+
+        // Draw motion blur trail using direct coordinates
         if (this.trail && this.trail.length > 0) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'source-over';
             for (let i = 0; i < this.trail.length; i++) {
                 const t = this.trail[i];
-                ctx.save();
-                ctx.globalAlpha = visibleAlpha * t.alpha * 0.4;  // Increased from 0.3
+                const trailHalfLen = halfLen * 0.6;
+                const tx1 = t.x - cos * trailHalfLen;
+                const ty1 = t.y - sin * trailHalfLen;
+                const tx2 = t.x + cos * trailHalfLen;
+                const ty2 = t.y + sin * trailHalfLen;
+
+                ctx.globalAlpha = visibleAlpha * t.alpha * 0.5;
                 ctx.strokeStyle = this.color;
-                ctx.lineWidth = 2;  // Increased from 1
-                ctx.translate(t.x, t.y);
-                ctx.rotate(this.rotation);
+                ctx.lineWidth = 3;
                 ctx.beginPath();
-                ctx.moveTo(-dynamicLength * 0.3, 0);
-                ctx.lineTo(dynamicLength * 0.3, 0);
+                ctx.moveTo(tx1, ty1);
+                ctx.lineTo(tx2, ty2);
                 ctx.stroke();
-                ctx.restore();
             }
+            ctx.restore();
         }
 
-        // Main line particle - USE ADDITIVE BLENDING FOR GLOW
+        // Main line particle - Draw with source-over first for solid visibility
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';  // Additive blending makes lines glow!
+        ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = visibleAlpha;
         ctx.strokeStyle = this.color;
-        ctx.lineWidth = 4;  // Increased from 2 for more visibility
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
 
+        // Shadow/glow effect
         if (particlePerfSettings.enableShadows) {
-            ctx.shadowBlur = 12;  // Increased from 8
+            ctx.shadowBlur = 15;
             ctx.shadowColor = this.color;
         }
 
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.rotation);
-
+        // Draw the main colored line
         ctx.beginPath();
-        ctx.moveTo(-dynamicLength / 2, 0);
-        ctx.lineTo(dynamicLength / 2, 0);
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
         ctx.stroke();
 
-        // White core for extra brightness
-        ctx.globalAlpha = visibleAlpha * 0.9;
+        // White/bright core for extra brightness
+        ctx.globalAlpha = visibleAlpha * 0.95;
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;  // Increased from 1
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 0;
         ctx.beginPath();
-        ctx.moveTo(-dynamicLength / 3, 0);
-        ctx.lineTo(dynamicLength / 3, 0);
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
         ctx.stroke();
 
+        ctx.restore();
+
+        // ADDITIVE GLOW LAYER on top
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = visibleAlpha * 0.6;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
         ctx.restore();
     }
 
     /**
      * Geometry Wars central GLOW effect
      * Creates a radial gradient glow at explosion center
-     * ENHANCED: Additive blending for bright glow
+     * FIXED: Draw solid base first, then add glow layer
      */
     drawGWGlow(ctx, alpha) {
         const currentSize = this.size * (2 - alpha);
-        const visibleAlpha = Math.max(0.4, alpha);
+        const visibleAlpha = Math.max(0.5, alpha);
 
+        // First layer: Solid fill with source-over for guaranteed visibility
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';  // Additive blending for bright glow
-        ctx.globalAlpha = visibleAlpha * 0.7;  // Increased from 0.5
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = visibleAlpha * 0.8;
 
         // Create radial gradient for glow
         const gradient = ctx.createRadialGradient(
@@ -418,8 +469,8 @@ class Particle {
             this.x, this.y, currentSize
         );
         gradient.addColorStop(0, '#ffffff');
-        gradient.addColorStop(0.3, this.color);
-        gradient.addColorStop(0.6, this.color + '80');  // Semi-transparent color
+        gradient.addColorStop(0.2, this.color);
+        gradient.addColorStop(0.5, this.color);
         gradient.addColorStop(1, 'transparent');
 
         ctx.fillStyle = gradient;
@@ -427,36 +478,47 @@ class Particle {
         ctx.arc(this.x, this.y, currentSize, 0, Math.PI * 2);
         ctx.fill();
 
-        // Extra bright core
-        ctx.globalAlpha = visibleAlpha * 0.9;
+        // Bright white core
+        ctx.globalAlpha = visibleAlpha;
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(this.x, this.y, currentSize * 0.2, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, currentSize * 0.25, 0, Math.PI * 2);
         ctx.fill();
 
+        ctx.restore();
+
+        // Second layer: Additive glow for extra brightness
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = visibleAlpha * 0.5;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, currentSize * 0.8, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
     }
 
     /**
      * Geometry Wars SHOCKWAVE ring
      * Expanding ring that fades out
-     * ENHANCED: Thicker ring, additive blending
+     * FIXED: Draw solid ring first, then add glow
      */
     drawGWShockwave(ctx, alpha) {
         // Radius expands as life decreases
         const progress = 1 - alpha;
         const maxRadius = this.size;
         const radius = 5 + (maxRadius - 5) * progress;
-        const visibleAlpha = Math.max(0.3, alpha);
+        const visibleAlpha = Math.max(0.4, alpha);
 
+        // First layer: Solid ring with source-over
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';  // Additive blending
-        ctx.globalAlpha = visibleAlpha * 0.8;  // Increased from 0.6
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = visibleAlpha * 0.9;
         ctx.strokeStyle = this.color;
-        ctx.lineWidth = Math.max(2, 5 * alpha);  // Thicker ring, minimum 2px
+        ctx.lineWidth = Math.max(3, 6 * alpha);
 
         if (particlePerfSettings.enableShadows) {
-            ctx.shadowBlur = 15;  // Increased from 10
+            ctx.shadowBlur = 20;
             ctx.shadowColor = this.color;
         }
 
@@ -464,14 +526,26 @@ class Particle {
         ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Inner white ring for extra glow
-        ctx.globalAlpha = visibleAlpha * 0.5;
+        // White inner ring
+        ctx.globalAlpha = visibleAlpha * 0.7;
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = Math.max(1, 2 * alpha);
+        ctx.lineWidth = Math.max(1, 3 * alpha);
+        ctx.shadowBlur = 0;
         ctx.beginPath();
         ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
         ctx.stroke();
 
+        ctx.restore();
+
+        // Second layer: Additive glow ring
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = visibleAlpha * 0.4;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = Math.max(6, 12 * alpha);
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
         ctx.restore();
     }
 }
@@ -811,18 +885,29 @@ export class ParticleSystem {
 
         ctx.save();
 
-        // CRITICAL: Reset context state to ensure particles are visible
-        // Previous draw calls may have modified these values
+        // CRITICAL: Reset ALL context state to ensure particles are visible
+        // Previous draw calls may have modified these values unexpectedly
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
+        ctx.setLineDash([]);  // Reset any line dash pattern
+        ctx.lineDashOffset = 0;
+        ctx.lineJoin = 'miter';
+        ctx.lineCap = 'butt';
+        ctx.miterLimit = 10;
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.filter = 'none';  // Reset any CSS filters
+        ctx.imageSmoothingEnabled = true;
 
-        if (!particlePerfSettings.enableShadows) {
-            ctx.shadowBlur = 0;
-            ctx.shadowColor = 'transparent';
-        }
+        // Draw all active particles
         for (let i = 0; i < this.particles.length; i++) {
             const particle = this.particles[i];
             if (particle.active) {
+                // Reset alpha before each particle (in case previous particle didn't restore)
+                ctx.globalAlpha = 1;
+                ctx.globalCompositeOperation = 'source-over';
                 particle.draw(ctx);
             }
         }
