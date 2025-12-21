@@ -106,25 +106,70 @@ const promoTexts = [
 let currentPromoIndex = 0;
 let promoTimer = 0;
 
-// === BACKSTORY FOR ATTRACT MODE ===
-const backstoryTexts = [
-    "THE YEAR IS 3044...",
-    "EARTH'S LAST HOPE LIES IN THE STARS",
-    "THE STAROVER COMMAND HAS SEARCHED THE GALAXY",
-    "FOR A PILOT WORTHY OF THE ULTIMATE MISSION",
-    "AFTER ANALYZING BILLIONS OF CANDIDATES...",
-    "THEY HAVE CHOSEN YOU",
-    "YOUR ARCADE SKILLS HAVE BEEN MONITORED",
-    "THIS IS NOT A GAME — IT NEVER WAS",
-    "YOU ARE THE CHOSEN ONE",
-    "ONLY YOU CAN STOP THE GEOMETRY INVASION",
-    "THE FATE OF THE UNIVERSE RESTS IN YOUR HANDS",
-    "STAROVER COMMAND AWAITS YOUR RESPONSE",
-    "INSERT COIN TO ACCEPT YOUR DESTINY"
+// === BACKSTORY FOR ATTRACT MODE (3 alternating versions) ===
+const backstoryVersions = [
+    // Version 1: Mysterious and threatening
+    [
+        "TRANSMISSION ORIGIN: CLASSIFIED",
+        "YEAR 3044 — THE GEOMETRY WAR RAGES",
+        "BILLIONS HAVE FALLEN TO THE POLYGON HORDE",
+        "CONVENTIONAL WEAPONS ARE USELESS",
+        "ONLY ONE DEFENSE REMAINS...",
+        "THE ARCADE PROTOCOL",
+        "FOR DECADES WE HAVE WATCHED",
+        "TESTING PILOTS THROUGH SIMULATION",
+        "YOUR REFLEXES — EXCEPTIONAL",
+        "YOUR PATTERN RECOGNITION — UNPRECEDENTED",
+        "YOU THOUGHT THIS WAS JUST A GAME",
+        "IT WAS NEVER A GAME",
+        "IT WAS YOUR TRAINING",
+        "PILOT DESIGNATION: CONFIRMED",
+        "STAROVER COMMAND AWAITS",
+        "PRESS START TO ACCEPT YOUR DESTINY"
+    ],
+    // Version 2: Personal and intense
+    [
+        "▼ INCOMING TRANSMISSION ▼",
+        "WE HAVE BEEN WATCHING YOU",
+        "EVERY HIGH SCORE — LOGGED",
+        "EVERY PERFECT RUN — ANALYZED",
+        "THE GEOMETRY ARMADA APPROACHES EARTH",
+        "THEIR FORMS ARE ALIEN — INCOMPREHENSIBLE",
+        "TRIANGLE. SQUARE. PENTAGON.",
+        "PURE MATHEMATICAL DESTRUCTION",
+        "OUR BEST PILOTS HAVE FAILED",
+        "BUT YOU... YOU SEE THE PATTERNS",
+        "YOU WERE BORN FOR THIS WAR",
+        "THIS ARCADE MACHINE IS YOUR SHIP",
+        "THE CONTROLS ARE REAL",
+        "THE STAKES ARE REAL",
+        "HUMANITY'S LAST STARFIGHTER",
+        "IS YOU"
+    ],
+    // Version 3: Short and punchy
+    [
+        "3044 — THE GEOMETRY WAR",
+        "EARTH IS LOSING",
+        "WE NEEDED A PILOT",
+        "WE FOUND YOU",
+        "YOUR GAMES WERE TESTS",
+        "YOUR SCORES WERE TRANSMISSIONS",
+        "YOU PASSED",
+        "THIS IS NOT A SIMULATION",
+        "THIS IS YOUR RECRUITMENT",
+        "STAROVER COMMAND — ONLINE",
+        "DESTINY AWAITS, PILOT"
+    ]
 ];
+let currentStoryVersion = 0;
 let currentBackstoryIndex = 0;
 let backstoryTimer = 0;
 let backstoryCharIndex = 0;
+
+// Helper function to get current backstory texts
+function getCurrentBackstoryTexts() {
+    return backstoryVersions[currentStoryVersion];
+}
 
 console.log('🎮 Geometry 3044 — Loading...');
 
@@ -1309,6 +1354,11 @@ function startAttractMode() {
     currentBackstoryIndex = 0;
     backstoryTimer = 0;
     backstoryCharIndex = 0;
+    currentStoryVersion = (currentStoryVersion + 1) % 3; // Cycle through story versions
+
+    // Hide menu to show the game canvas
+    const menuScreen = document.getElementById('menuScreen');
+    if (menuScreen) menuScreen.style.display = 'none';
 
     // Initialize attract mode game
     initGame(true);
@@ -1320,6 +1370,10 @@ function startAttractMode() {
         shootTimer: 0,
         moveTimer: 0
     };
+
+    // Start game loop for attract mode
+    lastTime = performance.now();
+    gameLoopId = requestAnimationFrame(gameLoop);
 }
 
 function exitAttractMode() {
@@ -2981,6 +3035,7 @@ function drawAttractModeOverlay() {
         backstoryCharIndex++;
     }
 
+    const backstoryTexts = getCurrentBackstoryTexts();
     const currentText = backstoryTexts[currentBackstoryIndex];
     const displayText = currentText.substring(0, backstoryCharIndex);
 
