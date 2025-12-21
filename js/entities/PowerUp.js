@@ -179,7 +179,8 @@ export class PowerUp {
                 player.weaponLevel = Math.min((player.weaponLevel || 1) + 1, 5);
                 break;
             case 'shield':
-                player.shield = (player.shield || 0) + 3;
+                // Shield gives +1 point, max 3 shield points total (reduced from +3 with no cap)
+                player.shield = Math.min((player.shield || 0) + 1, 3);
                 player.shieldActive = true;
                 break;
             case 'bomb':
