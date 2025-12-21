@@ -570,7 +570,9 @@ export class ParticleSystem {
 
         // Pre-allocate particle pool
         for (let i = 0; i < this.maxParticles; i++) {
-            this.particles.push(new Particle());
+            const particle = new Particle();
+            particle.active = false; // CRITICAL: Start inactive so getParticle() can find them
+            this.particles.push(particle);
         }
     }
 
