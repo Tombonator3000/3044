@@ -1361,6 +1361,9 @@ function startAttractMode() {
     const menuScreen = document.getElementById('menuScreen');
     if (menuScreen) menuScreen.style.display = 'none';
 
+    // Setup layout for gameplay (required for canvas to be visible)
+    setupGameplayLayout();
+
     // Initialize attract mode game
     initGame(true);
 
@@ -1392,13 +1395,8 @@ function exitAttractMode() {
 
     gameState = null;
 
-    // Hide PC layout when exiting attract mode
-    const pcLayout = document.getElementById('pcLayout');
-    if (pcLayout) {
-        pcLayout.classList.remove('game-active');
-        pcLayout.style.display = 'none';
-        pcLayout.style.visibility = 'hidden';
-    }
+    // Reset layout (moves canvas back to gameContainer, hides PC layout)
+    resetMenuLayout();
 
     // Show menu
     const menuScreen = document.getElementById('menuScreen');
