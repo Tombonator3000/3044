@@ -57,6 +57,22 @@ export class MobileControls {
         // Bound event handlers
         this._boundHandlers = {};
 
+        // Performance: Cache gradients to avoid recreating every frame
+        this._gradientCache = {
+            joystick: null,
+            joystickPos: { x: 0, y: 0 },
+            fireGlow: null,
+            firePos: { x: 0, y: 0 },
+            fireActive: false,
+            bombGlow: null,
+            bombPos: { x: 0, y: 0 },
+            bombActive: false
+        };
+
+        // Performance: Cache bounding rect to avoid layout thrashing
+        this._cachedRect = null;
+        this._rectCacheTime = 0;
+
         // Initialize if mobile
         if (this.isMobile) {
             this.enable();
@@ -159,17 +175,32 @@ export class MobileControls {
      */
     resize(width, height) {
         this.updatePositions();
+        this.invalidateRectCache();
     }
 
     /**
      * Get touch position relative to canvas
+     * Performance: Uses cached bounding rect to avoid layout thrashing
      */
     getTouchPosition(touch) {
-        const rect = this.canvas.getBoundingClientRect();
+        // Cache rect for 100ms to avoid expensive getBoundingClientRect calls
+        const now = performance.now();
+        if (!this._cachedRect || now - this._rectCacheTime > 100) {
+            this._cachedRect = this.canvas.getBoundingClientRect();
+            this._rectCacheTime = now;
+        }
+        const rect = this._cachedRect;
         return {
             x: (touch.clientX - rect.left) * (config.screen.width / rect.width),
             y: (touch.clientY - rect.top) * (config.screen.height / rect.height)
         };
+    }
+
+    /**
+     * Invalidate cached rect (call on resize)
+     */
+    invalidateRectCache() {
+        this._cachedRect = null;
     }
 
     /**
@@ -413,13 +444,20 @@ export class MobileControls {
 
         ctx.globalAlpha = this.joystick.active ? 0.9 : 0.5;
 
-        // Stick outer glow
-        const gradient = ctx.createRadialGradient(stickX, stickY, 0, stickX, stickY, this.joystickStickRadius);
-        gradient.addColorStop(0, 'rgba(0, 255, 255, 0.8)');
-        gradient.addColorStop(0.5, 'rgba(0, 255, 255, 0.4)');
-        gradient.addColorStop(1, 'rgba(0, 255, 255, 0)');
+        // Stick outer glow - use cached gradient if position unchanged
+        const cache = this._gradientCache;
+        if (!cache.joystick ||
+            cache.joystickPos.x !== stickX ||
+            cache.joystickPos.y !== stickY) {
+            cache.joystick = ctx.createRadialGradient(stickX, stickY, 0, stickX, stickY, this.joystickStickRadius);
+            cache.joystick.addColorStop(0, 'rgba(0, 255, 255, 0.8)');
+            cache.joystick.addColorStop(0.5, 'rgba(0, 255, 255, 0.4)');
+            cache.joystick.addColorStop(1, 'rgba(0, 255, 255, 0)');
+            cache.joystickPos.x = stickX;
+            cache.joystickPos.y = stickY;
+        }
 
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = cache.joystick;
         ctx.beginPath();
         ctx.arc(stickX, stickY, this.joystickStickRadius * 1.5, 0, Math.PI * 2);
         ctx.fill();
@@ -464,12 +502,21 @@ export class MobileControls {
         const radius = this.fireButtonRadius;
         const active = this.fireButton.active;
 
-        // Outer glow
+        // Outer glow - use cached gradient if position/state unchanged
         ctx.globalAlpha = active ? 0.8 : 0.3;
-        const glowGradient = ctx.createRadialGradient(x, y, radius * 0.5, x, y, radius * 1.5);
-        glowGradient.addColorStop(0, active ? 'rgba(0, 255, 0, 0.5)' : 'rgba(0, 255, 0, 0.2)');
-        glowGradient.addColorStop(1, 'rgba(0, 255, 0, 0)');
-        ctx.fillStyle = glowGradient;
+        const cache = this._gradientCache;
+        if (!cache.fireGlow ||
+            cache.firePos.x !== x ||
+            cache.firePos.y !== y ||
+            cache.fireActive !== active) {
+            cache.fireGlow = ctx.createRadialGradient(x, y, radius * 0.5, x, y, radius * 1.5);
+            cache.fireGlow.addColorStop(0, active ? 'rgba(0, 255, 0, 0.5)' : 'rgba(0, 255, 0, 0.2)');
+            cache.fireGlow.addColorStop(1, 'rgba(0, 255, 0, 0)');
+            cache.firePos.x = x;
+            cache.firePos.y = y;
+            cache.fireActive = active;
+        }
+        ctx.fillStyle = cache.fireGlow;
         ctx.beginPath();
         ctx.arc(x, y, radius * 1.5, 0, Math.PI * 2);
         ctx.fill();
@@ -532,12 +579,21 @@ export class MobileControls {
         const radius = this.bombButtonRadius;
         const active = this.bombButton.active;
 
-        // Outer glow
+        // Outer glow - use cached gradient if position/state unchanged
         ctx.globalAlpha = active ? 0.8 : 0.3;
-        const glowGradient = ctx.createRadialGradient(x, y, radius * 0.5, x, y, radius * 1.5);
-        glowGradient.addColorStop(0, active ? 'rgba(255, 255, 0, 0.5)' : 'rgba(255, 255, 0, 0.2)');
-        glowGradient.addColorStop(1, 'rgba(255, 255, 0, 0)');
-        ctx.fillStyle = glowGradient;
+        const cache = this._gradientCache;
+        if (!cache.bombGlow ||
+            cache.bombPos.x !== x ||
+            cache.bombPos.y !== y ||
+            cache.bombActive !== active) {
+            cache.bombGlow = ctx.createRadialGradient(x, y, radius * 0.5, x, y, radius * 1.5);
+            cache.bombGlow.addColorStop(0, active ? 'rgba(255, 255, 0, 0.5)' : 'rgba(255, 255, 0, 0.2)');
+            cache.bombGlow.addColorStop(1, 'rgba(255, 255, 0, 0)');
+            cache.bombPos.x = x;
+            cache.bombPos.y = y;
+            cache.bombActive = active;
+        }
+        ctx.fillStyle = cache.bombGlow;
         ctx.beginPath();
         ctx.arc(x, y, radius * 1.5, 0, Math.PI * 2);
         ctx.fill();

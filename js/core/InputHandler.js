@@ -79,6 +79,10 @@ export class InputHandler {
         // Bound event handlers (for removal)
         this._boundHandlers = {};
 
+        // Performance: Cache bounding rect to avoid layout thrashing on mobile
+        this._cachedRect = null;
+        this._rectCacheTime = 0;
+
         // Initialize
         this.init();
     }
@@ -344,16 +348,30 @@ export class InputHandler {
 
     /**
      * Get touch position relative to canvas
+     * Performance: Uses cached bounding rect to avoid layout thrashing on mobile
      */
     getTouchPosition(touch) {
         if (this.canvas) {
-            const rect = this.canvas.getBoundingClientRect();
+            // Cache rect for 100ms to avoid expensive getBoundingClientRect calls
+            const now = performance.now();
+            if (!this._cachedRect || now - this._rectCacheTime > 100) {
+                this._cachedRect = this.canvas.getBoundingClientRect();
+                this._rectCacheTime = now;
+            }
+            const rect = this._cachedRect;
             return {
                 x: (touch.clientX - rect.left) * (CONFIG.screen.width / rect.width),
                 y: (touch.clientY - rect.top) * (CONFIG.screen.height / rect.height)
             };
         }
         return { x: touch.clientX, y: touch.clientY };
+    }
+
+    /**
+     * Invalidate cached rect (call on resize)
+     */
+    invalidateRectCache() {
+        this._cachedRect = null;
     }
 
     /**
