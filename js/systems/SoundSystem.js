@@ -188,6 +188,9 @@ export class SoundSystem {
         // Coin insert
         this.sounds.coin = this.createArpeggioSound([880, 1108], 0.1);
 
+        // Achievement unlocked - triumphant fanfare
+        this.sounds.achievement = this.createArpeggioSound([523, 659, 784, 1047, 1319], 0.12);
+
         // Boss appear sound
         this.sounds.boss = this.createSynthSound({
             type: 'sawtooth',
@@ -1023,6 +1026,7 @@ export class SoundSystem {
     playWaveComplete() { this.play('waveComplete', 0.8); }
     playMenuSelect() { this.play('menuSelect', 0.6); }
     playMenuHover() { this.play('menuHover', 0.4); }
+    playAchievement() { this.play('achievement', 0.8); }
 
     // ============================================
     // LASER WEAPON SOUND METHODS

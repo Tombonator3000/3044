@@ -121,6 +121,9 @@ export class MusicManager {
         }
 
         console.log(`🎵 Total game tracks loaded: ${this.gameTracks.length}`);
+        if (this.gameTracks.length > 0) {
+            console.log(`🎵 Available tracks: ${this.gameTracks.map(t => t.name).join(', ')}`);
+        }
     }
 
     /**
@@ -153,6 +156,7 @@ export class MusicManager {
         const randomIndex = Math.floor(Math.random() * this.gameTracks.length);
         const track = this.gameTracks[randomIndex];
 
+        console.log(`🎵 Selected game track: ${track.name} (${randomIndex + 1}/${this.gameTracks.length} available)`);
         this.transitionTo(track.name, track.buffer, 0.3);
     }
 
