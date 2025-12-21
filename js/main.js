@@ -1767,6 +1767,7 @@ function initGame(isAttractMode = false) {
         grazeCount: 0,
         grazeStreak: 0,
         riskRewardBonus: 0,
+        extraLivesAwarded: 0,
         pointBlankKills: 0,
         zoneKills: 0,
         sessionStats: {
@@ -2126,17 +2127,22 @@ function update(deltaTime) {
         updateMobileHud();
     }
 
-    // Extra life at 100000 points
+    // Extra life at 100000 points (capped at maxLives)
     const extraLifeThreshold = 100000;
-    const currentExtraLives = Math.floor(gameState.score / extraLifeThreshold);
-    const previousExtraLives = Math.floor((gameState.score - 100) / extraLifeThreshold);
+    const extraLivesEarned = Math.floor(gameState.score / extraLifeThreshold);
+    const maxLives = 9;
 
-    if (currentExtraLives > previousExtraLives && gameState.score > 0) {
+    // Only award new extra lives that haven't been awarded yet
+    if (extraLivesEarned > (gameState.extraLivesAwarded || 0) && gameState.lives < maxLives) {
         gameState.lives++;
+        gameState.extraLivesAwarded = extraLivesEarned;
         if (particleSystem) {
             particleSystem.addPowerUpCollect(canvas.logicalWidth / 2, canvas.logicalHeight / 2, '#ff6666');
         }
         if (soundSystem) soundSystem.playPowerUp(3);
+    } else if (extraLivesEarned > (gameState.extraLivesAwarded || 0)) {
+        // Update tracker even if at max lives (so we don't spam the check)
+        gameState.extraLivesAwarded = extraLivesEarned;
     }
 }
 
