@@ -566,6 +566,17 @@ function handleTouchStart(e) {
     const x = (touch.clientX - rect.left) * (canvas.logicalWidth / rect.width);
     const y = (touch.clientY - rect.top) * (canvas.logicalHeight / rect.height);
 
+    // Handle touch on death screens first
+    if (deathScreenState === 'highscore_entry') {
+        handleHighScoreEntryTouch(x, y);
+        return;
+    }
+
+    if (deathScreenState === 'death_choice') {
+        handleDeathChoiceTouch(x, y);
+        return;
+    }
+
     // Left half = joystick
     if (x < canvas.logicalWidth / 2) {
         touchJoystick.active = true;
@@ -2751,24 +2762,72 @@ function drawHighScoreEntryScreen() {
         ctx.fillText(playerInitials[i], x + boxWidth / 2, centerY + boxWidth / 2 + 14);
     }
 
-    // Up/Down arrows for selected letter
+    // Up/Down arrows for selected letter - now as touch-friendly buttons
     const selectedX = startX + currentInitialIndex * (boxWidth + boxGap) + boxWidth / 2;
     const blink = Math.sin(Date.now() * 0.01) > 0;
-    if (blink) {
-        ctx.font = '24px "Courier New", monospace';
-        ctx.fillStyle = '#ffff00';
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#ffff00';
-        ctx.fillText('▲', selectedX, centerY - 10);
-        ctx.fillText('▼', selectedX, centerY + boxWidth + 30);
-    }
 
-    // Instructions
-    ctx.font = '18px "Courier New", monospace';
+    // Draw up arrow button (touch-friendly)
+    ctx.font = 'bold 36px "Courier New", monospace';
+    ctx.fillStyle = blink ? '#ffff00' : '#aaaa00';
+    ctx.shadowBlur = blink ? 15 : 5;
+    ctx.shadowColor = '#ffff00';
+    ctx.fillText('▲', selectedX, centerY - 15);
+
+    // Draw "TAP" hint above arrow for mobile
+    ctx.font = '12px "Courier New", monospace';
+    ctx.fillStyle = '#666666';
+    ctx.shadowBlur = 0;
+    ctx.fillText('TAP', selectedX, centerY - 35);
+
+    // Draw down arrow button (touch-friendly)
+    ctx.font = 'bold 36px "Courier New", monospace';
+    ctx.fillStyle = blink ? '#ffff00' : '#aaaa00';
+    ctx.shadowBlur = blink ? 15 : 5;
+    ctx.shadowColor = '#ffff00';
+    ctx.fillText('▼', selectedX, centerY + boxWidth + 35);
+
+    // Instructions - shorter for mobile
+    ctx.font = '14px "Courier New", monospace';
     ctx.fillStyle = '#888888';
     ctx.shadowBlur = 0;
-    ctx.fillText('UP/DOWN: Change Letter   LEFT/RIGHT: Select   ENTER: Confirm', centerX, centerY + 130);
-    ctx.fillText('Press ESC to skip', centerX, centerY + 160);
+    ctx.fillText('Tap arrows to change letter • Tap box to select', centerX, centerY + 130);
+
+    // Confirm button (touch-friendly)
+    const confirmButtonY = centerY + 180;
+    const confirmButtonHeight = 50;
+    const confirmButtonWidth = 200;
+
+    // Button background
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+    ctx.fillRect(centerX - confirmButtonWidth / 2, confirmButtonY, confirmButtonWidth, confirmButtonHeight);
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(centerX - confirmButtonWidth / 2, confirmButtonY, confirmButtonWidth, confirmButtonHeight);
+
+    // Button text
+    ctx.font = 'bold 24px "Courier New", monospace';
+    ctx.fillStyle = '#00ff00';
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#00ff00';
+    ctx.fillText('CONFIRM', centerX, confirmButtonY + 33);
+
+    // Skip button (touch-friendly)
+    const skipButtonY = confirmButtonY + confirmButtonHeight + 10;
+    const skipButtonHeight = 40;
+
+    ctx.fillStyle = 'rgba(255, 0, 255, 0.1)';
+    ctx.fillRect(centerX - confirmButtonWidth / 2, skipButtonY, confirmButtonWidth, skipButtonHeight);
+    ctx.strokeStyle = '#ff00ff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(centerX - confirmButtonWidth / 2, skipButtonY, confirmButtonWidth, skipButtonHeight);
+
+    ctx.font = '18px "Courier New", monospace';
+    ctx.fillStyle = '#ff00ff';
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#ff00ff';
+    ctx.fillText('SKIP', centerX, skipButtonY + 26);
+
+    ctx.shadowBlur = 0;
 
     // Handle input
     handleHighScoreEntryInput();
@@ -2831,6 +2890,113 @@ function handleHighScoreEntryInput() {
     }
 }
 
+// Touch handling for high score entry screen
+function handleHighScoreEntryTouch(x, y) {
+    const centerX = canvas.logicalWidth / 2;
+    const centerY = canvas.logicalHeight / 2;
+
+    // Box dimensions (same as in drawHighScoreEntryScreen)
+    const boxWidth = 60;
+    const boxGap = 20;
+    const totalWidth = boxWidth * 3 + boxGap * 2;
+    const startX = centerX - totalWidth / 2;
+
+    // Check if touching up arrow area (above the boxes)
+    const arrowAreaTop = centerY - 40;
+    const arrowAreaBottom = centerY;
+
+    // Check if touching down arrow area (below the boxes)
+    const downArrowTop = centerY + boxWidth + 10;
+    const downArrowBottom = centerY + boxWidth + 50;
+
+    // Touch on up arrow area
+    if (y >= arrowAreaTop && y <= arrowAreaBottom && x >= startX && x <= startX + totalWidth) {
+        const current = playerInitials[currentInitialIndex].charCodeAt(0);
+        playerInitials[currentInitialIndex] = String.fromCharCode(current >= 90 ? 65 : current + 1);
+        if (soundSystem) soundSystem.playPowerUp(0);
+        return;
+    }
+
+    // Touch on down arrow area
+    if (y >= downArrowTop && y <= downArrowBottom && x >= startX && x <= startX + totalWidth) {
+        const current = playerInitials[currentInitialIndex].charCodeAt(0);
+        playerInitials[currentInitialIndex] = String.fromCharCode(current <= 65 ? 90 : current - 1);
+        if (soundSystem) soundSystem.playPowerUp(0);
+        return;
+    }
+
+    // Touch on letter boxes to select position
+    if (y >= centerY && y <= centerY + boxWidth) {
+        for (let i = 0; i < 3; i++) {
+            const boxX = startX + i * (boxWidth + boxGap);
+            if (x >= boxX && x <= boxX + boxWidth) {
+                if (currentInitialIndex !== i) {
+                    currentInitialIndex = i;
+                    if (soundSystem) soundSystem.playPowerUp(0);
+                }
+                return;
+            }
+        }
+    }
+
+    // Touch on confirm button area (below instructions)
+    const confirmButtonY = centerY + 180;
+    const confirmButtonHeight = 50;
+    const confirmButtonWidth = 200;
+    if (y >= confirmButtonY && y <= confirmButtonY + confirmButtonHeight &&
+        x >= centerX - confirmButtonWidth / 2 && x <= centerX + confirmButtonWidth / 2) {
+        const initials = playerInitials.join('');
+        if (menuManager) {
+            menuManager.addHighScore(initials, gameState.score);
+        }
+        if (soundSystem) soundSystem.playPowerUp(2);
+        deathScreenState = 'death_choice';
+        return;
+    }
+
+    // Touch on skip button area
+    const skipButtonY = confirmButtonY + confirmButtonHeight + 10;
+    const skipButtonHeight = 40;
+    if (y >= skipButtonY && y <= skipButtonY + skipButtonHeight &&
+        x >= centerX - confirmButtonWidth / 2 && x <= centerX + confirmButtonWidth / 2) {
+        deathScreenState = 'death_choice';
+        return;
+    }
+}
+
+// Touch handling for death choice screen
+function handleDeathChoiceTouch(x, y) {
+    const centerX = canvas.logicalWidth / 2;
+    const centerY = canvas.logicalHeight / 2;
+
+    // Option box boundaries (matches drawDeathChoiceScreen)
+    const boxY = centerY + 20;
+    const buttonWidth = 400;
+    const buttonHeight = 60;
+
+    // Option 1: Continue (if credits available) or buy credit
+    const option1Y = boxY + 20;
+    if (y >= option1Y && y <= option1Y + buttonHeight &&
+        x >= centerX - buttonWidth / 2 && x <= centerX + buttonWidth / 2) {
+        if (credits > 0) {
+            continueGame();
+        } else {
+            // Try to add credit if touching this area
+            addCredit();
+        }
+        return;
+    }
+
+    // Option 2: Return to menu
+    const option2Y = boxY + 100;
+    if (y >= option2Y && y <= option2Y + buttonHeight &&
+        x >= centerX - buttonWidth / 2 && x <= centerX + buttonWidth / 2) {
+        deathScreenState = 'none';
+        returnToMenu();
+        return;
+    }
+}
+
 function drawDeathChoiceScreen() {
     const centerX = canvas.logicalWidth / 2;
     const centerY = canvas.logicalHeight / 2;
@@ -2857,54 +3023,81 @@ function drawDeathChoiceScreen() {
 
     // Options box
     const boxY = centerY + 20;
-    const boxHeight = 160;
+    const boxHeight = 180;
+    const buttonWidth = 400;
+    const buttonHeight = 60;
+
     ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
     ctx.fillRect(centerX - 250, boxY, 500, boxHeight);
     ctx.strokeStyle = '#00ffff';
     ctx.lineWidth = 2;
     ctx.strokeRect(centerX - 250, boxY, 500, boxHeight);
 
-    // Option 1: Continue with credits
-    const option1Y = boxY + 50;
+    // Option 1: Continue with credits - touch-friendly button
+    const option1Y = boxY + 20;
     const creditCost = getCreditCost();
     const canAffordCredit = gameState.score >= creditCost;
+
+    // Button background for option 1
+    if (credits > 0) {
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.15)';
+    } else {
+        ctx.fillStyle = 'rgba(100, 100, 100, 0.15)';
+    }
+    ctx.fillRect(centerX - buttonWidth / 2, option1Y, buttonWidth, buttonHeight);
+    ctx.strokeStyle = credits > 0 ? '#00ff00' : '#666666';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(centerX - buttonWidth / 2, option1Y, buttonWidth, buttonHeight);
 
     if (credits > 0) {
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.fillStyle = '#00ff00';
         ctx.shadowBlur = 15;
         ctx.shadowColor = '#00ff00';
-        ctx.fillText(`[1] CONTINUE (${credits} CREDITS)`, centerX, option1Y);
+        ctx.fillText(`CONTINUE (${credits} CREDITS)`, centerX, option1Y + 28);
 
-        ctx.font = '16px "Courier New", monospace';
+        ctx.font = '14px "Courier New", monospace';
         ctx.fillStyle = '#888888';
         ctx.shadowBlur = 0;
-        ctx.fillText('Use 1 credit to continue playing', centerX, option1Y + 25);
+        ctx.fillText('Tap to use 1 credit', centerX, option1Y + 48);
     } else {
         ctx.font = 'bold 24px "Courier New", monospace';
         ctx.fillStyle = '#666666';
         ctx.shadowBlur = 0;
-        ctx.fillText('[1] NO CREDITS', centerX, option1Y);
+        ctx.fillText('NO CREDITS', centerX, option1Y + 28);
 
         // Show credit purchase option
-        ctx.font = '16px "Courier New", monospace';
+        ctx.font = '14px "Courier New", monospace';
         ctx.fillStyle = canAffordCredit ? '#00ff00' : '#ff6666';
-        ctx.fillText(`Press C to buy credit (${creditCost.toLocaleString()} pts)`, centerX, option1Y + 25);
+        ctx.fillText(`Tap to buy credit (${creditCost.toLocaleString()} pts)`, centerX, option1Y + 48);
     }
 
-    // Option 2: Return to menu
-    const option2Y = boxY + 120;
+    // Option 2: Return to menu - touch-friendly button
+    const option2Y = boxY + 100;
+
+    // Button background for option 2
+    ctx.fillStyle = 'rgba(255, 0, 255, 0.15)';
+    ctx.fillRect(centerX - buttonWidth / 2, option2Y, buttonWidth, buttonHeight);
+    ctx.strokeStyle = '#ff00ff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(centerX - buttonWidth / 2, option2Y, buttonWidth, buttonHeight);
+
     ctx.font = 'bold 24px "Courier New", monospace';
     ctx.fillStyle = '#ff00ff';
     ctx.shadowBlur = 15;
     ctx.shadowColor = '#ff00ff';
-    ctx.fillText('[2] RETURN TO MENU', centerX, option2Y);
+    ctx.fillText('RETURN TO MENU', centerX, option2Y + 28);
+
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillStyle = '#888888';
+    ctx.shadowBlur = 0;
+    ctx.fillText('Tap to go back', centerX, option2Y + 48);
 
     // Footer hint
     ctx.font = '14px "Courier New", monospace';
     ctx.fillStyle = '#666666';
     ctx.shadowBlur = 0;
-    ctx.fillText('Press 1, 2, or SPACE/ENTER', centerX, centerY + 210);
+    ctx.fillText('Tap a button or press 1/2/SPACE', centerX, centerY + 220);
 
     // Handle input
     handleDeathChoiceInput();
