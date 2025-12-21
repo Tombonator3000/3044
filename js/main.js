@@ -1685,7 +1685,17 @@ function initGame(isAttractMode = false) {
 
         // Difficulty settings for enemies and wave manager
         difficultySettings: difficultySettings,
-        difficultyName: GameSettings.difficulty
+        difficultyName: GameSettings.difficulty,
+
+        // Sidescroller mode (R-Type style)
+        sidescrollerMode: false,
+        sidescrollerWaves: [4, 9, 14, 19, 24, 29],
+
+        // Method to start a wave and set sidescroller mode
+        startWave(waveNumber) {
+            this.wave = waveNumber;
+            this.sidescrollerMode = this.sidescrollerWaves.includes(waveNumber);
+        }
     };
 
     applyGameSettings();
@@ -1696,7 +1706,7 @@ function initGame(isAttractMode = false) {
     }
 
     // Start wave 1 with difficulty settings
-    gameState.startWave(1);  // Set sidescroller mode flag if needed
+    gameState.startWave(1);
     waveManager.startWave(1, gameState);
 
     // Reset keys
