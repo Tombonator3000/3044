@@ -207,15 +207,24 @@ class Particle {
     }
 
     drawSpark(ctx, size) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';  // ENHANCED: Additive blending
         ctx.strokeStyle = this.color;
-        ctx.lineWidth = size / 2;
+        ctx.lineWidth = Math.max(2, size / 2);  // ENHANCED: Minimum width
+
+        if (particlePerfSettings.enableShadows) {
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = this.color;
+        }
+
         ctx.beginPath();
         const cos = Math.cos(this.rotation);
         const sin = Math.sin(this.rotation);
-        const len = size * 2;
+        const len = size * 2.5;  // ENHANCED: Longer sparks
         ctx.moveTo(this.x - cos * len, this.y - sin * len);
         ctx.lineTo(this.x + cos * len, this.y + sin * len);
         ctx.stroke();
+        ctx.restore();
     }
 
     drawTrail(ctx, size) {
@@ -331,19 +340,23 @@ class Particle {
     /**
      * Geometry Wars-style LINE particle with motion blur trail
      * This is the signature look of Geometry Wars explosions
+     * ENHANCED: Thicker lines, brighter colors, additive blending for glow
      */
     drawLine(ctx, alpha) {
         const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        const dynamicLength = this.length * (0.5 + speed * 0.3);
+        // Minimum length even when slow, so particles remain visible
+        const dynamicLength = Math.max(8, this.length * (0.5 + speed * 0.3));
+        // Ensure minimum alpha for visibility
+        const visibleAlpha = Math.max(0.3, alpha);
 
         // Draw motion blur trail
         if (this.trail && this.trail.length > 0) {
             for (let i = 0; i < this.trail.length; i++) {
                 const t = this.trail[i];
                 ctx.save();
-                ctx.globalAlpha = alpha * t.alpha * 0.3;
+                ctx.globalAlpha = visibleAlpha * t.alpha * 0.4;  // Increased from 0.3
                 ctx.strokeStyle = this.color;
-                ctx.lineWidth = 1;
+                ctx.lineWidth = 2;  // Increased from 1
                 ctx.translate(t.x, t.y);
                 ctx.rotate(this.rotation);
                 ctx.beginPath();
@@ -354,14 +367,15 @@ class Particle {
             }
         }
 
-        // Main line particle
+        // Main line particle - USE ADDITIVE BLENDING FOR GLOW
         ctx.save();
-        ctx.globalAlpha = alpha;
+        ctx.globalCompositeOperation = 'lighter';  // Additive blending makes lines glow!
+        ctx.globalAlpha = visibleAlpha;
         ctx.strokeStyle = this.color;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 4;  // Increased from 2 for more visibility
 
         if (particlePerfSettings.enableShadows) {
-            ctx.shadowBlur = 8;
+            ctx.shadowBlur = 12;  // Increased from 8
             ctx.shadowColor = this.color;
         }
 
@@ -373,13 +387,13 @@ class Particle {
         ctx.lineTo(dynamicLength / 2, 0);
         ctx.stroke();
 
-        // White core for extra glow
-        ctx.globalAlpha = alpha * 0.8;
+        // White core for extra brightness
+        ctx.globalAlpha = visibleAlpha * 0.9;
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 2;  // Increased from 1
         ctx.beginPath();
-        ctx.moveTo(-dynamicLength / 4, 0);
-        ctx.lineTo(dynamicLength / 4, 0);
+        ctx.moveTo(-dynamicLength / 3, 0);
+        ctx.lineTo(dynamicLength / 3, 0);
         ctx.stroke();
 
         ctx.restore();
@@ -388,12 +402,15 @@ class Particle {
     /**
      * Geometry Wars central GLOW effect
      * Creates a radial gradient glow at explosion center
+     * ENHANCED: Additive blending for bright glow
      */
     drawGWGlow(ctx, alpha) {
         const currentSize = this.size * (2 - alpha);
+        const visibleAlpha = Math.max(0.4, alpha);
 
         ctx.save();
-        ctx.globalAlpha = alpha * 0.5;
+        ctx.globalCompositeOperation = 'lighter';  // Additive blending for bright glow
+        ctx.globalAlpha = visibleAlpha * 0.7;  // Increased from 0.5
 
         // Create radial gradient for glow
         const gradient = ctx.createRadialGradient(
@@ -401,39 +418,60 @@ class Particle {
             this.x, this.y, currentSize
         );
         gradient.addColorStop(0, '#ffffff');
-        gradient.addColorStop(0.2, this.color);
+        gradient.addColorStop(0.3, this.color);
+        gradient.addColorStop(0.6, this.color + '80');  // Semi-transparent color
         gradient.addColorStop(1, 'transparent');
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
         ctx.arc(this.x, this.y, currentSize, 0, Math.PI * 2);
         ctx.fill();
+
+        // Extra bright core
+        ctx.globalAlpha = visibleAlpha * 0.9;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, currentSize * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.restore();
     }
 
     /**
      * Geometry Wars SHOCKWAVE ring
      * Expanding ring that fades out
+     * ENHANCED: Thicker ring, additive blending
      */
     drawGWShockwave(ctx, alpha) {
         // Radius expands as life decreases
         const progress = 1 - alpha;
         const maxRadius = this.size;
         const radius = 5 + (maxRadius - 5) * progress;
+        const visibleAlpha = Math.max(0.3, alpha);
 
         ctx.save();
-        ctx.globalAlpha = alpha * 0.6;
+        ctx.globalCompositeOperation = 'lighter';  // Additive blending
+        ctx.globalAlpha = visibleAlpha * 0.8;  // Increased from 0.6
         ctx.strokeStyle = this.color;
-        ctx.lineWidth = 3 * alpha;
+        ctx.lineWidth = Math.max(2, 5 * alpha);  // Thicker ring, minimum 2px
 
         if (particlePerfSettings.enableShadows) {
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = 15;  // Increased from 10
             ctx.shadowColor = this.color;
         }
 
         ctx.beginPath();
         ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
         ctx.stroke();
+
+        // Inner white ring for extra glow
+        ctx.globalAlpha = visibleAlpha * 0.5;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(1, 2 * alpha);
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+
         ctx.restore();
     }
 }
@@ -752,18 +790,32 @@ export class ParticleSystem {
         // Debug: Count particle types periodically
         if (!this._lastDebugLog || Date.now() - this._lastDebugLog > 2000) {
             const typeCounts = {};
+            let gwlinePositions = [];
             for (const p of this.particles) {
                 if (p.active) {
                     typeCounts[p.type] = (typeCounts[p.type] || 0) + 1;
+                    // Capture some gwline positions for debug
+                    if (p.type === 'gwline' && gwlinePositions.length < 3) {
+                        gwlinePositions.push({ x: Math.round(p.x), y: Math.round(p.y), alpha: (p.life / p.maxLife).toFixed(2) });
+                    }
                 }
             }
             if (Object.keys(typeCounts).length > 0) {
                 console.log('[Particles Active]', JSON.stringify(typeCounts));
+                if (gwlinePositions.length > 0) {
+                    console.log('[GWLine Samples]', JSON.stringify(gwlinePositions));
+                }
             }
             this._lastDebugLog = Date.now();
         }
 
         ctx.save();
+
+        // CRITICAL: Reset context state to ensure particles are visible
+        // Previous draw calls may have modified these values
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+
         if (!particlePerfSettings.enableShadows) {
             ctx.shadowBlur = 0;
             ctx.shadowColor = 'transparent';
@@ -1492,13 +1544,16 @@ export class ParticleSystem {
      * - Line particles with motion blur
      * - Color variation (base + white + lighter version)
      *
+     * ENHANCED: More particles, higher speeds, brighter colors
+     *
      * @param {number} x - X position
      * @param {number} y - Y position
      * @param {string} color - Base color (e.g., '#ff6600')
      * @param {number} intensity - Explosion intensity multiplier (default 1)
      */
     addGeometryWarsExplosion(x, y, color = '#ff6600', intensity = 1) {
-        const baseCount = Math.floor(80 * intensity);
+        // ENHANCED: Increased base count from 80 to 120
+        const baseCount = Math.floor(120 * intensity);
         const adjustedCount = getAdjustedCount(baseCount);
 
         // Debug: Log when GW explosion is triggered
@@ -1510,8 +1565,8 @@ export class ParticleSystem {
             vx: 0,
             vy: 0,
             color: color,
-            size: 50 * intensity,
-            life: 15,
+            size: 80 * intensity,  // ENHANCED: Increased from 50
+            life: 20,  // ENHANCED: Increased from 15
             friction: 1,
             type: 'gwglow'
         });
@@ -1522,19 +1577,22 @@ export class ParticleSystem {
             vx: 0,
             vy: 0,
             color: color,
-            size: 100 * intensity, // Max radius
-            life: 20,
+            size: 150 * intensity, // ENHANCED: Increased max radius from 100
+            life: 25,  // ENHANCED: Increased from 20
             friction: 1,
             type: 'gwshockwave'
         });
 
         // === LINE PARTICLES (The signature Geometry Wars look!) ===
-        const colors = [color, '#ffffff', this.lightenColor(color, 30)];
+        // ENHANCED: More color variety including bright white
+        const colors = ['#ffffff', color, this.lightenColor(color, 40), this.lightenColor(color, 60)];
 
         for (let i = 0; i < adjustedCount; i++) {
             const angle = (Math.PI * 2 * i) / adjustedCount + (Math.random() - 0.5) * 0.5;
-            const speed = 4 + Math.random() * 8 * intensity;
-            const lineLength = 6 + Math.random() * 6;
+            // ENHANCED: Higher speeds (6-16 instead of 4-12)
+            const speed = 6 + Math.random() * 10 * intensity;
+            // ENHANCED: Longer lines
+            const lineLength = 10 + Math.random() * 10;
             const particleColor = colors[Math.floor(Math.random() * colors.length)];
 
             const particle = this.getParticle();
@@ -1544,29 +1602,29 @@ export class ParticleSystem {
                 color: particleColor,
                 size: 2,
                 length: lineLength,
-                life: 40 + Math.random() * 30,
-                friction: 0.98,
-                gravity: 0.02,
+                life: 50 + Math.random() * 40,  // ENHANCED: Longer life (was 40+30)
+                friction: 0.97,  // ENHANCED: Less friction for longer travel
+                gravity: 0.01,  // ENHANCED: Less gravity
                 type: 'gwline',
-                maxTrail: 5
+                maxTrail: 6  // ENHANCED: Longer trails
             });
         }
 
         // === EXTRA SPARK PARTICLES (Small gnister) ===
-        const sparkCount = Math.floor(adjustedCount * 0.5);
+        const sparkCount = Math.floor(adjustedCount * 0.6);  // ENHANCED: More sparks
         for (let i = 0; i < sparkCount; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const speed = 6 + Math.random() * 10 * intensity;
+            const speed = 8 + Math.random() * 12 * intensity;  // ENHANCED: Faster sparks
 
             const particle = this.getParticle();
             particle.reset(x, y, {
                 vx: Math.cos(angle) * speed,
                 vy: Math.sin(angle) * speed,
-                color: color,
-                size: 1 + Math.random() * 2,
-                life: 15 + Math.random() * 15,
-                friction: 0.95,
-                gravity: 0.05,
+                color: i % 2 === 0 ? '#ffffff' : color,  // ENHANCED: More white sparks
+                size: 2 + Math.random() * 3,  // ENHANCED: Bigger sparks
+                life: 20 + Math.random() * 20,  // ENHANCED: Longer life
+                friction: 0.94,
+                gravity: 0.03,
                 type: 'spark'
             });
         }

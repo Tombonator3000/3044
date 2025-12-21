@@ -1,5 +1,175 @@
 # Geometry 3044 - Modular Structure Rebuild Log
 
+## Date: 2024-12-21
+
+---
+
+# PARTICLE DEBUG LOG - GEOMETRY WARS EXPLOSIONS NOT VISIBLE
+
+## Problem Statement
+Geometry Wars-style particle explosions are NOT visible in the game, even though:
+- Debug logs confirm `addGeometryWarsExplosion()` IS being called
+- Particles ARE being created (console shows `particles:64`)
+- Particles ARE active (console shows `{"gwline":50,"gwglow":1,"gwshockwave":1,"spark":25}`)
+
+The demo screenshot shows what the explosions SHOULD look like: massive bursts of white/pink line particles radiating outward.
+
+## Code Analysis
+
+### Files Examined:
+1. `js/systems/ParticleSystem.js` - Main particle system (1732 lines)
+2. `js/core/CollisionSystem.js` - Where explosions are triggered
+3. `js/main.js` - Render loop and canvas setup
+
+### Key Findings:
+
+#### 1. Particle Creation (WORKING)
+Location: `ParticleSystem.js:1500-1573`
+
+The `addGeometryWarsExplosion()` method creates:
+- 1 gwglow particle (central glow)
+- 1 gwshockwave particle (expanding ring)
+- 80*intensity gwline particles (the signature line particles)
+- 40*intensity spark particles (extra gnister)
+
+Debug logging at line 1505 confirms this is being called.
+
+#### 2. Collision System Trigger (WORKING)
+Location: `CollisionSystem.js:879-894`
+
+Explosions ARE being triggered on enemy death with proper intensity scaling.
+
+#### 3. CRITICAL ISSUES FOUND IN RENDERING:
+
+**ISSUE 1 - Context State Not Reset (ParticleSystem.js:766-778)**
+```javascript
+draw(ctx) {
+    ctx.save();
+    if (!particlePerfSettings.enableShadows) {
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+    }
+    // MISSING: ctx.globalAlpha = 1;
+    // MISSING: ctx.globalCompositeOperation = 'source-over';
+    for (particle) { particle.draw(ctx); }
+    ctx.restore();
+}
+```
+If something before particle draw sets globalAlpha low or uses a different composite operation, particles become invisible.
+
+**ISSUE 2 - Alpha Set Without Save (Particle.draw at line 137)**
+```javascript
+draw(ctx) {
+    ctx.globalAlpha = alpha;  // Sets alpha WITHOUT ctx.save() first!
+    switch (this.type) {
+        case 'gwline': this.drawLine(ctx, alpha); break;
+    }
+}
+```
+The globalAlpha is set in the main draw(), but individual draw methods also set their own alpha inside save/restore blocks, causing state confusion.
+
+**ISSUE 3 - Thin Line Rendering (drawLine at line 361)**
+```javascript
+ctx.lineWidth = 2;
+```
+2-pixel lines with alpha decay become nearly invisible against busy backgrounds.
+
+**ISSUE 4 - Draw Order (main.js:2155)**
+```javascript
+// Particles (behind entities)
+if (particleSystem) particleSystem.draw(ctx);
+```
+Particles are drawn BEFORE enemies and player, so they may be covered by entities.
+
+## Root Cause
+The most likely cause is that `ctx.globalAlpha` or `ctx.globalCompositeOperation` is not being reset to default values before drawing particles. If `drawWavingGrid()` or another function sets these and doesn't restore them, ALL particles would be invisible or nearly invisible.
+
+## Recommended Fixes
+
+### Fix 1: Explicit Context Reset
+In `ParticleSystem.draw()`:
+```javascript
+ctx.save();
+ctx.globalAlpha = 1;
+ctx.globalCompositeOperation = 'source-over';
+// ... draw particles
+ctx.restore();
+```
+
+### Fix 2: Thicker Lines with Minimum Alpha
+```javascript
+ctx.lineWidth = 4;  // Was 2
+ctx.globalAlpha = Math.max(0.4, alpha);  // Ensure minimum visibility
+```
+
+### Fix 3: Additive Blending for Glow
+```javascript
+ctx.globalCompositeOperation = 'lighter';  // Additive blending for glow effects
+```
+
+### Fix 4: Draw Particles AFTER Entities
+Move particle draw call to after enemies/bullets for better visibility.
+
+---
+
+## FIXES APPLIED (2024-12-21)
+
+All recommended fixes have been implemented:
+
+### 1. ParticleSystem.draw() - Context Reset (line 774-779)
+```javascript
+ctx.save();
+ctx.globalAlpha = 1;
+ctx.globalCompositeOperation = 'source-over';
+```
+
+### 2. drawLine() - Enhanced Visibility (line 331-391)
+- Minimum dynamicLength of 8 pixels
+- Minimum alpha of 0.3
+- LineWidth increased from 2 to 4
+- Trail lineWidth increased from 1 to 2
+- Added `globalCompositeOperation = 'lighter'` for additive blending
+- Shadow blur increased from 8 to 12
+
+### 3. drawGWGlow() - Additive Blending (line 393-429)
+- Added `globalCompositeOperation = 'lighter'`
+- Added extra bright white core
+- Increased alpha multiplier from 0.5 to 0.7
+
+### 4. drawGWShockwave() - Enhanced Ring (line 431-467)
+- Added `globalCompositeOperation = 'lighter'`
+- Increased lineWidth with minimum of 2
+- Added inner white ring for extra glow
+- Shadow blur increased from 10 to 15
+
+### 5. drawSpark() - Additive Blending (line 209-228)
+- Added `globalCompositeOperation = 'lighter'`
+- Added shadow blur
+- Increased line length multiplier from 2 to 2.5
+
+### 6. addGeometryWarsExplosion() - More Particles (line 1545-1622)
+- Base count increased from 80 to 120
+- Glow size increased from 50 to 80
+- Shockwave radius increased from 100 to 150
+- Line speeds increased (6-16 instead of 4-12)
+- Line lengths increased (10-20 instead of 6-12)
+- Particle life increased (50-90 instead of 40-70)
+- Friction reduced for longer travel
+- More color variety (4 colors including bright white)
+- More spark particles with alternating white/color
+
+### 7. main.js Render Order (line 2182-2184)
+Particles now draw AFTER entities instead of before, making explosions render on top of enemies for maximum visibility.
+
+### Expected Console Output
+```
+[GW Explosion] x:400 y:300 color:#ff6600 intensity:0.80 particles:96
+[Particles Active] {"gwline":80,"gwglow":1,"gwshockwave":1,"spark":48}
+[GWLine Samples] [{"x":420,"y":285,"alpha":"0.85"},{"x":380,"y":315,"alpha":"0.82"}]
+```
+
+---
+
 ## Date: 2024-12-19
 
 ---

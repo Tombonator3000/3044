@@ -2151,10 +2151,7 @@ function render() {
     // Zone system (behind everything)
     if (zoneSystem) zoneSystem.draw(ctx);
 
-    // Particles (behind entities)
-    if (particleSystem) particleSystem.draw(ctx);
-
-    // Power-ups
+    // Power-ups (behind entities)
     for (const powerUp of gameState.powerUps) {
         if (powerUp.draw) powerUp.draw(ctx);
     }
@@ -2181,6 +2178,10 @@ function render() {
             player.draw(ctx);
         }
     }
+
+    // PARTICLES - Draw ON TOP of entities for maximum visibility!
+    // This is key for Geometry Wars-style explosions to look spectacular
+    if (particleSystem) particleSystem.draw(ctx);
 
     // Draw grazing effects
     if (grazingSystem && player) {
