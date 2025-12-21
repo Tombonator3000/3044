@@ -669,74 +669,129 @@ export class Player {
         this.magnetRange = Math.max(0, this.magnetRange - 100);
     }
 
+    /**
+     * Main draw method - orchestrates all visual components
+     * Refactored for clarity: each effect is in its own helper method
+     */
     draw(ctx) {
         if (!this.isAlive) return;
 
         ctx.save();
 
-        // 🔥 Draw neon trail
-        if (this.trail.length > 0) {
-            this.trail.forEach((point, index) => {
-                ctx.save();
-                ctx.globalAlpha = point.life * 0.6;
+        // Draw effects that are positioned in world space (before translation)
+        this.drawNeonTrail(ctx);
+        this.drawMirrorShipEffect(ctx);
 
-                if (this.feverMode > 0) {
-                    ctx.fillStyle = `hsl(${(this.rainbowHue - index * 10) % 360}, 100%, 50%)`;
-                    ctx.shadowBlur = 20;
-                    ctx.shadowColor = ctx.fillStyle;
-                } else {
-                    ctx.fillStyle = this.shipColor || this.color;
-                    ctx.shadowBlur = 15;
-                    ctx.shadowColor = this.shipColor || this.color;
-                }
-
-                const size = (this.size * 0.5) * point.life;
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            });
-        }
-
-        // Draw mirror ship
-        if (this.mirrorShip > 0) {
-            ctx.save();
-            ctx.translate(this.mirrorX, this.mirrorY);
-            ctx.globalAlpha = 0.7;
-
-            ctx.strokeStyle = '#aaffff';
-            ctx.lineWidth = 3;
-            ctx.shadowBlur = 30;
-            ctx.shadowColor = '#aaffff';
-
-            ctx.beginPath();
-            ctx.moveTo(0, -20);
-            ctx.lineTo(-15, 20);
-            ctx.lineTo(0, 10);
-            ctx.lineTo(15, 20);
-            ctx.closePath();
-            ctx.stroke();
-
-            ctx.fillStyle = '#aaffff44';
-            ctx.fill();
-
-            ctx.restore();
-        }
-
+        // Position context at player location
         ctx.translate(this.x, this.y);
-
-        // Rotate 90 degrees for sidescroller mode (ship points right)
         if (this.sidescrollerMode) {
             ctx.rotate(Math.PI / 2);
         }
 
-        // Determine ship color based on modes
-        let activeColor = this.shipColor || config.colors.player;
+        // Determine and apply active color based on current mode
+        const activeColor = this.getActiveColor();
+        this.color = activeColor;
+        this.applyModeVisualEffects(ctx, activeColor);
 
-        // Color effects for different modes
+        // Apply invulnerability flicker
+        if (this.invulnerable && Math.floor(Date.now() / 100) % 2 === 0) {
+            ctx.globalAlpha = 0.3;
+        }
+
+        // Draw the ship itself
+        this.drawShipByType(ctx, activeColor);
+
+        // Draw active effects around the ship
+        this.drawVortexEffect(ctx);
+        this.drawAfterburnerEffect(ctx);
+        this.drawWeaponIndicators(ctx);
+        this.drawShieldEffect(ctx);
+        this.drawAutoFireIndicator(ctx);
+
+        ctx.restore();
+    }
+
+    /**
+     * Draw neon trail behind the ship
+     */
+    drawNeonTrail(ctx) {
+        if (this.trail.length === 0) return;
+
+        this.trail.forEach((point, index) => {
+            ctx.save();
+            ctx.globalAlpha = point.life * 0.6;
+
+            if (this.feverMode > 0) {
+                ctx.fillStyle = `hsl(${(this.rainbowHue - index * 10) % 360}, 100%, 50%)`;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = ctx.fillStyle;
+            } else {
+                ctx.fillStyle = this.shipColor || this.color;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = this.shipColor || this.color;
+            }
+
+            const size = (this.size * 0.5) * point.life;
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        });
+    }
+
+    /**
+     * Draw ghost mirror ship effect
+     */
+    drawMirrorShipEffect(ctx) {
+        if (this.mirrorShip <= 0) return;
+
+        ctx.save();
+        ctx.translate(this.mirrorX, this.mirrorY);
+        ctx.globalAlpha = 0.7;
+
+        ctx.strokeStyle = '#aaffff';
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = '#aaffff';
+
+        ctx.beginPath();
+        ctx.moveTo(0, -20);
+        ctx.lineTo(-15, 20);
+        ctx.lineTo(0, 10);
+        ctx.lineTo(15, 20);
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.fillStyle = '#aaffff44';
+        ctx.fill();
+        ctx.restore();
+    }
+
+    /**
+     * Get the active ship color based on current mode
+     */
+    getActiveColor() {
         if (this.feverMode > 0) {
-            activeColor = `hsl(${this.rainbowHue}, 100%, 50%)`;
+            return `hsl(${this.rainbowHue}, 100%, 50%)`;
+        }
+        if (this.omegaMode > 0) {
+            return '#ff0000';
+        }
+        if (this.ghostMode > 0) {
+            return '#aaaaff';
+        }
+        if (this.godMode > 0) {
+            return `hsl(${(Date.now() * 0.5) % 360}, 100%, 70%)`;
+        }
+        return this.shipColor || config.colors.player;
+    }
 
+    /**
+     * Apply visual glow/alpha effects based on active mode
+     */
+    applyModeVisualEffects(ctx, activeColor) {
+        if (this.feverMode > 0) {
+            // Rainbow rings around ship
             for (let i = 0; i < 3; i++) {
                 ctx.strokeStyle = `hsla(${(this.rainbowHue + i * 30) % 360}, 100%, 50%, ${0.3 - i * 0.1})`;
                 ctx.lineWidth = 2;
@@ -747,115 +802,123 @@ export class Player {
                 ctx.stroke();
             }
         } else if (this.omegaMode > 0) {
-            activeColor = '#ff0000';
             ctx.strokeStyle = '#ff0000';
             ctx.lineWidth = 4;
             ctx.shadowBlur = 40;
             ctx.shadowColor = '#ff0000';
         } else if (this.ghostMode > 0) {
             ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
-            activeColor = '#aaaaff';
         } else if (this.godMode > 0) {
-            activeColor = `hsl(${(Date.now() * 0.5) % 360}, 100%, 70%)`;
             ctx.shadowBlur = 50;
             ctx.shadowColor = activeColor;
         }
+    }
 
-        this.color = activeColor;
+    /**
+     * Draw vortex attraction ring effect
+     */
+    drawVortexEffect(ctx) {
+        if (this.vortexActive <= 0) return;
 
-        // Flicker when invulnerable
-        if (this.invulnerable && Math.floor(Date.now() / 100) % 2 === 0) {
-            ctx.globalAlpha = 0.3;
-        }
+        ctx.save();
+        const vortexRadius = 80 + Math.sin(Date.now() * 0.01) * 20;
+        ctx.strokeStyle = '#80ff80';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.6;
+        ctx.shadowBlur = 25;
+        ctx.shadowColor = '#80ff80';
 
-        // Draw ship based on ship type
-        this.drawShipByType(ctx, activeColor);
+        // Outer ring
+        ctx.beginPath();
+        ctx.arc(0, 0, vortexRadius, 0, Math.PI * 2);
+        ctx.stroke();
 
-        // Vortex effect ring
-        if (this.vortexActive > 0) {
-            ctx.save();
-            const vortexRadius = 80 + Math.sin(Date.now() * 0.01) * 20;
-            ctx.strokeStyle = '#80ff80';
-            ctx.lineWidth = 2;
-            ctx.globalAlpha = 0.6;
-            ctx.shadowBlur = 25;
-            ctx.shadowColor = '#80ff80';
+        // Rotating spokes
+        for (let i = 0; i < 8; i++) {
+            const angle = (Date.now() * 0.005) + (i * Math.PI / 4);
             ctx.beginPath();
-            ctx.arc(0, 0, vortexRadius, 0, Math.PI * 2);
-            ctx.stroke();
-
-            for (let i = 0; i < 8; i++) {
-                const angle = (Date.now() * 0.005) + (i * Math.PI / 4);
-                ctx.beginPath();
-                ctx.moveTo(Math.cos(angle) * 40, Math.sin(angle) * 40);
-                ctx.lineTo(Math.cos(angle) * vortexRadius, Math.sin(angle) * vortexRadius);
-                ctx.stroke();
-            }
-            ctx.restore();
-        }
-
-        // 🔥 Afterburner effect when moving
-        const moving = Math.abs(this.x - this.lastX) > 1 || Math.abs(this.y - this.lastY) > 1;
-        if (moving) {
-            ctx.save();
-            const flameLength = 10 + Math.random() * 15;
-            const gradient = ctx.createLinearGradient(0, 15, 0, 15 + flameLength);
-
-            if (this.feverMode > 0) {
-                gradient.addColorStop(0, `hsla(${this.rainbowHue}, 100%, 70%, 0.8)`);
-                gradient.addColorStop(0.5, `hsla(${(this.rainbowHue + 60) % 360}, 100%, 50%, 0.5)`);
-                gradient.addColorStop(1, 'transparent');
-            } else {
-                gradient.addColorStop(0, 'rgba(255, 255, 100, 0.8)');
-                gradient.addColorStop(0.5, 'rgba(255, 100, 0, 0.5)');
-                gradient.addColorStop(1, 'transparent');
-            }
-
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.moveTo(-5, 15);
-            ctx.lineTo(-8, 15 + flameLength);
-            ctx.lineTo(0, 15 + flameLength * 0.7);
-            ctx.lineTo(8, 15 + flameLength);
-            ctx.lineTo(5, 15);
-            ctx.closePath();
-            ctx.fill();
-            ctx.restore();
-        }
-
-        // Weapon level indicators
-        if (this.weaponLevel > 1) {
-            ctx.fillStyle = '#ffff00';
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = '#ffff00';
-            for (let i = 0; i < this.weaponLevel - 1; i++) {
-                ctx.beginPath();
-                ctx.arc(-10 + i * 10, -25, 3, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        // Shield display
-        if (this.shieldActive && this.shield > 0) {
-            ctx.strokeStyle = '#00ffff';
-            ctx.lineWidth = 2;
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = '#00ffff';
-            ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
-            ctx.beginPath();
-            ctx.arc(0, 0, 35, 0, Math.PI * 2);
+            ctx.moveTo(Math.cos(angle) * 40, Math.sin(angle) * 40);
+            ctx.lineTo(Math.cos(angle) * vortexRadius, Math.sin(angle) * vortexRadius);
             ctx.stroke();
         }
-
-        // Auto-fire indicator
-        if (this.autoFire) {
-            ctx.fillStyle = '#00ff00';
-            ctx.font = 'bold 10px Courier New';
-            ctx.textAlign = 'center';
-            ctx.fillText('AUTO', 0, -35);
-        }
-
         ctx.restore();
+    }
+
+    /**
+     * Draw engine flame when moving
+     */
+    drawAfterburnerEffect(ctx) {
+        const moving = Math.abs(this.x - this.lastX) > 1 || Math.abs(this.y - this.lastY) > 1;
+        if (!moving) return;
+
+        ctx.save();
+        const flameLength = 10 + Math.random() * 15;
+        const gradient = ctx.createLinearGradient(0, 15, 0, 15 + flameLength);
+
+        if (this.feverMode > 0) {
+            gradient.addColorStop(0, `hsla(${this.rainbowHue}, 100%, 70%, 0.8)`);
+            gradient.addColorStop(0.5, `hsla(${(this.rainbowHue + 60) % 360}, 100%, 50%, 0.5)`);
+            gradient.addColorStop(1, 'transparent');
+        } else {
+            gradient.addColorStop(0, 'rgba(255, 255, 100, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 100, 0, 0.5)');
+            gradient.addColorStop(1, 'transparent');
+        }
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(-5, 15);
+        ctx.lineTo(-8, 15 + flameLength);
+        ctx.lineTo(0, 15 + flameLength * 0.7);
+        ctx.lineTo(8, 15 + flameLength);
+        ctx.lineTo(5, 15);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+
+    /**
+     * Draw weapon power level indicators
+     */
+    drawWeaponIndicators(ctx) {
+        if (this.weaponLevel <= 1) return;
+
+        ctx.fillStyle = '#ffff00';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#ffff00';
+        for (let i = 0; i < this.weaponLevel - 1; i++) {
+            ctx.beginPath();
+            ctx.arc(-10 + i * 10, -25, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    /**
+     * Draw shield bubble effect
+     */
+    drawShieldEffect(ctx) {
+        if (!this.shieldActive || this.shield <= 0) return;
+
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#00ffff';
+        ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 35, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+
+    /**
+     * Draw auto-fire text indicator
+     */
+    drawAutoFireIndicator(ctx) {
+        if (!this.autoFire) return;
+
+        ctx.fillStyle = '#00ff00';
+        ctx.font = 'bold 10px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('AUTO', 0, -35);
     }
 
     /**

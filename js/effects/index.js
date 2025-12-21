@@ -6,6 +6,6 @@
 export { Starfield } from './Starfield.js';
 export { VHSGlitchEffects } from './VHSGlitch.js';
 export { VHSEffect } from './VHSEffect.js';
-export { drawEnhancedCRT } from './CRTEffect.js';
-export { Epic80sExplosion } from './Explosions.js';
+// drawEnhancedCRT removed - never called
+// Epic80sExplosion removed - never instantiated (use ParticleSystem.explosion)
 export { RadicalSlang } from './RadicalSlang.js';
