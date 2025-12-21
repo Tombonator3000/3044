@@ -35,6 +35,12 @@ export class Railgun {
         if (this.cooldown > 0) return false;
         this.charging = true;
         this.chargeProgress = 0;
+
+        // Play charge sound
+        if (soundSystem && soundSystem.playRailgunChargeSound) {
+            soundSystem.playRailgunChargeSound();
+        }
+
         return true;
     }
 
@@ -146,9 +152,9 @@ export class Railgun {
         // White flash
         this.flashTimer = 5;
 
-        // Sound
-        if (soundSystem && soundSystem.play) {
-            soundSystem.play('explosion');
+        // Play railgun fire sound
+        if (soundSystem && soundSystem.playRailgunFireSound) {
+            soundSystem.playRailgunFireSound();
         }
     }
 

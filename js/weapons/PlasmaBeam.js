@@ -4,7 +4,7 @@
  */
 
 import { CONFIG } from '../config.js';
-import { config, particleSystem } from '../globals.js';
+import { config, particleSystem, soundSystem } from '../globals.js';
 
 const PLASMA_BEAM = {
     name: 'PLASMA BEAM',
@@ -28,6 +28,7 @@ export class PlasmaBeam {
         this.pulsePhase = 0;
         this.particles = [];
         this.duration = 0;
+        this.soundLoop = null; // Reference to continuous sound
     }
 
     /**
@@ -39,6 +40,11 @@ export class PlasmaBeam {
         this.length = 0;
         this.duration = PLASMA_BEAM.duration;
         this.angle = -Math.PI / 2;
+
+        // Start plasma beam sound
+        if (soundSystem && soundSystem.startPlasmaBeamSound) {
+            this.soundLoop = soundSystem.startPlasmaBeamSound();
+        }
     }
 
     /**
@@ -48,6 +54,12 @@ export class PlasmaBeam {
         this.active = false;
         this.length = 0;
         this.particles = [];
+
+        // Stop plasma beam sound
+        if (soundSystem && soundSystem.stopPlasmaBeamSound && this.soundLoop) {
+            soundSystem.stopPlasmaBeamSound(this.soundLoop);
+            this.soundLoop = null;
+        }
     }
 
     /**

@@ -4,7 +4,7 @@
  */
 
 import { CONFIG } from '../config.js';
-import { config, particleSystem } from '../globals.js';
+import { config, particleSystem, soundSystem } from '../globals.js';
 
 const CHAIN_LIGHTNING = {
     name: 'CHAIN LIGHTNING',
@@ -53,6 +53,12 @@ export class ChainLightning {
 
         // Create arc
         this.createArc(x, y, nearest.x, nearest.y);
+
+        // Play chain lightning zap sound with pitch variation based on hop
+        const hopIndex = CHAIN_LIGHTNING.maxHops - hopsLeft;
+        if (soundSystem && soundSystem.playChainLightningSound) {
+            soundSystem.playChainLightningSound(hopIndex);
+        }
 
         // Apply damage
         if (nearest.takeDamage) {
