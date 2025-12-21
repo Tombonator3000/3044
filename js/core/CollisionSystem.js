@@ -868,44 +868,49 @@ export class CollisionSystem {
         const impactRadius = 80 + (enemy.size || 20) * 3;
         addGridImpact(enemy.x, enemy.y, impactForce, impactRadius);
 
-        // === ADVANCED EXPLOSION EFFECTS ===
+        // === GEOMETRY WARS-STYLE EXPLOSION EFFECTS ===
         if (this.particleSystem) {
             const combo = gs.combo || 0;
             const enemyType = enemy.type || 'default';
             const color = enemy.color || '#ff6600';
+            const enemySize = enemy.size || 20;
 
-            // Choose explosion type based on enemy type and combo
-            if (combo >= 50 && this.particleSystem.megaComboExplosion) {
-                // MEGA COMBO explosion for high combos
-                const comboLevel = Math.floor(combo / 25);
-                this.particleSystem.megaComboExplosion(enemy.x, enemy.y, comboLevel);
-            } else if (enemyType === 'electric' || enemyType === 'laser') {
-                // Electric explosion for electric/laser enemies
-                if (this.particleSystem.electricExplosion) {
-                    this.particleSystem.electricExplosion(enemy.x, enemy.y, color);
+            // Use Geometry Wars explosions as the primary effect
+            if (this.particleSystem.addGeometryWarsExplosion) {
+                // Scale intensity based on enemy size and combo
+                let intensity = 0.6 + (enemySize / 50);
+
+                // Boost for high combos
+                if (combo >= 50) {
+                    intensity *= 1.5;
+                } else if (combo >= 20) {
+                    intensity *= 1.2;
                 }
-            } else if (enemyType === 'glitch' || Math.random() < 0.1) {
-                // VHS glitch explosion (10% random chance or glitch enemies)
-                if (this.particleSystem.glitchExplosion) {
-                    this.particleSystem.glitchExplosion(enemy.x, enemy.y);
+
+                // Cap intensity
+                intensity = Math.min(intensity, 2.0);
+
+                // Geometry Wars explosion with line particles!
+                this.particleSystem.addGeometryWarsExplosion(enemy.x, enemy.y, color, intensity);
+
+                // Extra effects for special enemies or high combos
+                if (combo >= 50 && this.particleSystem.megaComboExplosion) {
+                    const comboLevel = Math.floor(combo / 25);
+                    this.particleSystem.megaComboExplosion(enemy.x, enemy.y, comboLevel);
+                } else if (enemyType === 'electric' || enemyType === 'laser' || enemyType === 'laserdisc') {
+                    if (this.particleSystem.electricExplosion) {
+                        this.particleSystem.electricExplosion(enemy.x, enemy.y, color);
+                    }
+                } else if (enemyType === 'glitch' || enemyType === 'vhstracker') {
+                    if (this.particleSystem.glitchExplosion) {
+                        this.particleSystem.glitchExplosion(enemy.x, enemy.y);
+                    }
                 }
-            } else if (enemy.size > 30 || enemyType === 'heavy') {
-                // Fire explosion for big/heavy enemies
-                if (this.particleSystem.fireExplosion) {
-                    this.particleSystem.fireExplosion(enemy.x, enemy.y, enemy.size / 30);
-                }
-            } else if (combo >= 20 && this.particleSystem.synthwaveExplosion) {
-                // Synthwave explosion for decent combos
-                this.particleSystem.synthwaveExplosion(enemy.x, enemy.y);
-            } else if (this.particleSystem.pixelExplosion && Math.random() < 0.3) {
-                // 30% chance for pixel explosion
-                this.particleSystem.pixelExplosion(enemy.x, enemy.y, color);
             } else {
-                // Standard explosion with shockwave
+                // Fallback to standard explosion if Geometry Wars method not available
                 if (this.particleSystem.addExplosion) {
                     this.particleSystem.addExplosion(enemy.x, enemy.y, color, 15);
                 }
-                // Add shockwave effect
                 if (this.particleSystem.addShockwave) {
                     this.particleSystem.addShockwave(enemy.x, enemy.y, color, 60);
                 }
@@ -967,9 +972,12 @@ export class CollisionSystem {
             // === MASSIVE GRID RIPPLE for player death ===
             addGridImpact(player.x, player.y, 100, 300);
 
-            // Epic death explosion
+            // Epic Geometry Wars death explosion
             if (this.particleSystem) {
-                if (this.particleSystem.epicDeathExplosion) {
+                if (this.particleSystem.addGeometryWarsPlayerDeath) {
+                    // Use the new Geometry Wars player death with line particles
+                    this.particleSystem.addGeometryWarsPlayerDeath(player.x, player.y, '#00ff00');
+                } else if (this.particleSystem.epicDeathExplosion) {
                     this.particleSystem.epicDeathExplosion(player.x, player.y, '#00ff00');
                 } else if (this.particleSystem.synthwaveExplosion) {
                     this.particleSystem.synthwaveExplosion(player.x, player.y);

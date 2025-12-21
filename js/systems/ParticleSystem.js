@@ -60,10 +60,14 @@ particlePerfSettings.intensityMultiplier = resolveIntensityMultiplier(GameSettin
 /**
  * Particle Class
  * Individual particle with physics and rendering
+ * Enhanced with Geometry Wars-style line particles and motion blur
  */
 class Particle {
     constructor() {
         this.reset();
+        // Motion blur trail for line particles
+        this.trail = [];
+        this.maxTrail = 5;
     }
 
     reset(x = 0, y = 0, options = {}) {
@@ -81,18 +85,41 @@ class Particle {
         this.rotation = options.rotation || 0;
         this.rotationSpeed = options.rotationSpeed || 0;
         this.active = true;
+
+        // Line particle specific properties
+        this.length = options.length || 8;
+        this.trail = [];
+        this.maxTrail = options.maxTrail || 5;
+
         return this;
     }
 
     update() {
         if (!this.active) return;
 
+        // Store trail position for line particles with motion blur
+        if (this.type === 'line' || this.type === 'gwline') {
+            this.trail.unshift({ x: this.x, y: this.y, alpha: 1 });
+            if (this.trail.length > this.maxTrail) this.trail.pop();
+            // Update trail alpha
+            for (let i = 0; i < this.trail.length; i++) {
+                this.trail[i].alpha = 1 - (i / this.maxTrail);
+            }
+            // Line rotation follows velocity direction
+            this.rotation = Math.atan2(this.vy, this.vx);
+        }
+
         this.x += this.vx;
         this.y += this.vy;
         this.vx *= this.friction;
         this.vy *= this.friction;
         this.vy += this.gravity;
-        this.rotation += this.rotationSpeed;
+
+        // Only apply rotationSpeed for non-line particles
+        if (this.type !== 'line' && this.type !== 'gwline') {
+            this.rotation += this.rotationSpeed;
+        }
+
         this.life--;
 
         if (this.life <= 0) {
@@ -148,6 +175,17 @@ class Particle {
                 break;
             case 'star':
                 this.drawStar(ctx, currentSize);
+                break;
+            // Geometry Wars-style line particles
+            case 'line':
+            case 'gwline':
+                this.drawLine(ctx, alpha);
+                break;
+            case 'gwglow':
+                this.drawGWGlow(ctx, alpha);
+                break;
+            case 'gwshockwave':
+                this.drawGWShockwave(ctx, alpha);
                 break;
             default:
                 this.drawDefault(ctx, currentSize);
@@ -288,6 +326,115 @@ class Particle {
         ctx.lineTo(x - size * 0.3, y - size * 0.3);
         ctx.closePath();
         ctx.fill();
+    }
+
+    /**
+     * Geometry Wars-style LINE particle with motion blur trail
+     * This is the signature look of Geometry Wars explosions
+     */
+    drawLine(ctx, alpha) {
+        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        const dynamicLength = this.length * (0.5 + speed * 0.3);
+
+        // Draw motion blur trail
+        if (this.trail && this.trail.length > 0) {
+            for (let i = 0; i < this.trail.length; i++) {
+                const t = this.trail[i];
+                ctx.save();
+                ctx.globalAlpha = alpha * t.alpha * 0.3;
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 1;
+                ctx.translate(t.x, t.y);
+                ctx.rotate(this.rotation);
+                ctx.beginPath();
+                ctx.moveTo(-dynamicLength * 0.3, 0);
+                ctx.lineTo(dynamicLength * 0.3, 0);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // Main line particle
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2;
+
+        if (particlePerfSettings.enableShadows) {
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = this.color;
+        }
+
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+
+        ctx.beginPath();
+        ctx.moveTo(-dynamicLength / 2, 0);
+        ctx.lineTo(dynamicLength / 2, 0);
+        ctx.stroke();
+
+        // White core for extra glow
+        ctx.globalAlpha = alpha * 0.8;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-dynamicLength / 4, 0);
+        ctx.lineTo(dynamicLength / 4, 0);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    /**
+     * Geometry Wars central GLOW effect
+     * Creates a radial gradient glow at explosion center
+     */
+    drawGWGlow(ctx, alpha) {
+        const currentSize = this.size * (2 - alpha);
+
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.5;
+
+        // Create radial gradient for glow
+        const gradient = ctx.createRadialGradient(
+            this.x, this.y, 0,
+            this.x, this.y, currentSize
+        );
+        gradient.addColorStop(0, '#ffffff');
+        gradient.addColorStop(0.2, this.color);
+        gradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, currentSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    /**
+     * Geometry Wars SHOCKWAVE ring
+     * Expanding ring that fades out
+     */
+    drawGWShockwave(ctx, alpha) {
+        // Radius expands as life decreases
+        const progress = 1 - alpha;
+        const maxRadius = this.size;
+        const radius = 5 + (maxRadius - 5) * progress;
+
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.6;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 3 * alpha;
+
+        if (particlePerfSettings.enableShadows) {
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = this.color;
+        }
+
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
     }
 }
 
@@ -840,8 +987,13 @@ export class ParticleSystem {
         });
     }
 
-    addBossExplosion(x, y) {
-        // Massive explosion for boss death
+    addBossExplosion(x, y, color = '#ff6600') {
+        // Use the new Geometry Wars massive explosion for boss death!
+        if (this.addMassiveGeometryWarsExplosion) {
+            this.addMassiveGeometryWarsExplosion(x, y, color);
+        }
+
+        // Additional classic explosion waves for extra impact
         const colors = ['#ff0000', '#ff6600', '#ffff00', '#ffffff'];
 
         for (let wave = 0; wave < 3; wave++) {
@@ -849,7 +1001,7 @@ export class ParticleSystem {
                 for (let i = 0; i < 30; i++) {
                     const angle = Math.random() * Math.PI * 2;
                     const speed = 4 + Math.random() * 8;
-                    const color = colors[Math.floor(Math.random() * colors.length)];
+                    const particleColor = colors[Math.floor(Math.random() * colors.length)];
 
                     this.addParticle({
                         x: x + (Math.random() - 0.5) * 50,
@@ -858,7 +1010,7 @@ export class ParticleSystem {
                         vy: Math.sin(angle) * speed,
                         life: 50 + Math.random() * 30,
                         size: 5 + Math.random() * 8,
-                        color: color,
+                        color: particleColor,
                         type: 'explosion',
                         gravity: 0.05,
                         friction: 0.97
@@ -1297,6 +1449,266 @@ export class ParticleSystem {
                 gravity: -0.03,
                 type: 'fire'
             });
+        }
+    }
+
+    // ============================================
+    // GEOMETRY WARS-STYLE EXPLOSION EFFECTS
+    // These create the signature look with line particles,
+    // grid distortion, and layered effects
+    // ============================================
+
+    /**
+     * Helper: Lighten a hex color by percentage
+     */
+    lightenColor(hex, percent) {
+        const num = parseInt(hex.replace('#', ''), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = Math.min(255, (num >> 16) + amt);
+        const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
+        const B = Math.min(255, (num & 0x0000FF) + amt);
+        return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+    }
+
+    /**
+     * GEOMETRY WARS EXPLOSION - The signature effect!
+     * Creates hundreds of LINE particles radiating outward with:
+     * - Central glow
+     * - Expanding shockwave ring
+     * - Line particles with motion blur
+     * - Color variation (base + white + lighter version)
+     *
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {string} color - Base color (e.g., '#ff6600')
+     * @param {number} intensity - Explosion intensity multiplier (default 1)
+     */
+    addGeometryWarsExplosion(x, y, color = '#ff6600', intensity = 1) {
+        const baseCount = Math.floor(80 * intensity);
+        const adjustedCount = getAdjustedCount(baseCount);
+
+        // === CENTRAL GLOW EFFECT ===
+        const glow = this.getParticle();
+        glow.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: color,
+            size: 50 * intensity,
+            life: 15,
+            friction: 1,
+            type: 'gwglow'
+        });
+
+        // === SHOCKWAVE RING ===
+        const shockwave = this.getParticle();
+        shockwave.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: color,
+            size: 100 * intensity, // Max radius
+            life: 20,
+            friction: 1,
+            type: 'gwshockwave'
+        });
+
+        // === LINE PARTICLES (The signature Geometry Wars look!) ===
+        const colors = [color, '#ffffff', this.lightenColor(color, 30)];
+
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + (Math.random() - 0.5) * 0.5;
+            const speed = 4 + Math.random() * 8 * intensity;
+            const lineLength = 6 + Math.random() * 6;
+            const particleColor = colors[Math.floor(Math.random() * colors.length)];
+
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: particleColor,
+                size: 2,
+                length: lineLength,
+                life: 40 + Math.random() * 30,
+                friction: 0.98,
+                gravity: 0.02,
+                type: 'gwline',
+                maxTrail: 5
+            });
+        }
+
+        // === EXTRA SPARK PARTICLES (Small gnister) ===
+        const sparkCount = Math.floor(adjustedCount * 0.5);
+        for (let i = 0; i < sparkCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 6 + Math.random() * 10 * intensity;
+
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: color,
+                size: 1 + Math.random() * 2,
+                life: 15 + Math.random() * 15,
+                friction: 0.95,
+                gravity: 0.05,
+                type: 'spark'
+            });
+        }
+    }
+
+    /**
+     * MASSIVE GEOMETRY WARS EXPLOSION - For boss deaths!
+     * Multiple waves of explosions with secondary bursts
+     *
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {string} color - Base color
+     */
+    addMassiveGeometryWarsExplosion(x, y, color = '#ff6600') {
+        // Initial massive explosion
+        this.addGeometryWarsExplosion(x, y, color, 2.5);
+
+        // Secondary explosions in a ring (delayed)
+        setTimeout(() => {
+            for (let i = 0; i < 4; i++) {
+                const angle = (Math.PI * 2 * i) / 4;
+                this.addGeometryWarsExplosion(
+                    x + Math.cos(angle) * 40,
+                    y + Math.sin(angle) * 40,
+                    color,
+                    1.2
+                );
+            }
+        }, 50);
+
+        // Third wave - outer ring
+        setTimeout(() => {
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI * 2 * i) / 6 + Math.PI / 6;
+                this.addGeometryWarsExplosion(
+                    x + Math.cos(angle) * 80,
+                    y + Math.sin(angle) * 80,
+                    color,
+                    0.8
+                );
+            }
+        }, 100);
+
+        // Extra debris and fire
+        for (let i = 0; i < 20; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 3 + Math.random() * 8;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: color,
+                size: 8 + Math.random() * 8,
+                life: 100 + Math.random() * 50,
+                friction: 0.98,
+                gravity: 0.05,
+                type: 'debris',
+                rotationSpeed: (Math.random() - 0.5) * 0.3
+            });
+        }
+    }
+
+    /**
+     * Geometry Wars ENEMY DEATH - Standard enemy explosion
+     * Combines line particles with grid-distortion trigger
+     *
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {string} color - Enemy color
+     * @param {number} size - Enemy size (affects intensity)
+     */
+    addGeometryWarsEnemyDeath(x, y, color = '#ff6600', size = 20) {
+        const intensity = 0.6 + (size / 50); // Scale with enemy size
+        this.addGeometryWarsExplosion(x, y, color, Math.min(intensity, 1.5));
+    }
+
+    /**
+     * Geometry Wars PLAYER DEATH - Epic player explosion
+     * Extra intense with multiple shockwaves
+     */
+    addGeometryWarsPlayerDeath(x, y, color = '#00ff00') {
+        // Main explosion
+        this.addGeometryWarsExplosion(x, y, color, 1.5);
+
+        // Extra shockwaves
+        for (let i = 0; i < 3; i++) {
+            setTimeout(() => {
+                const shockwave = this.getParticle();
+                shockwave.reset(x, y, {
+                    vx: 0,
+                    vy: 0,
+                    color: i === 0 ? '#ffffff' : color,
+                    size: 80 + i * 40,
+                    life: 15,
+                    friction: 1,
+                    type: 'gwshockwave'
+                });
+            }, i * 50);
+        }
+
+        // Fire/ember particles rising
+        for (let i = 0; i < 20; i++) {
+            const particle = this.getParticle();
+            particle.reset(
+                x + (Math.random() - 0.5) * 50,
+                y + (Math.random() - 0.5) * 50,
+                {
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: -2 - Math.random() * 5,
+                    color: color,
+                    size: 4 + Math.random() * 4,
+                    life: 60 + Math.random() * 40,
+                    friction: 0.99,
+                    gravity: -0.02,
+                    type: 'fire'
+                }
+            );
+        }
+    }
+
+    /**
+     * Geometry Wars BOMB EXPLOSION - Screen-clearing effect
+     * Maximum intensity with multiple waves
+     */
+    addGeometryWarsBombExplosion(x, y) {
+        // Massive white central explosion
+        this.addGeometryWarsExplosion(x, y, '#ffffff', 3);
+
+        // Ring of colored explosions
+        const colors = ['#ff00ff', '#00ffff', '#ffff00', '#ff0080'];
+        for (let ring = 0; ring < 2; ring++) {
+            setTimeout(() => {
+                for (let i = 0; i < 8; i++) {
+                    const angle = (Math.PI * 2 * i) / 8 + ring * Math.PI / 8;
+                    const dist = 60 + ring * 50;
+                    this.addGeometryWarsExplosion(
+                        x + Math.cos(angle) * dist,
+                        y + Math.sin(angle) * dist,
+                        colors[i % colors.length],
+                        1 - ring * 0.3
+                    );
+                }
+            }, ring * 80);
+        }
+
+        // Multiple expanding shockwaves
+        for (let i = 0; i < 5; i++) {
+            setTimeout(() => {
+                const shockwave = this.getParticle();
+                shockwave.reset(x, y, {
+                    vx: 0,
+                    vy: 0,
+                    color: i % 2 === 0 ? '#ffffff' : '#ff00ff',
+                    size: 150 + i * 50,
+                    life: 25,
+                    friction: 1,
+                    type: 'gwshockwave'
+                });
+            }, i * 40);
         }
     }
 }
