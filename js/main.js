@@ -19,7 +19,7 @@ import { VHSEffect } from './effects/VHSEffect.js';
 import { SoundSystem } from './systems/SoundSystem.js';
 import { HUD } from './ui/HUD.js';
 import { drawWavingGrid, drawBackground, addGridImpact } from './rendering/GridRenderer.js';
-import { initCachedUI } from './globals.js';
+import { initCachedUI, setSoundSystem } from './globals.js';
 import { MenuManager, GameSettings } from './ui/MenuManager.js';
 import { MobileControls } from './ui/MobileControls.js';
 
@@ -262,6 +262,7 @@ function init() {
 
     // Initialize sound system (needs user interaction to fully activate)
     soundSystem = new SoundSystem();
+    setSoundSystem(soundSystem); // Export to globals for weapon modules
 
     // Initialize starfield for menu
     starfield = new Starfield(canvas.logicalWidth, canvas.logicalHeight);
