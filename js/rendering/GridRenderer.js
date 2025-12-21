@@ -215,6 +215,13 @@ const colorCache = {
     shadowColorV: ''
 };
 
+// Background gradient cache
+const bgCache = {
+    gradient: null,
+    lastThemeKey: null,
+    lastHeight: 0
+};
+
 /**
  * Draw the waving grid - Geometry Wars style - OPTIMIZED
  */
@@ -316,19 +323,26 @@ export function drawWavingGrid(ctx, canvas, wave = 1) {
 // NOTE: drawThemedGrid was removed during code audit - never called
 // The game uses drawWavingGrid for the animated Geometry Wars-style grid
 
-// Simplified background gradient
+// Simplified background gradient with caching
 export function drawBackground(ctx, canvas, wave = 1) {
     if (!ctx || !canvas) return;
 
     const theme = getCurrentTheme(wave);
+    const themeKey = `${theme.bgStart}-${theme.bgEnd}`;
+    const height = canvas.logicalHeight;
 
-    const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.logicalHeight);
-    bgGradient.addColorStop(0, theme.bgStart);
-    bgGradient.addColorStop(0.3, theme.bgEnd);
-    bgGradient.addColorStop(0.7, '#000011');
-    bgGradient.addColorStop(1, '#000000');
+    // Only recreate gradient if theme or height changed
+    if (bgCache.lastThemeKey !== themeKey || bgCache.lastHeight !== height) {
+        bgCache.gradient = ctx.createLinearGradient(0, 0, 0, height);
+        bgCache.gradient.addColorStop(0, theme.bgStart);
+        bgCache.gradient.addColorStop(0.3, theme.bgEnd);
+        bgCache.gradient.addColorStop(0.7, '#000011');
+        bgCache.gradient.addColorStop(1, '#000000');
+        bgCache.lastThemeKey = themeKey;
+        bgCache.lastHeight = height;
+    }
 
-    ctx.fillStyle = bgGradient;
+    ctx.fillStyle = bgCache.gradient;
     ctx.fillRect(0, 0, canvas.logicalWidth, canvas.logicalHeight);
 }
 

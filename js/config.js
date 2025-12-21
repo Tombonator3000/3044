@@ -65,11 +65,19 @@ export const config = {
     // Bullet settings
     bullets: {
         offScreenMargin: 50,
-        shadowBlur: 10,
+        shadowBlur: 5,  // Reduced from 10 for better performance
         playerRadius: 5,
         enemyRadius: 6,
         playerInnerRadius: 2,
         enemyInnerRadius: 3
+    },
+
+    // Rendering performance settings
+    rendering: {
+        shadowsEnabled: true,           // Can be disabled for mobile/low-end devices
+        maxShadowBlur: 15,              // Cap shadow blur values (reduced from 30-50)
+        reducedEffectsMode: false,      // Enable for low-end devices
+        particleQuality: 1.0            // 0.5 = half particles, 1.0 = full
     },
 
     // Particle settings

@@ -800,14 +800,18 @@ export class Enemy {
     draw(ctx) {
         if (!this.active) return;
 
+        const shadowsEnabled = typeof config !== 'undefined' && config.rendering?.shadowsEnabled !== false;
+
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.rotation);
 
-        // Glow effect
-        const glowIntensity = 0.5 + Math.sin(this.glowPulse) * 0.3;
-        ctx.shadowBlur = 20 * glowIntensity;
-        ctx.shadowColor = this.color;
+        // Glow effect (reduced shadow blur for performance)
+        if (shadowsEnabled) {
+            const glowIntensity = 0.5 + Math.sin(this.glowPulse) * 0.3;
+            ctx.shadowBlur = 10 * glowIntensity; // Reduced from 20
+            ctx.shadowColor = this.color;
+        }
 
         // Shield
         if (this.shieldActive && this.shieldStrength > 0) {
@@ -907,7 +911,7 @@ export class Enemy {
             ctx.globalAlpha = 0.3 + Math.sin(this.phaseTimer * 0.2) * 0.2;
         }
 
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 8; // Reduced from 15
         ctx.shadowColor = this.color;
 
         // 8-bit skull pattern
@@ -938,7 +942,7 @@ export class Enemy {
         const eyeColor = `rgba(255, ${Math.floor(this.eyeGlow * 255)}, 0, 1)`;
         ctx.fillStyle = eyeColor;
         ctx.shadowColor = eyeColor;
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 10; // Reduced from 20
         ctx.fillRect(offsetX + 2 * p, offsetY + 3 * p, p * 2 - 1, p * 2 - 1);
         ctx.fillRect(offsetX + 6 * p, offsetY + 3 * p, p * 2 - 1, p * 2 - 1);
 
@@ -947,7 +951,7 @@ export class Enemy {
 
     drawGhostByte(ctx, s, p) {
         ctx.globalAlpha = this.transparency;
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 10; // Reduced from 20
         ctx.shadowColor = this.color;
 
         // Floating effect
@@ -989,7 +993,7 @@ export class Enemy {
     }
 
     drawLaserDisc(ctx, s, p) {
-        ctx.shadowBlur = 25;
+        ctx.shadowBlur = 12; // Reduced from 25
         ctx.shadowColor = this.color;
 
         // Spinning disc
@@ -1083,7 +1087,7 @@ export class Enemy {
     }
 
     drawArcadeBoss(ctx, s, p) {
-        ctx.shadowBlur = 30;
+        ctx.shadowBlur = 15; // Reduced from 30
         ctx.shadowColor = this.color;
 
         // Arcade cabinet body
@@ -1140,7 +1144,7 @@ export class Enemy {
     }
 
     drawSynthwave(ctx, s, p) {
-        ctx.shadowBlur = 25;
+        ctx.shadowBlur = 12; // Reduced from 25
 
         // Draw neon trails
         if (this.neonTrails) {
@@ -1192,7 +1196,7 @@ export class Enemy {
     }
 
     drawPixelInvader(ctx, s, p) {
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 8; // Reduced from 15
         ctx.shadowColor = this.color;
 
         // Classic space invader patterns (2 frames for animation)

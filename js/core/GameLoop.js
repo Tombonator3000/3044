@@ -90,7 +90,9 @@ export class GameLoop {
         this.lastFrameTime = performance.now();
         this.animationFrameId = requestAnimationFrame(this._boundLoop);
 
-        console.log('🎮 GameLoop started');
+        if (CONFIG.debug?.enabled) {
+            console.log('🎮 GameLoop started');
+        }
     }
 
     /**
@@ -103,7 +105,9 @@ export class GameLoop {
             this.animationFrameId = null;
         }
 
-        console.log('🛑 GameLoop stopped');
+        if (CONFIG.debug?.enabled) {
+            console.log('🛑 GameLoop stopped');
+        }
     }
 
     /**

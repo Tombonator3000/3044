@@ -25,7 +25,10 @@ export class Starfield {
         // Performance: Cache current frame time for draw calls
         this._frameTime = 0;
 
-        console.log(`⭐ Enhanced starfield created with ${this.layers.length} star layers, ${this.nebulae.length} main nebulae, and ${this.distantNebulae.length} distant nebulae`);
+        // Debug log only when enabled
+        if (config.debug?.enabled) {
+            console.log(`⭐ Enhanced starfield created with ${this.layers.length} star layers, ${this.nebulae.length} main nebulae, and ${this.distantNebulae.length} distant nebulae`);
+        }
     }
 
     /**

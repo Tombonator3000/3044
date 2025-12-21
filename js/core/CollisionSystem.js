@@ -79,7 +79,10 @@ export class CollisionSystem {
             collisionsDetected: 0
         };
 
-        console.log('✅ CollisionSystem initialized with gameState:', !!this.gameState);
+        // Debug log only when enabled
+        if (CONFIG.debug?.enabled) {
+            console.log('✅ CollisionSystem initialized with gameState:', !!this.gameState);
+        }
     }
 
     /**
@@ -1043,7 +1046,10 @@ export class CollisionSystem {
             const powerUp = new PowerUp(x, y);
             gs.powerUps.push(powerUp);
 
-            console.log(`✨ Power-up spawned: ${powerUp.name} (${powerUp.type})`);
+            // Debug log only when enabled (power-ups spawn frequently)
+            if (CONFIG.debug?.logGameEvents) {
+                console.log(`✨ Power-up spawned: ${powerUp.name} (${powerUp.type})`);
+            }
         }
     }
 
