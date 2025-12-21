@@ -6,6 +6,172 @@ import { config, getCurrentTheme } from '../config.js';
 import { Enemy } from '../entities/Enemy.js';
 import { logger } from '../utils/Logger.js';
 
+// ============================================
+// ENEMY SPAWN CONFIGURATION
+// Data-driven configuration for enemy spawning
+// ============================================
+
+/**
+ * Enemy type configuration: when they unlock and spawn behavior
+ * - unlockWave: Wave number when this enemy type becomes available
+ * - weight: Base spawn weight (higher = more common)
+ * - lateGameBonus: Extra weight added at specified wave thresholds
+ */
+const ENEMY_CONFIG = {
+    triangle:     { unlockWave: 1,  weight: 1 },
+    square:       { unlockWave: 2,  weight: 1 },
+    pixelinvader: { unlockWave: 3,  weight: 1 },
+    pentagon:     { unlockWave: 4,  weight: 1 },
+    ghostbyte:    { unlockWave: 5,  weight: 1 },
+    divebomber:   { unlockWave: 6,  weight: 1, lateGameBonus: [{ wave: 10, extraWeight: 1 }] },
+    laserdisc:    { unlockWave: 7,  weight: 1, lateGameBonus: [{ wave: 15, extraWeight: 1 }] },
+    sinewave:     { unlockWave: 8,  weight: 1, lateGameBonus: [{ wave: 10, extraWeight: 1 }] },
+    synthwave:    { unlockWave: 9,  weight: 1, lateGameBonus: [{ wave: 10, extraWeight: 1 }] },
+    pixelskull:   { unlockWave: 10, weight: 1, lateGameBonus: [{ wave: 15, extraWeight: 1 }, { wave: 20, extraWeight: 1 }] },
+    vhstracker:   { unlockWave: 12, weight: 1, lateGameBonus: [{ wave: 15, extraWeight: 1 }] },
+    arcadeboss:   { unlockWave: 15, weight: 1, lateGameBonus: [{ wave: 20, extraWeight: 1 }] }
+};
+
+/**
+ * Spawn position strategies for each enemy type
+ * Each strategy is a function (canvas, padding) => { x, y }
+ */
+const SPAWN_STRATEGIES = {
+    // Standard top spawn
+    top: (canvas, padding) => ({
+        x: padding + Math.random() * (canvas.logicalWidth - padding * 2),
+        y: -5 - Math.random() * 10
+    }),
+
+    // Precise top spawn (no variation)
+    topFixed: (canvas, padding) => ({
+        x: padding + Math.random() * (canvas.logicalWidth - padding * 2),
+        y: -5
+    }),
+
+    // Deep top spawn (for phasing enemies)
+    topDeep: (canvas, padding) => ({
+        x: padding + Math.random() * (canvas.logicalWidth - padding * 2),
+        y: -10
+    }),
+
+    // Side spawn (left or right)
+    sides: (canvas, padding) => ({
+        x: Math.random() > 0.5 ? -5 : canvas.logicalWidth + 5,
+        y: 50 + Math.random() * 100
+    }),
+
+    // Side spawn with more vertical range
+    sidesWide: (canvas, padding) => ({
+        x: Math.random() > 0.5 ? -5 : canvas.logicalWidth + 5,
+        y: 30 + Math.random() * 150
+    }),
+
+    // Corner/mixed spawn (sides or top)
+    mixed: (canvas, padding) => {
+        if (Math.random() > 0.5) {
+            return {
+                x: Math.random() > 0.5 ? -5 : canvas.logicalWidth + 5,
+                y: 50 + Math.random() * 100
+            };
+        }
+        return {
+            x: padding + Math.random() * (canvas.logicalWidth - padding * 2),
+            y: -5
+        };
+    },
+
+    // Center-top spread spawn
+    centerTop: (canvas, padding) => ({
+        x: canvas.logicalWidth * 0.3 + Math.random() * (canvas.logicalWidth * 0.4),
+        y: -15
+    }),
+
+    // Wide center-top spawn
+    centerTopWide: (canvas, padding) => ({
+        x: canvas.logicalWidth * 0.2 + Math.random() * (canvas.logicalWidth * 0.6),
+        y: -8
+    })
+};
+
+/**
+ * Sidescroller spawn strategies (enemies come from right)
+ */
+const SIDESCROLLER_SPAWN_STRATEGIES = {
+    // Standard right spawn with full vertical range
+    right: (canvas, padding) => ({
+        x: canvas.logicalWidth + 5 + Math.random() * 10,
+        y: padding + Math.random() * (canvas.logicalHeight - padding * 2)
+    }),
+
+    // Right spawn fixed position
+    rightFixed: (canvas, padding) => ({
+        x: canvas.logicalWidth + 5,
+        y: padding + Math.random() * (canvas.logicalHeight - padding * 2)
+    }),
+
+    // Right spawn deep (for larger enemies)
+    rightDeep: (canvas, padding) => ({
+        x: canvas.logicalWidth + 10,
+        y: padding + Math.random() * (canvas.logicalHeight - padding * 2)
+    }),
+
+    // Right spawn very deep (for bosses)
+    rightVeryDeep: (canvas, padding) => ({
+        x: canvas.logicalWidth + 15,
+        y: canvas.logicalHeight * 0.3 + Math.random() * (canvas.logicalHeight * 0.4)
+    }),
+
+    // Center vertical
+    rightCenter: (canvas, padding) => ({
+        x: canvas.logicalWidth + 5,
+        y: canvas.logicalHeight / 2
+    }),
+
+    // Center spread
+    rightCenterSpread: (canvas, padding) => ({
+        x: canvas.logicalWidth + 8,
+        y: canvas.logicalHeight * 0.2 + Math.random() * (canvas.logicalHeight * 0.6)
+    }),
+
+    // Right or top/bottom edges
+    rightOrEdges: (canvas, padding) => {
+        if (Math.random() > 0.7) {
+            return {
+                x: canvas.logicalWidth + 5,
+                y: padding + Math.random() * (canvas.logicalHeight - padding * 2)
+            };
+        }
+        return {
+            x: canvas.logicalWidth * 0.6 + Math.random() * (canvas.logicalWidth * 0.4),
+            y: Math.random() > 0.5 ? -5 : canvas.logicalHeight + 5
+        };
+    }
+};
+
+/**
+ * Enemy spawn position mapping
+ * Maps enemy type to spawn strategy name
+ */
+const ENEMY_SPAWN_POSITIONS = {
+    triangle:     { normal: 'top',          sidescroller: 'right' },
+    square:       { normal: 'top',          sidescroller: 'right' },
+    pentagon:     { normal: 'top',          sidescroller: 'right' },
+    divebomber:   { normal: 'topFixed',     sidescroller: 'rightFixed' },
+    sinewave:     { normal: 'sides',        sidescroller: 'rightCenter' },
+    pixelskull:   { normal: 'topDeep',      sidescroller: 'rightDeep' },
+    ghostbyte:    { normal: 'sidesWide',    sidescroller: 'rightFixed' },
+    laserdisc:    { normal: 'mixed',        sidescroller: 'rightOrEdges' },
+    vhstracker:   { normal: 'topDeep',      sidescroller: 'rightDeep' },
+    arcadeboss:   { normal: 'centerTop',    sidescroller: 'rightVeryDeep' },
+    synthwave:    { normal: 'centerTopWide', sidescroller: 'rightCenterSpread' },
+    pixelinvader: { normal: 'topFixed',     sidescroller: 'rightFixed' }
+};
+
+// ============================================
+// WAVE MANAGER CLASS
+// ============================================
+
 export class WaveManager {
     constructor() {
         this.wave = 1;
@@ -19,13 +185,6 @@ export class WaveManager {
         this.waveStartTimer = 0;
         this.showingWaveText = false;
         this.waveTextTimer = 0;
-
-        // Enemy type distribution per wave (includes new 8-bit enemies)
-        this.enemyTypes = [
-            'triangle', 'square', 'pentagon', 'divebomber', 'sinewave',
-            'pixelskull', 'ghostbyte', 'laserdisc', 'vhstracker',
-            'arcadeboss', 'synthwave', 'pixelinvader'
-        ];
 
         // Boss waves
         this.bossWaves = [5, 10, 15, 20, 25, 30];
@@ -69,233 +228,57 @@ export class WaveManager {
         return base + (wave * perWave) + bonus;
     }
 
+    /**
+     * Build weighted pool of available enemy types for the current wave.
+     * Uses ENEMY_CONFIG to determine which enemies are unlocked and their spawn weights.
+     */
     getEnemyTypeForWave(wave) {
-        // Determine which enemy types are available based on wave
         const availableTypes = [];
 
-        // Triangles always available
-        availableTypes.push('triangle');
+        for (const [enemyType, config] of Object.entries(ENEMY_CONFIG)) {
+            // Skip enemies not yet unlocked
+            if (wave < config.unlockWave) continue;
 
-        // Squares from wave 2
-        if (wave >= 2) availableTypes.push('square');
+            // Add base weight entries
+            for (let i = 0; i < config.weight; i++) {
+                availableTypes.push(enemyType);
+            }
 
-        // Pentagons from wave 4
-        if (wave >= 4) availableTypes.push('pentagon');
-
-        // Divebombers from wave 6
-        if (wave >= 6) availableTypes.push('divebomber');
-
-        // Sinewave elites from wave 8
-        if (wave >= 8) availableTypes.push('sinewave');
-
-        // ============================================
-        // NEW 8-BIT INSPIRED ENEMIES
-        // ============================================
-
-        // Pixel Invaders from wave 3 (classic retro enemy)
-        if (wave >= 3) availableTypes.push('pixelinvader');
-
-        // Ghost Byte from wave 5 (floaty ghost)
-        if (wave >= 5) availableTypes.push('ghostbyte');
-
-        // Laser Disc from wave 7 (spinning disc)
-        if (wave >= 7) availableTypes.push('laserdisc');
-
-        // Synthwave enemy from wave 9 (pulsing neon)
-        if (wave >= 9) availableTypes.push('synthwave');
-
-        // Pixel Skull from wave 10 (phasing skull)
-        if (wave >= 10) availableTypes.push('pixelskull');
-
-        // VHS Tracker from wave 12 (glitchy teleporter)
-        if (wave >= 12) availableTypes.push('vhstracker');
-
-        // Arcade Boss from wave 15 (mini-boss type)
-        if (wave >= 15) availableTypes.push('arcadeboss');
-
-        // Weight towards harder enemies in later waves
-        if (wave >= 10) {
-            // Double chance for harder enemies
-            if (wave >= 8) availableTypes.push('sinewave');
-            if (wave >= 6) availableTypes.push('divebomber');
-            availableTypes.push('synthwave');
+            // Add late-game bonus weights if applicable
+            if (config.lateGameBonus) {
+                for (const bonus of config.lateGameBonus) {
+                    if (wave >= bonus.wave) {
+                        for (let i = 0; i < bonus.extraWeight; i++) {
+                            availableTypes.push(enemyType);
+                        }
+                    }
+                }
+            }
         }
 
-        if (wave >= 15) {
-            // Triple chance for 8-bit enemies in late game
-            availableTypes.push('pixelskull');
-            availableTypes.push('vhstracker');
-            availableTypes.push('laserdisc');
-        }
-
-        if (wave >= 20) {
-            // More arcade bosses in very late game
-            availableTypes.push('arcadeboss');
-            availableTypes.push('pixelskull');
-        }
-
-        // Pick random from available
+        // Pick random from weighted pool
         return availableTypes[Math.floor(Math.random() * availableTypes.length)];
     }
 
+    /**
+     * Get spawn position for an enemy type.
+     * Uses strategy pattern via ENEMY_SPAWN_POSITIONS and SPAWN_STRATEGIES.
+     */
     getSpawnPosition(canvas, enemyType, sidescrollerMode = false) {
         const padding = 50;
-        let x, y;
 
-        // SIDESCROLLER MODE: Enemies spawn from the right side
+        // Get spawn config for this enemy type, fallback to default
+        const spawnConfig = ENEMY_SPAWN_POSITIONS[enemyType] || { normal: 'top', sidescroller: 'right' };
+
         if (sidescrollerMode) {
-            return this.getSidescrollerSpawnPosition(canvas, enemyType, padding);
+            const strategyName = spawnConfig.sidescroller;
+            const strategy = SIDESCROLLER_SPAWN_STRATEGIES[strategyName];
+            return strategy ? strategy(canvas, padding) : SIDESCROLLER_SPAWN_STRATEGIES.right(canvas, padding);
         }
 
-        // Normal mode: Spawn enemies just above visible screen (y = -5 to -15)
-        // so they appear immediately and can't be shot before they're visible
-        switch (enemyType) {
-            case 'divebomber':
-                // Divebombers come from top
-                x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
-                y = -5;
-                break;
-
-            case 'sinewave':
-                // Sinewave enemies start from sides (just off screen)
-                x = Math.random() > 0.5 ? -5 : canvas.logicalWidth + 5;
-                y = 50 + Math.random() * 100;
-                break;
-
-            // ============================================
-            // NEW 8-BIT ENEMY SPAWN POSITIONS
-            // ============================================
-
-            case 'pixelskull':
-                // Skulls phase in from anywhere at top
-                x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
-                y = -10;
-                break;
-
-            case 'ghostbyte':
-                // Ghosts float in from sides (just off screen)
-                x = Math.random() > 0.5 ? -5 : canvas.logicalWidth + 5;
-                y = 30 + Math.random() * 150;
-                break;
-
-            case 'laserdisc':
-                // Discs orbit in from corners
-                if (Math.random() > 0.5) {
-                    x = Math.random() > 0.5 ? -5 : canvas.logicalWidth + 5;
-                    y = 50 + Math.random() * 100;
-                } else {
-                    x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
-                    y = -5;
-                }
-                break;
-
-            case 'vhstracker':
-                // VHS trackers glitch in from random top positions
-                x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
-                y = -10;
-                break;
-
-            case 'arcadeboss':
-                // Arcade cabinets descend from center-top
-                x = canvas.logicalWidth * 0.3 + Math.random() * (canvas.logicalWidth * 0.4);
-                y = -15;
-                break;
-
-            case 'synthwave':
-                // Synthwave enemies pulse in from center-top with spread
-                x = canvas.logicalWidth * 0.2 + Math.random() * (canvas.logicalWidth * 0.6);
-                y = -8;
-                break;
-
-            case 'pixelinvader':
-                // Classic invaders line up at top like the original game
-                x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
-                y = -5;
-                break;
-
-            default:
-                // Standard enemies from top
-                x = padding + Math.random() * (canvas.logicalWidth - padding * 2);
-                y = -5 - Math.random() * 10;
-        }
-
-        return { x, y };
-    }
-
-    /**
-     * Get spawn position for sidescroller mode (R-Type style)
-     * Enemies spawn from the right side of the screen
-     */
-    getSidescrollerSpawnPosition(canvas, enemyType, padding) {
-        let x, y;
-
-        switch (enemyType) {
-            case 'divebomber':
-                // Divebombers come from right, dive left
-                x = canvas.logicalWidth + 5;
-                y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
-                break;
-
-            case 'sinewave':
-                // Sinewave enemies come from right, wave up/down as they go left
-                x = canvas.logicalWidth + 5;
-                y = canvas.logicalHeight / 2;
-                break;
-
-            case 'pixelskull':
-                // Skulls phase in from right
-                x = canvas.logicalWidth + 10;
-                y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
-                break;
-
-            case 'ghostbyte':
-                // Ghosts float in from right
-                x = canvas.logicalWidth + 5;
-                y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
-                break;
-
-            case 'laserdisc':
-                // Discs come from right or top/bottom
-                if (Math.random() > 0.7) {
-                    x = canvas.logicalWidth + 5;
-                    y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
-                } else {
-                    x = canvas.logicalWidth * 0.6 + Math.random() * (canvas.logicalWidth * 0.4);
-                    y = Math.random() > 0.5 ? -5 : canvas.logicalHeight + 5;
-                }
-                break;
-
-            case 'vhstracker':
-                // VHS trackers glitch in from right
-                x = canvas.logicalWidth + 10;
-                y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
-                break;
-
-            case 'arcadeboss':
-                // Arcade cabinets enter from right center
-                x = canvas.logicalWidth + 15;
-                y = canvas.logicalHeight * 0.3 + Math.random() * (canvas.logicalHeight * 0.4);
-                break;
-
-            case 'synthwave':
-                // Synthwave enemies pulse in from right with spread
-                x = canvas.logicalWidth + 8;
-                y = canvas.logicalHeight * 0.2 + Math.random() * (canvas.logicalHeight * 0.6);
-                break;
-
-            case 'pixelinvader':
-                // Invaders march in from right in formation
-                x = canvas.logicalWidth + 5;
-                y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
-                break;
-
-            default:
-                // Standard enemies from right side
-                x = canvas.logicalWidth + 5 + Math.random() * 10;
-                y = padding + Math.random() * (canvas.logicalHeight - padding * 2);
-        }
-
-        return { x, y };
+        const strategyName = spawnConfig.normal;
+        const strategy = SPAWN_STRATEGIES[strategyName];
+        return strategy ? strategy(canvas, padding) : SPAWN_STRATEGIES.top(canvas, padding);
     }
 
     update(enemies, canvas, gameState) {
