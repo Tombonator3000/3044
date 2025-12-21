@@ -749,6 +749,20 @@ export class ParticleSystem {
         // Early exit if no active particles
         if (this._activeCount === 0) return;
 
+        // Debug: Count particle types periodically
+        if (!this._lastDebugLog || Date.now() - this._lastDebugLog > 2000) {
+            const typeCounts = {};
+            for (const p of this.particles) {
+                if (p.active) {
+                    typeCounts[p.type] = (typeCounts[p.type] || 0) + 1;
+                }
+            }
+            if (Object.keys(typeCounts).length > 0) {
+                console.log('[Particles Active]', JSON.stringify(typeCounts));
+            }
+            this._lastDebugLog = Date.now();
+        }
+
         ctx.save();
         if (!particlePerfSettings.enableShadows) {
             ctx.shadowBlur = 0;
@@ -1486,6 +1500,9 @@ export class ParticleSystem {
     addGeometryWarsExplosion(x, y, color = '#ff6600', intensity = 1) {
         const baseCount = Math.floor(80 * intensity);
         const adjustedCount = getAdjustedCount(baseCount);
+
+        // Debug: Log when GW explosion is triggered
+        console.log(`[GW Explosion] x:${Math.round(x)} y:${Math.round(y)} color:${color} intensity:${intensity.toFixed(2)} particles:${adjustedCount}`);
 
         // === CENTRAL GLOW EFFECT ===
         const glow = this.getParticle();
