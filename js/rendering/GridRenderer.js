@@ -69,6 +69,12 @@ function initGrid(canvas) {
 
 /**
  * Add an impact to the grid (causes ripple effect)
+ * Enhanced for Geometry Wars-style distortion
+ *
+ * @param {number} x - X position of impact
+ * @param {number} y - Y position of impact
+ * @param {number} force - Strength of the distortion (default 50, use 100+ for big explosions)
+ * @param {number} radius - How far the distortion spreads (default 150)
  */
 export function addGridImpact(x, y, force = 50, radius = 150) {
     // Limit number of concurrent impacts for performance
@@ -76,14 +82,15 @@ export function addGridImpact(x, y, force = 50, radius = 150) {
         gridState.impacts.shift(); // Remove oldest
     }
 
+    // Enhanced impact with stronger wave propagation
     gridState.impacts.push({
         x,
         y,
-        force,
+        force: force * 1.5, // Boost force for more visible effect
         radius,
         radiusSq: radius * radius, // Pre-compute for faster distance checks
         time: 0,
-        maxTime: 60
+        maxTime: Math.min(80, 60 + force / 10) // Longer duration for bigger impacts
     });
 }
 
@@ -117,10 +124,11 @@ function updateGrid(canvas) {
     const hasImpacts = gridState.impacts.length > 0;
 
     // Update each grid point
-    const dampening = 0.92;
-    const springStrength = 0.03;
-    const neighborInfluence = 0.01;
-    const maxOffset = 30;
+    // Enhanced for Geometry Wars-style grid distortion
+    const dampening = 0.94;          // Slightly less dampening for longer ripples
+    const springStrength = 0.025;    // Softer springs for more fluid motion
+    const neighborInfluence = 0.015; // Stronger neighbor influence for wave propagation
+    const maxOffset = 45;            // Increased max offset for more dramatic distortion
     const rows = gridState.gridRows;
     const cols = gridState.gridCols;
     const points = gridState.points;

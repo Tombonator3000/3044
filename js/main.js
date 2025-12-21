@@ -2470,26 +2470,29 @@ function useBomb() {
         gameState.boss.takeDamage(20);
     }
 
-    // Epic radial explosion from player
+    // Epic Geometry Wars bomb explosion from player
     if (player && particleSystem) {
-        // Use mega combo explosion for bomb
-        if (particleSystem.megaComboExplosion) {
-            particleSystem.megaComboExplosion(player.x, player.y, 5);
+        // Use the new Geometry Wars bomb explosion with line particles!
+        if (particleSystem.addGeometryWarsBombExplosion) {
+            particleSystem.addGeometryWarsBombExplosion(player.x, player.y);
+        } else {
+            // Fallback to old effects
+            if (particleSystem.megaComboExplosion) {
+                particleSystem.megaComboExplosion(player.x, player.y, 5);
+            }
+            if (particleSystem.synthwaveExplosion) {
+                particleSystem.synthwaveExplosion(player.x, player.y);
+            }
         }
 
-        // Add synthwave explosion
-        if (particleSystem.synthwaveExplosion) {
-            particleSystem.synthwaveExplosion(player.x, player.y);
-        }
-
-        // Multiple shockwaves
+        // Extra shockwaves for bomb
         if (particleSystem.addShockwave) {
             particleSystem.addShockwave(player.x, player.y, '#ffff00', 200);
             setTimeout(() => particleSystem.addShockwave(player.x, player.y, '#ff00ff', 250), 50);
             setTimeout(() => particleSystem.addShockwave(player.x, player.y, '#00ffff', 300), 100);
         }
 
-        // Traditional radial particles as well
+        // Additional radial star particles
         for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 16) {
             particleSystem.addParticle({
                 x: player.x,
