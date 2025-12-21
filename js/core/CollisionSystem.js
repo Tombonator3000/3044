@@ -1053,13 +1053,4 @@ export class CollisionSystem {
     checkCircleCollision(a, b) {
         return this.circleCollision(a, b);
     }
-
-    /**
-     * Point in circle check
-     */
-    pointInCircle(px, py, cx, cy, radius) {
-        const dx = px - cx;
-        const dy = py - cy;
-        return (dx * dx + dy * dy) < (radius * radius);
-    }
 }
