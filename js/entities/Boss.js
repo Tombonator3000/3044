@@ -33,7 +33,10 @@ export class Boss {
         this.shieldRotation = 0;
         this.damageFlash = 0;
 
-        console.log(`🔥 BOSS SPAWNED: ${this.name} (Wave ${wave})`);
+        // Debug log only when enabled
+        if (config.debug?.logGameEvents) {
+            console.log(`🔥 BOSS SPAWNED: ${this.name} (Wave ${wave})`);
+        }
     }
 
     getBossType(wave) {

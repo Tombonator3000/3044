@@ -717,18 +717,24 @@ export class Player {
     drawNeonTrail(ctx) {
         if (this.trail.length === 0) return;
 
+        const shadowsEnabled = config.rendering?.shadowsEnabled !== false;
+
         this.trail.forEach((point, index) => {
             ctx.save();
             ctx.globalAlpha = point.life * 0.6;
 
             if (this.feverMode > 0) {
                 ctx.fillStyle = `hsl(${(this.rainbowHue - index * 10) % 360}, 100%, 50%)`;
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = ctx.fillStyle;
+                if (shadowsEnabled) {
+                    ctx.shadowBlur = 10; // Reduced from 20
+                    ctx.shadowColor = ctx.fillStyle;
+                }
             } else {
                 ctx.fillStyle = this.shipColor || this.color;
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = this.shipColor || this.color;
+                if (shadowsEnabled) {
+                    ctx.shadowBlur = 8; // Reduced from 15
+                    ctx.shadowColor = this.shipColor || this.color;
+                }
             }
 
             const size = (this.size * 0.5) * point.life;
@@ -745,14 +751,18 @@ export class Player {
     drawMirrorShipEffect(ctx) {
         if (this.mirrorShip <= 0) return;
 
+        const shadowsEnabled = config.rendering?.shadowsEnabled !== false;
+
         ctx.save();
         ctx.translate(this.mirrorX, this.mirrorY);
         ctx.globalAlpha = 0.7;
 
         ctx.strokeStyle = '#aaffff';
         ctx.lineWidth = 3;
-        ctx.shadowBlur = 30;
-        ctx.shadowColor = '#aaffff';
+        if (shadowsEnabled) {
+            ctx.shadowBlur = 15; // Reduced from 30
+            ctx.shadowColor = '#aaffff';
+        }
 
         ctx.beginPath();
         ctx.moveTo(0, -20);
@@ -790,13 +800,17 @@ export class Player {
      * Apply visual glow/alpha effects based on active mode
      */
     applyModeVisualEffects(ctx, activeColor) {
+        const shadowsEnabled = config.rendering?.shadowsEnabled !== false;
+
         if (this.feverMode > 0) {
             // Rainbow rings around ship
             for (let i = 0; i < 3; i++) {
                 ctx.strokeStyle = `hsla(${(this.rainbowHue + i * 30) % 360}, 100%, 50%, ${0.3 - i * 0.1})`;
                 ctx.lineWidth = 2;
-                ctx.shadowBlur = 30;
-                ctx.shadowColor = ctx.strokeStyle;
+                if (shadowsEnabled) {
+                    ctx.shadowBlur = 15; // Reduced from 30
+                    ctx.shadowColor = ctx.strokeStyle;
+                }
                 ctx.beginPath();
                 ctx.arc(0, 0, this.size + 10 + i * 5, 0, Math.PI * 2);
                 ctx.stroke();
@@ -804,12 +818,14 @@ export class Player {
         } else if (this.omegaMode > 0) {
             ctx.strokeStyle = '#ff0000';
             ctx.lineWidth = 4;
-            ctx.shadowBlur = 40;
-            ctx.shadowColor = '#ff0000';
+            if (shadowsEnabled) {
+                ctx.shadowBlur = 20; // Reduced from 40
+                ctx.shadowColor = '#ff0000';
+            }
         } else if (this.ghostMode > 0) {
             ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
-        } else if (this.godMode > 0) {
-            ctx.shadowBlur = 50;
+        } else if (this.godMode > 0 && shadowsEnabled) {
+            ctx.shadowBlur = 25; // Reduced from 50
             ctx.shadowColor = activeColor;
         }
     }
@@ -820,13 +836,17 @@ export class Player {
     drawVortexEffect(ctx) {
         if (this.vortexActive <= 0) return;
 
+        const shadowsEnabled = config.rendering?.shadowsEnabled !== false;
+
         ctx.save();
         const vortexRadius = 80 + Math.sin(Date.now() * 0.01) * 20;
         ctx.strokeStyle = '#80ff80';
         ctx.lineWidth = 2;
         ctx.globalAlpha = 0.6;
-        ctx.shadowBlur = 25;
-        ctx.shadowColor = '#80ff80';
+        if (shadowsEnabled) {
+            ctx.shadowBlur = 12; // Reduced from 25
+            ctx.shadowColor = '#80ff80';
+        }
 
         // Outer ring
         ctx.beginPath();
@@ -883,9 +903,13 @@ export class Player {
     drawWeaponIndicators(ctx) {
         if (this.weaponLevel <= 1) return;
 
+        const shadowsEnabled = config.rendering?.shadowsEnabled !== false;
+
         ctx.fillStyle = '#ffff00';
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#ffff00';
+        if (shadowsEnabled) {
+            ctx.shadowBlur = 5; // Reduced from 10
+            ctx.shadowColor = '#ffff00';
+        }
         for (let i = 0; i < this.weaponLevel - 1; i++) {
             ctx.beginPath();
             ctx.arc(-10 + i * 10, -25, 3, 0, Math.PI * 2);
@@ -899,10 +923,14 @@ export class Player {
     drawShieldEffect(ctx) {
         if (!this.shieldActive || this.shield <= 0) return;
 
+        const shadowsEnabled = config.rendering?.shadowsEnabled !== false;
+
         ctx.strokeStyle = '#00ffff';
         ctx.lineWidth = 2;
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = '#00ffff';
+        if (shadowsEnabled) {
+            ctx.shadowBlur = 10; // Reduced from 20
+            ctx.shadowColor = '#00ffff';
+        }
         ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
         ctx.beginPath();
         ctx.arc(0, 0, 35, 0, Math.PI * 2);
@@ -925,10 +953,14 @@ export class Player {
      * Draw ship based on ship type - each ship has a unique design
      */
     drawShipByType(ctx, color) {
+        const shadowsEnabled = config.rendering?.shadowsEnabled !== false;
+
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
-        ctx.shadowBlur = 30;
-        ctx.shadowColor = color;
+        if (shadowsEnabled) {
+            ctx.shadowBlur = 15; // Reduced from 30
+            ctx.shadowColor = color;
+        }
 
         switch (this.shipId) {
             case 'glassCannon':
@@ -965,8 +997,7 @@ export class Player {
      */
     drawNeonFalconShip(ctx, color) {
         const p = 3; // Pixel size
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = color;
+        // Shadow already set by drawShipByType
 
         // 8-bit falcon fighter pattern
         const falcon = [
@@ -1006,8 +1037,7 @@ export class Player {
      */
     drawGlassCannonShip(ctx, color) {
         const p = 3; // Pixel size
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = color;
+        // Shadow already set by drawShipByType
 
         // 8-bit angular cannon pattern
         const cannon = [
@@ -1049,8 +1079,7 @@ export class Player {
      */
     drawTankShip(ctx, color) {
         const p = 3; // Pixel size
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = color;
+        // Shadow already set by drawShipByType
 
         // 8-bit tank pattern - wide and bulky
         const tank = [
@@ -1092,8 +1121,7 @@ export class Player {
      */
     drawSpeedsterShip(ctx, color) {
         const p = 3; // Pixel size
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = color;
+        // Shadow already set by drawShipByType
 
         // 8-bit speedster pattern - slim and elongated
         const speedster = [
@@ -1145,8 +1173,7 @@ export class Player {
      */
     drawRetroClassicShip(ctx, color) {
         const p = 3; // Pixel size
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = color;
+        // Shadow already set by drawShipByType
 
         // 8-bit classic arcade ship pattern
         const retro = [
@@ -1187,8 +1214,7 @@ export class Player {
     drawPhantomShip(ctx, color) {
         const p = 3; // Pixel size
         const phase = Math.sin(Date.now() * 0.005) * 0.3;
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = color;
+        // Shadow already set by drawShipByType (uses 15)
 
         // 8-bit ghost/phantom pattern
         const phantom = [
@@ -1235,8 +1261,7 @@ export class Player {
      */
     drawBerserkerShip(ctx, color) {
         const p = 3; // Pixel size
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = color;
+        // Shadow already set by drawShipByType
 
         // 8-bit berserker pattern - spiked and aggressive
         const berserker = [
@@ -1288,8 +1313,7 @@ export class Player {
     drawSynthShip(ctx, color) {
         const p = 3; // Pixel size
         const beat = Math.sin(Date.now() * 0.008) * 0.5 + 0.5;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = color;
+        // Shadow already set by drawShipByType
 
         // 8-bit synthwave pattern - music note inspired
         const synth = [
