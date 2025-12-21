@@ -831,128 +831,181 @@ export class CollisionSystem {
     }
 
     /**
-     * Handle enemy kill with EPIC effects and power-up spawn
+     * Update kill tracking stats (bestiary and session)
+     * @param {Object} enemy - The killed enemy
      */
-    handleEnemyKill(enemy) {
+    updateKillStats(enemy) {
         const gs = this.gameState;
         if (!gs) return;
 
-        // Track kill in bestiary
         if (gs.bestiary && enemy.type) {
             gs.bestiary.recordKill(enemy.type, gs.wave || 1);
         }
 
-        // Track session stats
         if (gs.sessionStats) {
             gs.sessionStats.kills = (gs.sessionStats.kills || 0) + 1;
         }
+    }
 
-        // Calculate score with multiplier
+    /**
+     * Calculate and apply score with combo multiplier
+     * @param {Object} enemy - The killed enemy
+     * @returns {number} The calculated score
+     */
+    updateScoreAndCombo(enemy) {
+        const gs = this.gameState;
+        if (!gs) return 0;
+
         const baseScore = enemy.points || 100;
         const multiplier = 1 + Math.floor((gs.combo || 0) / 5);
         const score = baseScore * multiplier;
 
         gs.score = (gs.score || 0) + score;
-
-        // Combo
         gs.combo = (gs.combo || 0) + 1;
         gs.maxCombo = Math.max(gs.maxCombo || 0, gs.combo);
         gs.comboTimer = gs.comboTimeout || 180;
 
-        // Check for radical slang (combo phrases)
         if (gs.radicalSlang?.checkCombo) {
             gs.radicalSlang.checkCombo(gs.combo);
         }
-
-        // Show kill phrase occasionally (10% chance handled inside)
         if (gs.radicalSlang?.showKillPhrase) {
             gs.radicalSlang.showKillPhrase(enemy.x, enemy.y);
         }
 
-        // === GRID RIPPLE EFFECT ===
-        // Add impact to the waving grid for Geometry Wars-style ripples
-        const impactForce = 30 + (enemy.size || 20) * 1.5;
-        const impactRadius = 80 + (enemy.size || 20) * 3;
-        addGridImpact(enemy.x, enemy.y, impactForce, impactRadius);
+        return score;
+    }
 
-        // === GEOMETRY WARS-STYLE EXPLOSION EFFECTS ===
-        if (this.particleSystem) {
-            const combo = gs.combo || 0;
-            const enemyType = enemy.type || 'default';
-            const color = enemy.color || '#ff6600';
-            const enemySize = enemy.size || 20;
+    /**
+     * Calculate explosion intensity based on enemy and combo
+     * @param {number} enemySize - Size of the enemy
+     * @param {number} combo - Current combo count
+     * @returns {number} The calculated intensity (capped at 2.0)
+     */
+    calculateExplosionIntensity(enemySize, combo) {
+        let intensity = 0.6 + (enemySize / 50);
 
-            // Use Geometry Wars explosions as the primary effect
-            if (this.particleSystem.addGeometryWarsExplosion) {
-                // Scale intensity based on enemy size and combo
-                let intensity = 0.6 + (enemySize / 50);
+        if (combo >= 50) {
+            intensity *= 1.5;
+        } else if (combo >= 20) {
+            intensity *= 1.2;
+        }
 
-                // Boost for high combos
-                if (combo >= 50) {
-                    intensity *= 1.5;
-                } else if (combo >= 20) {
-                    intensity *= 1.2;
-                }
+        return Math.min(intensity, 2.0);
+    }
 
-                // Cap intensity
-                intensity = Math.min(intensity, 2.0);
+    /**
+     * Create special explosion effects for specific enemy types
+     * @param {Object} enemy - The killed enemy
+     * @param {number} combo - Current combo count
+     */
+    createSpecialExplosion(enemy, combo) {
+        if (!this.particleSystem) return;
 
-                // Geometry Wars explosion with line particles!
-                this.particleSystem.addGeometryWarsExplosion(enemy.x, enemy.y, color, intensity);
+        const enemyType = enemy.type || 'default';
+        const color = enemy.color || '#ff6600';
 
-                // Extra effects for special enemies or high combos
-                if (combo >= 50 && this.particleSystem.megaComboExplosion) {
-                    const comboLevel = Math.floor(combo / 25);
-                    this.particleSystem.megaComboExplosion(enemy.x, enemy.y, comboLevel);
-                } else if (enemyType === 'electric' || enemyType === 'laser' || enemyType === 'laserdisc') {
-                    if (this.particleSystem.electricExplosion) {
-                        this.particleSystem.electricExplosion(enemy.x, enemy.y, color);
-                    }
-                } else if (enemyType === 'glitch' || enemyType === 'vhstracker') {
-                    if (this.particleSystem.glitchExplosion) {
-                        this.particleSystem.glitchExplosion(enemy.x, enemy.y);
-                    }
-                }
-            } else {
-                // Fallback to standard explosion if Geometry Wars method not available
-                if (this.particleSystem.addExplosion) {
-                    this.particleSystem.addExplosion(enemy.x, enemy.y, color, 15);
-                }
-                if (this.particleSystem.addShockwave) {
-                    this.particleSystem.addShockwave(enemy.x, enemy.y, color, 60);
-                }
+        if (combo >= 50 && this.particleSystem.megaComboExplosion) {
+            const comboLevel = Math.floor(combo / 25);
+            this.particleSystem.megaComboExplosion(enemy.x, enemy.y, comboLevel);
+        } else if ((enemyType === 'electric' || enemyType === 'laser' || enemyType === 'laserdisc')
+                   && this.particleSystem.electricExplosion) {
+            this.particleSystem.electricExplosion(enemy.x, enemy.y, color);
+        } else if ((enemyType === 'glitch' || enemyType === 'vhstracker')
+                   && this.particleSystem.glitchExplosion) {
+            this.particleSystem.glitchExplosion(enemy.x, enemy.y);
+        }
+    }
+
+    /**
+     * Create explosion particle effects for enemy death
+     * @param {Object} enemy - The killed enemy
+     * @param {number} score - The score to display
+     */
+    createExplosionEffects(enemy, score) {
+        if (!this.particleSystem) return;
+
+        const gs = this.gameState;
+        const combo = gs?.combo || 0;
+        const color = enemy.color || '#ff6600';
+        const enemySize = enemy.size || 20;
+
+        if (this.particleSystem.addGeometryWarsExplosion) {
+            const intensity = this.calculateExplosionIntensity(enemySize, combo);
+            this.particleSystem.addGeometryWarsExplosion(enemy.x, enemy.y, color, intensity);
+            this.createSpecialExplosion(enemy, combo);
+        } else {
+            if (this.particleSystem.addExplosion) {
+                this.particleSystem.addExplosion(enemy.x, enemy.y, color, 15);
             }
-
-            // Score popup
-            if (this.particleSystem.addScorePopup) {
-                this.particleSystem.addScorePopup(enemy.x, enemy.y - 20, score);
+            if (this.particleSystem.addShockwave) {
+                this.particleSystem.addShockwave(enemy.x, enemy.y, color, 60);
             }
         }
 
-        // Sound
+        if (this.particleSystem.addScorePopup) {
+            this.particleSystem.addScorePopup(enemy.x, enemy.y - 20, score);
+        }
+    }
+
+    /**
+     * Apply screen shake effect based on enemy size
+     * @param {Object} enemy - The killed enemy
+     */
+    applyScreenShake(enemy) {
+        const gs = this.gameState;
+        if (!gs?.screenShake) return;
+
+        const shakeIntensity = 3 + (enemy.size || 20) * 0.1;
+        gs.screenShake.intensity = Math.min(
+            (gs.screenShake.intensity || 0) + shakeIntensity,
+            15
+        );
+        gs.screenShake.duration = Math.max(
+            gs.screenShake.duration || 0,
+            10
+        );
+    }
+
+    /**
+     * Play explosion sound effect
+     */
+    playExplosionSound() {
         if (this.soundSystem?.playExplosion) {
             this.soundSystem.playExplosion();
         } else if (this.soundSystem?.play) {
             this.soundSystem.play('explosion');
         }
+    }
 
-        // Screen shake (stronger for bigger enemies)
-        if (gs.screenShake) {
-            const shakeIntensity = 3 + (enemy.size || 20) * 0.1;
-            gs.screenShake.intensity = Math.min(
-                (gs.screenShake.intensity || 0) + shakeIntensity,
-                15
-            );
-            gs.screenShake.duration = Math.max(
-                gs.screenShake.duration || 0,
-                10
-            );
-        }
+    /**
+     * Handle enemy kill with effects and power-up spawn
+     * Orchestrates all kill-related actions through focused helper methods
+     * @param {Object} enemy - The killed enemy
+     */
+    handleEnemyKill(enemy) {
+        const gs = this.gameState;
+        if (!gs) return;
 
-        // Chance to drop power-up
+        // Update tracking stats
+        this.updateKillStats(enemy);
+
+        // Calculate and apply score/combo
+        const score = this.updateScoreAndCombo(enemy);
+
+        // Grid ripple effect
+        const impactForce = 30 + (enemy.size || 20) * 1.5;
+        const impactRadius = 80 + (enemy.size || 20) * 3;
+        addGridImpact(enemy.x, enemy.y, impactForce, impactRadius);
+
+        // Visual and audio effects
+        this.createExplosionEffects(enemy, score);
+        this.playExplosionSound();
+        this.applyScreenShake(enemy);
+
+        // Power-up drop chance
         this.trySpawnPowerUp(enemy.x, enemy.y, enemy.tier);
 
-        // Call external callback if provided
+        // External callback
         if (this._onEnemyDestroyed) {
             this._onEnemyDestroyed(enemy, null);
         }
