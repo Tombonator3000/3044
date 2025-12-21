@@ -301,7 +301,9 @@ function detectLayoutType() {
 }
 
 function resizeCanvas() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // Use lower resolution on mobile for better performance (Samsung S24 has DPR ~3)
+    const maxDpr = isMobileDevice ? 1.5 : 2;
+    const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
     canvas.logicalWidth = LOGICAL_CANVAS_SIZE;
     canvas.logicalHeight = LOGICAL_CANVAS_SIZE;
     canvas.width = canvas.logicalWidth * dpr;
