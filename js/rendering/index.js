@@ -3,4 +3,5 @@
  * Re-exports all rendering modules
  */
 
-export { drawThemedGrid, drawBackground } from './GridRenderer.js';
+// drawThemedGrid removed - never called (use drawWavingGrid instead)
+export { drawBackground } from './GridRenderer.js';

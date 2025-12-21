@@ -4,4 +4,4 @@
  */
 
 export { logger } from './Logger.js';
-export * from './DrawUtils.js';
+// DrawUtils.js is empty after cleanup - no exports

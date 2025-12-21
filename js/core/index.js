@@ -4,6 +4,6 @@
  */
 
 export { GameState } from './GameState.js';
-export { InputHandler } from './InputHandler.js';
+// InputHandler was removed - input handled directly in main.js
 export { CollisionSystem } from './CollisionSystem.js';
 export { GameLoop } from './GameLoop.js';

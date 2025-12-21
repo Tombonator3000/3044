@@ -313,79 +313,8 @@ export function drawWavingGrid(ctx, canvas, wave = 1) {
     ctx.restore();
 }
 
-// Cached gradient for themed grid
-let cachedHorizonGradient = null;
-let cachedGradientHue = -1;
-let cachedGradientHeight = 0;
-
-/**
- * Original themed grid (kept for compatibility) - OPTIMIZED
- */
-export function drawThemedGrid(ctx, canvas, wave = 1) {
-    if (!ctx || !canvas) return;
-
-    const theme = getCurrentTheme(wave);
-
-    ctx.save();
-
-    const now = Date.now();
-    const pulse = Math.sin(now * 0.001) * 0.3 + 0.7;
-    const hue = theme.gridHue + Math.sin(now * 0.0005) * 30;
-    const alpha = (0.15 * pulse).toFixed(2);
-
-    ctx.strokeStyle = `hsla(${hue | 0}, 100%, 50%, ${alpha})`;
-    ctx.lineWidth = 1;
-
-    // Only enable shadow on high-perf devices
-    if (perfSettings.enableShadows) {
-        ctx.shadowBlur = 6;
-        ctx.shadowColor = `hsla(${hue | 0}, 100%, 50%, 0.4)`;
-    }
-
-    const gridSize = 60;
-    const offset = (now * 0.02) % gridSize;
-    const width = canvas.logicalWidth;
-    const height = canvas.logicalHeight;
-    const perspectiveFactor = 1 + (height - 400) / height * 0.5;
-    const halfWidth = width / 2;
-
-    // Batch all vertical lines into single path
-    ctx.beginPath();
-    for (let x = -gridSize; x < width + gridSize; x += gridSize) {
-        const startX = x + offset;
-        const endX = (x - halfWidth) * perspectiveFactor + halfWidth + offset;
-        ctx.moveTo(startX, 0);
-        ctx.lineTo(endX, height);
-    }
-    ctx.stroke();
-
-    // Batch all horizontal lines into single path
-    ctx.beginPath();
-    const baseAlpha = 0.15 * pulse;
-    ctx.strokeStyle = `hsla(${hue | 0}, 100%, 50%, ${(baseAlpha * 0.75).toFixed(2)})`;
-    for (let y = 0; y < height; y += gridSize) {
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-    }
-    ctx.stroke();
-
-    // Cache horizon gradient
-    if (cachedGradientHue !== theme.gridHue || cachedGradientHeight !== height) {
-        cachedHorizonGradient = ctx.createLinearGradient(0, height - 150, 0, height);
-        cachedHorizonGradient.addColorStop(0, 'transparent');
-        cachedHorizonGradient.addColorStop(0.5, `hsla(${theme.gridHue}, 100%, 50%, 0.25)`);
-        cachedHorizonGradient.addColorStop(1, `hsla(${theme.gridHue + 60}, 100%, 50%, 0.35)`);
-        cachedGradientHue = theme.gridHue;
-        cachedGradientHeight = height;
-    }
-
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 0.12;
-    ctx.fillStyle = cachedHorizonGradient;
-    ctx.fillRect(0, height - 150, width, 150);
-
-    ctx.restore();
-}
+// NOTE: drawThemedGrid was removed during code audit - never called
+// The game uses drawWavingGrid for the animated Geometry Wars-style grid
 
 // Simplified background gradient
 export function drawBackground(ctx, canvas, wave = 1) {
@@ -403,11 +332,5 @@ export function drawBackground(ctx, canvas, wave = 1) {
     ctx.fillRect(0, 0, canvas.logicalWidth, canvas.logicalHeight);
 }
 
-/**
- * Reset grid state (call when canvas size changes)
- */
-export function resetGrid() {
-    gridState.initialized = false;
-    gridState.points = [];
-    gridState.impacts = [];
-}
+// NOTE: resetGrid was removed during code audit - never called
+// The grid auto-initializes when needed via initGrid()
