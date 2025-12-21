@@ -7,6 +7,113 @@
 import { CONFIG, getCurrentTheme } from '../config.js';
 import { GameSettings } from '../ui/MenuManager.js';
 
+// ============================================
+// GEOMETRY WARS-STYLE COLOR UTILITIES
+// ============================================
+
+/**
+ * Convert HSV to RGB hex color
+ * HSV allows creating vivid neon colors by keeping high saturation and value
+ * @param {number} h - Hue (0-360)
+ * @param {number} s - Saturation (0-1)
+ * @param {number} v - Value/Brightness (0-1)
+ * @returns {string} Hex color string
+ */
+function hsvToHex(h, s, v) {
+    h = h % 360;
+    const c = v * s;
+    const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    const m = v - c;
+
+    let r, g, b;
+    if (h < 60) { r = c; g = x; b = 0; }
+    else if (h < 120) { r = x; g = c; b = 0; }
+    else if (h < 180) { r = 0; g = c; b = x; }
+    else if (h < 240) { r = 0; g = x; b = c; }
+    else if (h < 300) { r = x; g = 0; b = c; }
+    else { r = c; g = 0; b = x; }
+
+    const toHex = (n) => Math.round((n + m) * 255).toString(16).padStart(2, '0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+/**
+ * Generate a random vibrant neon color using HSV
+ * High saturation (0.8-1.0) and high value (0.9-1.0) for neon look
+ * @returns {string} Hex color string
+ */
+function randomNeonColor() {
+    const hue = Math.random() * 360;
+    const saturation = 0.8 + Math.random() * 0.2; // 0.8-1.0
+    const value = 0.9 + Math.random() * 0.1; // 0.9-1.0
+    return hsvToHex(hue, saturation, value);
+}
+
+/**
+ * Get a random color near a base hue for colorful explosions
+ * Interpolates between two nearby colors
+ * @param {number} baseHue - Base hue (0-360)
+ * @param {number} spread - Hue spread range (default 40)
+ * @returns {string} Hex color string
+ */
+function randomNeonColorNear(baseHue, spread = 40) {
+    const hue = baseHue + (Math.random() - 0.5) * spread;
+    const saturation = 0.85 + Math.random() * 0.15;
+    const value = 0.95 + Math.random() * 0.05;
+    return hsvToHex(hue, saturation, value);
+}
+
+/**
+ * Convert hex color to HSV
+ * @param {string} hex - Hex color string
+ * @returns {{h: number, s: number, v: number}} HSV object
+ */
+function hexToHsv(hex) {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const r = (num >> 16) / 255;
+    const g = ((num >> 8) & 0xFF) / 255;
+    const b = (num & 0xFF) / 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const d = max - min;
+
+    let h = 0;
+    if (d !== 0) {
+        if (max === r) h = ((g - b) / d) % 6;
+        else if (max === g) h = (b - r) / d + 2;
+        else h = (r - g) / d + 4;
+        h *= 60;
+        if (h < 0) h += 360;
+    }
+
+    const s = max === 0 ? 0 : d / max;
+    const v = max;
+
+    return { h, s, v };
+}
+
+/**
+ * Interpolate between two hex colors
+ * @param {string} color1 - First hex color
+ * @param {string} color2 - Second hex color
+ * @param {number} t - Interpolation factor (0-1)
+ * @returns {string} Interpolated hex color
+ */
+function lerpColor(color1, color2, t) {
+    const num1 = parseInt(color1.replace('#', ''), 16);
+    const num2 = parseInt(color2.replace('#', ''), 16);
+
+    const r1 = num1 >> 16, g1 = (num1 >> 8) & 0xFF, b1 = num1 & 0xFF;
+    const r2 = num2 >> 16, g2 = (num2 >> 8) & 0xFF, b2 = num2 & 0xFF;
+
+    const r = Math.round(r1 + (r2 - r1) * t);
+    const g = Math.round(g1 + (g2 - g1) * t);
+    const b = Math.round(b1 + (b2 - b1) * t);
+
+    return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
 // Performance settings for particles
 const particlePerfSettings = {
     enableShadows: true,
@@ -91,6 +198,11 @@ class Particle {
         this.trail = [];
         this.maxTrail = options.maxTrail || 5;
 
+        // Geometry Wars-style wall bouncing (default enabled for line/gwline particles)
+        this.bounce = options.bounce !== undefined ? options.bounce :
+            (this.type === 'gwline' || this.type === 'line' || this.type === 'spark');
+        this.bounceDamping = options.bounceDamping || 0.8; // Energy loss on bounce
+
         return this;
     }
 
@@ -114,6 +226,31 @@ class Particle {
         this.vx *= this.friction;
         this.vy *= this.friction;
         this.vy += this.gravity;
+
+        // Geometry Wars-style wall bouncing
+        if (this.bounce) {
+            const margin = this.size || 2;
+            const width = CONFIG.canvas?.width || 800;
+            const height = CONFIG.canvas?.height || 600;
+
+            // Bounce off left/right walls
+            if (this.x < margin) {
+                this.x = margin;
+                this.vx = -this.vx * this.bounceDamping;
+            } else if (this.x > width - margin) {
+                this.x = width - margin;
+                this.vx = -this.vx * this.bounceDamping;
+            }
+
+            // Bounce off top/bottom walls
+            if (this.y < margin) {
+                this.y = margin;
+                this.vy = -this.vy * this.bounceDamping;
+            } else if (this.y > height - margin) {
+                this.y = height - margin;
+                this.vy = -this.vy * this.bounceDamping;
+            }
+        }
 
         // Only apply rotationSpeed for non-line particles
         if (this.type !== 'line' && this.type !== 'gwline') {
@@ -862,28 +999,6 @@ export class ParticleSystem {
     draw(ctx) {
         // Early exit if no active particles
         if (this._activeCount === 0) return;
-
-        // Debug: Count particle types periodically
-        if (!this._lastDebugLog || Date.now() - this._lastDebugLog > 2000) {
-            const typeCounts = {};
-            let gwlinePositions = [];
-            for (const p of this.particles) {
-                if (p.active) {
-                    typeCounts[p.type] = (typeCounts[p.type] || 0) + 1;
-                    // Capture some gwline positions for debug
-                    if (p.type === 'gwline' && gwlinePositions.length < 3) {
-                        gwlinePositions.push({ x: Math.round(p.x), y: Math.round(p.y), alpha: (p.life / p.maxLife).toFixed(2) });
-                    }
-                }
-            }
-            if (Object.keys(typeCounts).length > 0) {
-                console.log('[Particles Active]', JSON.stringify(typeCounts));
-                if (gwlinePositions.length > 0) {
-                    console.log('[GWLine Samples]', JSON.stringify(gwlinePositions));
-                }
-            }
-            this._lastDebugLog = Date.now();
-        }
 
         ctx.save();
 
@@ -1643,9 +1758,6 @@ export class ParticleSystem {
         const baseCount = Math.floor(120 * intensity);
         const adjustedCount = getAdjustedCount(baseCount);
 
-        // Debug: Log when GW explosion is triggered
-        console.log(`[GW Explosion] x:${Math.round(x)} y:${Math.round(y)} color:${color} intensity:${intensity.toFixed(2)} particles:${adjustedCount}`);
-
         // === CENTRAL GLOW EFFECT ===
         const glow = this.getParticle();
         glow.reset(x, y, {
@@ -1867,6 +1979,396 @@ export class ParticleSystem {
                     color: i % 2 === 0 ? '#ffffff' : '#ff00ff',
                     size: 150 + i * 50,
                     life: 25,
+                    friction: 1,
+                    type: 'gwshockwave'
+                });
+            }, i * 40);
+        }
+    }
+
+    // ============================================
+    // GEOMETRY WARS-STYLE SHIP EXHAUST TRAILS
+    // Three streams: center (hot yellow-white) and
+    // two side streams (red/orange) with sine-wave swivel
+    // ============================================
+
+    /**
+     * Create Geometry Wars-style ship exhaust trail
+     * Creates three particle streams that swivel using sine function
+     *
+     * @param {number} x - Ship X position
+     * @param {number} y - Ship Y position
+     * @param {number} shipAngle - Ship's facing angle in radians
+     * @param {number} speed - Ship's current speed (affects trail intensity)
+     * @param {string} color - Base ship color
+     * @param {number} time - Current game time for sine wave animation
+     */
+    addShipExhaust(x, y, shipAngle, speed = 1, color = '#00ff00', time = 0) {
+        // Only emit if ship is moving
+        if (speed < 0.5) return;
+
+        const intensity = Math.min(speed / 8, 1.5);
+        const exhaustAngle = shipAngle + Math.PI; // Opposite of ship direction
+
+        // Sine wave swivel for side streams (like Geometry Wars)
+        const swivelAmount = Math.sin(time * 0.15) * 0.4;
+
+        // === CENTER STREAM (hot yellow-white) ===
+        for (let i = 0; i < 2; i++) {
+            const particle = this.getParticle();
+            const spreadAngle = exhaustAngle + (Math.random() - 0.5) * 0.2;
+            const exhaustSpeed = 3 + Math.random() * 4 * intensity;
+
+            particle.reset(x, y, {
+                vx: Math.cos(spreadAngle) * exhaustSpeed,
+                vy: Math.sin(spreadAngle) * exhaustSpeed,
+                color: i === 0 ? '#ffffff' : '#ffffaa', // Hot white-yellow core
+                size: 2 + Math.random() * 2,
+                life: 15 + Math.random() * 10,
+                friction: 0.92,
+                type: 'gwline',
+                length: 6 + Math.random() * 4,
+                maxTrail: 3,
+                bounce: false
+            });
+        }
+
+        // === SIDE STREAMS (red/orange, swiveling) ===
+        const sideOffsets = [-0.5, 0.5]; // Left and right
+        const sideColors = ['#ff4400', '#ff6600', '#ff8800'];
+
+        for (const offset of sideOffsets) {
+            // Opposite swivel for criss-cross pattern
+            const sideAngle = exhaustAngle + offset * 0.8 + (offset > 0 ? swivelAmount : -swivelAmount);
+
+            const particle = this.getParticle();
+            const exhaustSpeed = 2 + Math.random() * 3 * intensity;
+
+            particle.reset(x, y, {
+                vx: Math.cos(sideAngle) * exhaustSpeed,
+                vy: Math.sin(sideAngle) * exhaustSpeed,
+                color: sideColors[Math.floor(Math.random() * sideColors.length)],
+                size: 2 + Math.random() * 2,
+                life: 12 + Math.random() * 8,
+                friction: 0.90,
+                type: 'gwline',
+                length: 5 + Math.random() * 3,
+                maxTrail: 2,
+                bounce: false
+            });
+        }
+
+        // Occasional spark particles
+        if (Math.random() < 0.3 * intensity) {
+            const sparkAngle = exhaustAngle + (Math.random() - 0.5) * 0.8;
+            const sparkSpeed = 4 + Math.random() * 6;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(sparkAngle) * sparkSpeed,
+                vy: Math.sin(sparkAngle) * sparkSpeed,
+                color: '#ffff00',
+                size: 2,
+                life: 8 + Math.random() * 6,
+                friction: 0.88,
+                type: 'spark',
+                bounce: true
+            });
+        }
+    }
+
+    // ============================================
+    // ENHANCED COLORFUL EXPLOSION WITH INTERPOLATION
+    // Uses two nearby key colors and interpolates between them
+    // ============================================
+
+    /**
+     * Create colorful Geometry Wars explosion with color interpolation
+     * Each explosion picks two nearby hues and interpolates between them
+     *
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {string} baseColor - Base color (will derive hue from this)
+     * @param {number} count - Number of particles
+     * @param {number} intensity - Explosion intensity
+     */
+    addColorfulExplosion(x, y, baseColor = '#ff6600', count = 60, intensity = 1) {
+        const adjustedCount = getAdjustedCount(count);
+
+        // Convert base color to HSV and pick two nearby hues
+        const hsv = hexToHsv(baseColor);
+        const hue1 = hsv.h;
+        const hue2 = hue1 + (Math.random() > 0.5 ? 30 : -30); // Nearby hue
+        const color1 = hsvToHex(hue1, 0.9, 1.0);
+        const color2 = hsvToHex(hue2, 0.9, 1.0);
+
+        // Central glow
+        const glow = this.getParticle();
+        glow.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#ffffff',
+            size: 60 * intensity,
+            life: 18,
+            friction: 1,
+            type: 'gwglow'
+        });
+
+        // Line particles with interpolated colors
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + (Math.random() - 0.5) * 0.5;
+            const speed = 5 + Math.random() * 10 * intensity;
+
+            // Interpolate between the two colors
+            const t = Math.random();
+            const particleColor = Math.random() > 0.2 ? lerpColor(color1, color2, t) : '#ffffff';
+
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: particleColor,
+                size: 2,
+                length: 8 + Math.random() * 8,
+                life: 40 + Math.random() * 35,
+                friction: 0.96,
+                gravity: 0.015,
+                type: 'gwline',
+                maxTrail: 5,
+                bounce: true
+            });
+        }
+
+        // Shockwave ring
+        const shockwave = this.getParticle();
+        shockwave.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: color1,
+            size: 120 * intensity,
+            life: 22,
+            friction: 1,
+            type: 'gwshockwave'
+        });
+    }
+
+    // ============================================
+    // SPEED-BASED PARTICLE RENDERING
+    // Fast particles get longer and brighter (Geometry Wars style)
+    // This is already partially implemented in drawLine, but let's add
+    // a method to spawn speed-enhanced particles
+    // ============================================
+
+    /**
+     * Spawn a speed-enhanced line particle that gets longer when moving fast
+     * Also glows brighter at high speeds
+     *
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {number} vx - X velocity
+     * @param {number} vy - Y velocity
+     * @param {string} color - Particle color
+     * @param {object} options - Additional options
+     */
+    addSpeedParticle(x, y, vx, vy, color = '#ffffff', options = {}) {
+        const speed = Math.sqrt(vx * vx + vy * vy);
+        const speedFactor = Math.min(speed / 10, 2); // Cap at 2x
+
+        const particle = this.getParticle();
+        particle.reset(x, y, {
+            vx,
+            vy,
+            color,
+            size: 2 + speedFactor,
+            length: 8 + speedFactor * 8, // Longer when faster
+            life: options.life || (30 + Math.random() * 20),
+            friction: options.friction || 0.96,
+            gravity: options.gravity || 0.02,
+            type: 'gwline',
+            maxTrail: Math.floor(3 + speedFactor * 2), // More trail when faster
+            bounce: options.bounce !== false
+        });
+
+        // Add extra glow particle for very fast particles
+        if (speed > 12) {
+            const glowParticle = this.getParticle();
+            glowParticle.reset(x, y, {
+                vx: vx * 0.5,
+                vy: vy * 0.5,
+                color: '#ffffff',
+                size: 4 + speedFactor * 2,
+                life: 10,
+                friction: 0.9,
+                type: 'glow'
+            });
+        }
+    }
+
+    // ============================================
+    // SECONDARY PARTICLE SPAWNING / CHAIN REACTIONS
+    // Particles can spawn child particles for cascading effects
+    // ============================================
+
+    /**
+     * Create an explosion with secondary particle spawning
+     * Main particles spawn smaller child particles when they die
+     * Creates cascading chain reaction effect
+     *
+     * @param {number} x - X position
+     * @param {number} y - Y position
+     * @param {string} color - Base color
+     * @param {number} intensity - Explosion intensity
+     */
+    addChainReactionExplosion(x, y, color = '#ff6600', intensity = 1) {
+        const adjustedCount = getAdjustedCount(Math.floor(40 * intensity));
+        const hsv = hexToHsv(color);
+
+        // Main explosion particles that will spawn children
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + (Math.random() - 0.5) * 0.4;
+            const speed = 6 + Math.random() * 8 * intensity;
+
+            // Schedule secondary explosion at end position
+            const lifetime = 35 + Math.random() * 25;
+            const endX = x + Math.cos(angle) * speed * lifetime * 0.3;
+            const endY = y + Math.sin(angle) * speed * lifetime * 0.3;
+
+            // Spawn secondary mini-explosion after delay
+            if (Math.random() < 0.4) { // 40% of particles spawn children
+                setTimeout(() => {
+                    this.addMiniExplosion(endX, endY, randomNeonColorNear(hsv.h, 60), 8);
+                }, lifetime * 12); // Approximate timing
+            }
+
+            // Main particle
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: randomNeonColorNear(hsv.h, 40),
+                size: 2,
+                length: 10 + Math.random() * 8,
+                life: lifetime,
+                friction: 0.97,
+                gravity: 0.02,
+                type: 'gwline',
+                maxTrail: 5,
+                bounce: true
+            });
+        }
+
+        // Central glow
+        const glow = this.getParticle();
+        glow.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#ffffff',
+            size: 70 * intensity,
+            life: 20,
+            friction: 1,
+            type: 'gwglow'
+        });
+
+        // Main shockwave
+        this.addShockwave(x, y, color, 130 * intensity);
+    }
+
+    /**
+     * Small mini explosion for chain reactions
+     */
+    addMiniExplosion(x, y, color = '#ff6600', count = 8) {
+        const adjustedCount = getAdjustedCount(count);
+
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + (Math.random() - 0.5) * 0.5;
+            const speed = 2 + Math.random() * 4;
+
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: Math.random() > 0.3 ? color : '#ffffff',
+                size: 2,
+                length: 5 + Math.random() * 4,
+                life: 20 + Math.random() * 15,
+                friction: 0.94,
+                gravity: 0.03,
+                type: 'gwline',
+                maxTrail: 3,
+                bounce: true
+            });
+        }
+
+        // Small flash
+        const flash = this.getParticle();
+        flash.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#ffffff',
+            size: 15,
+            life: 8,
+            friction: 1,
+            type: 'glow'
+        });
+    }
+
+    // ============================================
+    // RAINBOW EXPLOSION - Full HSV spectrum burst
+    // ============================================
+
+    /**
+     * Create a rainbow explosion using full HSV color spectrum
+     * Each particle gets a different hue from the rainbow
+     */
+    addRainbowExplosion(x, y, count = 80, intensity = 1) {
+        const adjustedCount = getAdjustedCount(count);
+
+        // Central white flash
+        const flash = this.getParticle();
+        flash.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#ffffff',
+            size: 80 * intensity,
+            life: 20,
+            friction: 1,
+            type: 'gwglow'
+        });
+
+        // Rainbow particles - each gets a different hue
+        for (let i = 0; i < adjustedCount; i++) {
+            const hue = (360 * i) / adjustedCount; // Spread across full spectrum
+            const color = hsvToHex(hue, 0.95, 1.0);
+
+            const angle = (Math.PI * 2 * i) / adjustedCount + (Math.random() - 0.5) * 0.3;
+            const speed = 6 + Math.random() * 10 * intensity;
+
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: color,
+                size: 2,
+                length: 10 + Math.random() * 8,
+                life: 50 + Math.random() * 30,
+                friction: 0.96,
+                gravity: 0.015,
+                type: 'gwline',
+                maxTrail: 5,
+                bounce: true
+            });
+        }
+
+        // Multiple colored shockwaves
+        const shockwaveColors = ['#ff0000', '#00ff00', '#0000ff'];
+        for (let i = 0; i < 3; i++) {
+            setTimeout(() => {
+                const shockwave = this.getParticle();
+                shockwave.reset(x, y, {
+                    vx: 0,
+                    vy: 0,
+                    color: shockwaveColors[i],
+                    size: 100 + i * 30,
+                    life: 18,
                     friction: 1,
                     type: 'gwshockwave'
                 });
