@@ -2647,6 +2647,10 @@ function handlePlayerDeath() {
             if (newAchievements.length > 0) {
                 achievementNotification = newAchievements[0];
                 achievementNotificationTimer = 0;
+                // Play achievement sound
+                if (soundSystem && soundSystem.playAchievement) {
+                    soundSystem.playAchievement();
+                }
             }
 
             // Save bestiary data
