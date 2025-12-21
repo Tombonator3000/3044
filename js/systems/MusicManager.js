@@ -27,6 +27,9 @@ export class MusicManager {
         // Transition state
         this.isTransitioning = false;
         this.pendingPlay = null;
+
+        // Track sources that are fading out to prevent overlap
+        this.fadingOutSources = [];
     }
 
     /**
@@ -154,6 +157,20 @@ export class MusicManager {
     }
 
     /**
+     * Stop all fading out sources immediately
+     */
+    stopAllFadingSources() {
+        for (const source of this.fadingOutSources) {
+            try {
+                source.stop();
+            } catch (e) {
+                // Source might already be stopped
+            }
+        }
+        this.fadingOutSources = [];
+    }
+
+    /**
      * Seamlessly transition from current music to new track
      * @param {string} trackName - Name of the new track
      * @param {AudioBuffer} buffer - Audio buffer to play
@@ -166,44 +183,62 @@ export class MusicManager {
             this.pendingPlay = null;
         }
 
+        // Stop any sources that are still fading out to prevent overlap
+        this.stopAllFadingSources();
+
         // Keep reference to old source for stopping
         const oldSource = this.currentSource;
-        const hadOldSource = !!oldSource;
 
         // Cancel any ongoing gain automations
         if (this.musicGain) {
             this.musicGain.gain.cancelScheduledValues(this.audioContext.currentTime);
         }
 
+        // Clear current references immediately
+        this.currentSource = null;
+        this.currentTrack = null;
+
         // If there's current music, fade it out
         if (oldSource && fadeTime > 0) {
             this.isTransitioning = true;
             const now = this.audioContext.currentTime;
 
-            // Fade out old track
-            this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, now);
-            this.musicGain.gain.linearRampToValueAtTime(0, now + fadeTime);
+            // Track the old source for cleanup
+            this.fadingOutSources.push(oldSource);
+
+            // Create a separate gain node for fading out the old source
+            const fadeGain = this.audioContext.createGain();
+            fadeGain.connect(this.audioContext.destination);
+            fadeGain.gain.setValueAtTime(this.volume, now);
+            fadeGain.gain.linearRampToValueAtTime(0, now + fadeTime);
+
+            // Disconnect old source from main gain and connect to fade gain
+            try {
+                oldSource.disconnect();
+                oldSource.connect(fadeGain);
+            } catch (e) {
+                // Source might already be stopped
+            }
 
             // Stop old source after fade completes
+            const sourceToStop = oldSource;
             setTimeout(() => {
                 try {
-                    oldSource.stop();
+                    sourceToStop.stop();
                 } catch (e) {
                     // Source might already be stopped
                 }
+                // Remove from fading sources list
+                const index = this.fadingOutSources.indexOf(sourceToStop);
+                if (index > -1) {
+                    this.fadingOutSources.splice(index, 1);
+                }
             }, fadeTime * 1000);
 
-            // Start new track after fade out
-            this.pendingPlay = setTimeout(() => {
-                this.pendingPlay = null;
-                if (!this.musicEnabled) {
-                    this.isTransitioning = false;
-                    return;
-                }
-                this.startTrack(trackName, buffer);
-            }, fadeTime * 1000);
+            // Start new track immediately (parallel with fade out)
+            this.startTrack(trackName, buffer);
         } else {
-            // No current music, start immediately
+            // No current music or no fade, stop immediately and start
             if (oldSource) {
                 try {
                     oldSource.stop();
@@ -211,10 +246,6 @@ export class MusicManager {
             }
             this.startTrack(trackName, buffer);
         }
-
-        // Clear current references immediately to prevent double-stop
-        this.currentSource = null;
-        this.currentTrack = null;
     }
 
     /**
@@ -249,6 +280,9 @@ export class MusicManager {
             clearTimeout(this.pendingPlay);
             this.pendingPlay = null;
         }
+
+        // Stop all fading sources immediately
+        this.stopAllFadingSources();
 
         if (!this.currentSource) return;
 
