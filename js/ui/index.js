@@ -9,6 +9,7 @@ export { HUD } from './HUD.js';
 export { ComboDisplay } from './ComboDisplay.js';
 export { RadicalSlangUI } from './RadicalSlang.js';
 export { OptionsMenu } from './OptionsMenu.js';
+export { BestiaryScreen } from './BestiaryScreen.js';
 
 // HUD Theme system
 export { HUD_THEMES, DEFAULT_THEME, getTheme, getAllThemes } from './HUDThemes.js';

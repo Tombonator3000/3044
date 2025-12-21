@@ -95,6 +95,7 @@
                 <div class="menu-buttons-tertiary">
                     <button class="btn-tertiary" id="dailyChallengeBtn">Daily Challenge</button>
                     <button class="btn-tertiary" id="achievementsBtn">Achievements</button>
+                    <button class="btn-tertiary" id="bestiaryBtn">Enemy Bestiary</button>
                     <button class="btn-tertiary" id="highScoresBtn">High Scores</button>
                 </div>
 
@@ -179,7 +180,7 @@
 
         <!-- OPTIONS SCREEN -->
         <div id="optionsScreen">
-            <div class="options-container">
+            <div class="options-container options-scrollable">
                 <h2 class="options-title">OPTIONS</h2>
 
                 <div class="options-section">
@@ -191,6 +192,27 @@
                     <div class="option-row">
                         <span class="option-label">MUSIC</span>
                         <button class="toggle-btn active" id="musicToggle">ON</button>
+                    </div>
+                    <div class="option-row slider-row">
+                        <span class="option-label">MASTER VOLUME</span>
+                        <div class="slider-container">
+                            <input type="range" class="volume-slider" id="masterVolumeSlider" min="0" max="100" value="100">
+                            <span class="slider-value" id="masterVolumeValue">100%</span>
+                        </div>
+                    </div>
+                    <div class="option-row slider-row">
+                        <span class="option-label">MUSIC VOLUME</span>
+                        <div class="slider-container">
+                            <input type="range" class="volume-slider" id="musicVolumeSlider" min="0" max="100" value="50">
+                            <span class="slider-value" id="musicVolumeValue">50%</span>
+                        </div>
+                    </div>
+                    <div class="option-row slider-row">
+                        <span class="option-label">SFX VOLUME</span>
+                        <div class="slider-container">
+                            <input type="range" class="volume-slider" id="sfxVolumeSlider" min="0" max="100" value="70">
+                            <span class="slider-value" id="sfxVolumeValue">70%</span>
+                        </div>
                     </div>
                 </div>
 
@@ -209,11 +231,31 @@
                         <button class="toggle-btn active" id="screenShakeToggle">ON</button>
                     </div>
                     <div class="option-row">
+                        <span class="option-label">BACKGROUND GRID</span>
+                        <button class="toggle-btn active" id="backgroundGridToggle">ON</button>
+                    </div>
+                    <div class="option-row">
+                        <span class="option-label">BULLET TRAILS</span>
+                        <button class="toggle-btn active" id="bulletTrailsToggle">ON</button>
+                    </div>
+                    <div class="option-row">
+                        <span class="option-label">SHOW FPS</span>
+                        <button class="toggle-btn" id="showFPSToggle">OFF</button>
+                    </div>
+                    <div class="option-row">
                         <span class="option-label">PARTICLES</span>
                         <div class="multi-toggle">
                             <button class="particle-btn" data-value="low">LOW</button>
                             <button class="particle-btn" data-value="medium">MED</button>
                             <button class="particle-btn active" data-value="high">HIGH</button>
+                        </div>
+                    </div>
+                    <div class="option-row">
+                        <span class="option-label">NEON GLOW</span>
+                        <div class="multi-toggle">
+                            <button class="glow-btn" data-value="low">LOW</button>
+                            <button class="glow-btn" data-value="medium">MED</button>
+                            <button class="glow-btn active" data-value="high">HIGH</button>
                         </div>
                     </div>
                 </div>
@@ -227,6 +269,34 @@
                             <button class="difficulty-btn active" data-value="normal">NORMAL</button>
                             <button class="difficulty-btn" data-value="hard">HARD</button>
                             <button class="difficulty-btn" data-value="extreme">EXTREME</button>
+                        </div>
+                    </div>
+                    <div class="option-row">
+                        <span class="option-label">AUTO-FIRE</span>
+                        <button class="toggle-btn" id="autoFireToggle">OFF</button>
+                    </div>
+                    <div class="option-row">
+                        <span class="option-label">DAMAGE NUMBERS</span>
+                        <button class="toggle-btn active" id="showDamageNumbersToggle">ON</button>
+                    </div>
+                    <div class="option-row">
+                        <span class="option-label">SIDESCROLLER MODE</span>
+                        <button class="toggle-btn" id="sidescrollerModeToggle">OFF</button>
+                    </div>
+                </div>
+
+                <div class="options-section">
+                    <h3 class="section-title">ACCESSIBILITY</h3>
+                    <div class="option-row">
+                        <span class="option-label">REDUCED FLASH</span>
+                        <button class="toggle-btn" id="reducedFlashToggle">OFF</button>
+                    </div>
+                    <div class="option-row">
+                        <span class="option-label">ENEMY BULLET SIZE</span>
+                        <div class="multi-toggle">
+                            <button class="bullet-size-btn" data-value="small">SMALL</button>
+                            <button class="bullet-size-btn active" data-value="normal">NORMAL</button>
+                            <button class="bullet-size-btn" data-value="large">LARGE</button>
                         </div>
                     </div>
                 </div>
