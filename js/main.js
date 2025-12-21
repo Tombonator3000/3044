@@ -356,8 +356,14 @@ function resizeCanvas() {
     // Use lower resolution on mobile for better performance (Samsung S24 has DPR ~3)
     const maxDpr = isMobileDevice ? 1.5 : 2;
     const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
-    canvas.logicalWidth = LOGICAL_CANVAS_SIZE;
-    canvas.logicalHeight = LOGICAL_CANVAS_SIZE;
+
+    // Use smaller logical size on mobile to zoom in (makes game elements larger)
+    // 600 on mobile vs 900 on desktop = 1.5x zoom effect
+    const mobileLogicalSize = 600;
+    const logicalSize = isMobileDevice ? mobileLogicalSize : LOGICAL_CANVAS_SIZE;
+
+    canvas.logicalWidth = logicalSize;
+    canvas.logicalHeight = logicalSize;
     canvas.width = canvas.logicalWidth * dpr;
     canvas.height = canvas.logicalHeight * dpr;
 
