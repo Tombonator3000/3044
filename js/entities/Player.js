@@ -427,70 +427,111 @@ export class Player {
         }
     }
 
+    /**
+     * Main shooting method - dispatches to the appropriate shooting mode.
+     * Priority order: Combo > Quantum > Infinity > God > Normal
+     */
     shoot(bulletPool, gameState, soundSystem) {
         if (!bulletPool) return;
 
+        this.fireActiveShootingMode(bulletPool, gameState, soundSystem);
+        this.fireMirrorShip(bulletPool);
+
+        if (soundSystem?.playShoot) soundSystem.playShoot();
+    }
+
+    /**
+     * Determines which shooting mode is active and fires the appropriate pattern.
+     */
+    fireActiveShootingMode(bulletPool, gameState, soundSystem) {
         const hasCombo = gameState?.powerUpManager?.comboEffects?.some(c => c.name === 'PULSE CANNON');
 
         if (hasCombo) {
-            // Pulse cannon - rapid laser beams
-            for (let i = 0; i < 5; i++) {
-                setTimeout(() => {
-                    if (bulletPool) {
-                        bulletPool.spawn?.(this.x, this.y - 20 - i * 5, 0, -18, true);
-                    }
-                }, i * 15);
-            }
+            this.firePulseCannon(bulletPool);
         } else if (this.quantumMode > 0) {
-            // Quantum shots
-            for (let i = 0; i < this.quantumShots; i++) {
-                const offsetX = (i - (this.quantumShots - 1) / 2) * 15;
-                bulletPool.spawn?.(this.x + offsetX, this.y - 15, 0, -14, true, {
-                    color: '#aa00ff',
-                    size: 6,
-                    damage: 12,
-                    quantum: true
-                });
-            }
+            this.fireQuantumShots(bulletPool);
         } else if (this.infinityMode > 0 || this.infinitePower) {
-            // Infinity beam
-            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
-                bulletPool.spawn?.(this.x, this.y, Math.cos(angle) * 12, Math.sin(angle) * 12, true, {
-                    color: '#ffff00',
-                    size: 5,
-                    damage: 8,
-                    pierce: true
-                });
-            }
+            this.fireInfinityBeam(bulletPool);
         } else if (this.godMode > 0) {
-            // God mode - massive spread
-            for (let angle = -Math.PI / 3; angle <= Math.PI / 3; angle += Math.PI / 12) {
-                const speed = 15;
-                bulletPool.spawn?.(this.x, this.y - 10,
-                    Math.sin(angle) * speed,
-                    -Math.cos(angle) * speed,
-                    true, {
-                        color: '#ff0000',
-                        size: 8,
-                        damage: 25,
-                        pierce: true,
-                        explosive: true
-                    });
-            }
+            this.fireGodModeSpread(bulletPool);
         } else {
-            // Normal shooting based on weapon level
             this.normalShoot(bulletPool, soundSystem);
         }
+    }
 
-        // Mirror ship also shoots
-        if (this.mirrorShip > 0 && bulletPool) {
+    /**
+     * Pulse cannon - fires rapid laser beams in quick succession
+     */
+    firePulseCannon(bulletPool) {
+        for (let i = 0; i < 5; i++) {
+            setTimeout(() => {
+                if (bulletPool) {
+                    bulletPool.spawn?.(this.x, this.y - 20 - i * 5, 0, -18, true);
+                }
+            }, i * 15);
+        }
+    }
+
+    /**
+     * Quantum shots - fires multiple parallel bullets with quantum properties
+     */
+    fireQuantumShots(bulletPool) {
+        for (let i = 0; i < this.quantumShots; i++) {
+            const offsetX = (i - (this.quantumShots - 1) / 2) * 15;
+            bulletPool.spawn?.(this.x + offsetX, this.y - 15, 0, -14, true, {
+                color: '#aa00ff',
+                size: 6,
+                damage: 12,
+                quantum: true
+            });
+        }
+    }
+
+    /**
+     * Infinity beam - fires a 360-degree spread of piercing bullets
+     */
+    fireInfinityBeam(bulletPool) {
+        const angleStep = Math.PI / 8;
+        for (let angle = 0; angle < Math.PI * 2; angle += angleStep) {
+            bulletPool.spawn?.(this.x, this.y, Math.cos(angle) * 12, Math.sin(angle) * 12, true, {
+                color: '#ffff00',
+                size: 5,
+                damage: 8,
+                pierce: true
+            });
+        }
+    }
+
+    /**
+     * God mode spread - fires a massive forward arc of explosive piercing bullets
+     */
+    fireGodModeSpread(bulletPool) {
+        const speed = 15;
+        const angleStep = Math.PI / 12;
+        for (let angle = -Math.PI / 3; angle <= Math.PI / 3; angle += angleStep) {
+            bulletPool.spawn?.(this.x, this.y - 10,
+                Math.sin(angle) * speed,
+                -Math.cos(angle) * speed,
+                true, {
+                    color: '#ff0000',
+                    size: 8,
+                    damage: 25,
+                    pierce: true,
+                    explosive: true
+                });
+        }
+    }
+
+    /**
+     * Mirror ship shooting - fires from the mirrored ship position when active
+     */
+    fireMirrorShip(bulletPool) {
+        if (this.mirrorShip > 0) {
             bulletPool.spawn?.(this.mirrorX, this.mirrorY - 15, 0, -12, true, {
                 color: '#aaffff',
                 size: 5
             });
         }
-
-        if (soundSystem?.playShoot) soundSystem.playShoot();
     }
 
     normalShoot(bulletPool, soundSystem) {
