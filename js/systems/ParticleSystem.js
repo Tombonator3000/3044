@@ -274,59 +274,16 @@ class Particle {
         ctx.save();
         ctx.globalAlpha = alpha;
 
-        switch (this.type) {
-            case 'spark':
-                this.drawSpark(ctx, currentSize);
-                break;
-            case 'trail':
-                this.drawTrail(ctx, currentSize);
-                break;
-            case 'explosion':
-                this.drawExplosion(ctx, currentSize);
-                break;
-            case 'glow':
-                this.drawGlow(ctx, currentSize);
-                break;
-            case 'debris':
-                this.drawDebris(ctx, currentSize);
-                break;
-            case 'score':
-                this.drawScore(ctx, this.size);
-                break;
-            case 'shockwave':
-                this.drawShockwave(ctx, currentSize);
-                break;
-            case 'pixel':
-                this.drawPixel(ctx, currentSize);
-                break;
-            case 'ring':
-                this.drawRing(ctx, currentSize);
-                break;
-            case 'lightning':
-                this.drawLightning(ctx, currentSize);
-                break;
-            case 'fire':
-                this.drawFire(ctx, currentSize);
-                break;
-            case 'smoke':
-                this.drawSmoke(ctx, currentSize);
-                break;
-            case 'star':
-                this.drawStar(ctx, currentSize);
-                break;
-            // Geometry Wars-style line particles
-            case 'line':
-            case 'gwline':
-                this.drawLine(ctx, alpha);
-                break;
-            case 'gwglow':
-                this.drawGWGlow(ctx, alpha);
-                break;
-            case 'gwshockwave':
-                this.drawGWShockwave(ctx, alpha);
-                break;
-            default:
-                this.drawDefault(ctx, currentSize);
+        // Use data-driven lookup for particle rendering
+        const renderer = Particle.renderers[this.type];
+        if (renderer) {
+            // Determine the second parameter based on renderer config:
+            // 'alpha' = use alpha, 'size' = use this.size, default = use currentSize
+            const param = renderer.param === 'alpha' ? alpha :
+                          renderer.param === 'size' ? this.size : currentSize;
+            renderer.fn.call(this, ctx, param);
+        } else {
+            this.drawDefault(ctx, currentSize);
         }
 
         // Restore context state after drawing
@@ -686,6 +643,38 @@ class Particle {
         ctx.restore();
     }
 }
+
+/**
+ * Data-driven renderer lookup table for particle types.
+ * Maps particle type names to their rendering configuration.
+ * - fn: The draw method to call
+ * - param: What to pass as second argument ('alpha', 'size', or undefined for currentSize)
+ *
+ * This replaces the large switch statement for cleaner, more maintainable dispatch.
+ * Adding a new particle type only requires adding an entry here and the draw method.
+ */
+Particle.renderers = {
+    // Standard particle types (receive currentSize)
+    spark:      { fn: Particle.prototype.drawSpark },
+    trail:      { fn: Particle.prototype.drawTrail },
+    explosion:  { fn: Particle.prototype.drawExplosion },
+    glow:       { fn: Particle.prototype.drawGlow },
+    debris:     { fn: Particle.prototype.drawDebris },
+    shockwave:  { fn: Particle.prototype.drawShockwave },
+    pixel:      { fn: Particle.prototype.drawPixel },
+    ring:       { fn: Particle.prototype.drawRing },
+    lightning:  { fn: Particle.prototype.drawLightning },
+    fire:       { fn: Particle.prototype.drawFire },
+    smoke:      { fn: Particle.prototype.drawSmoke },
+    star:       { fn: Particle.prototype.drawStar },
+    // Special case: score uses this.size instead of currentSize
+    score:      { fn: Particle.prototype.drawScore, param: 'size' },
+    // Geometry Wars-style particles (receive alpha instead of size)
+    line:       { fn: Particle.prototype.drawLine, param: 'alpha' },
+    gwline:     { fn: Particle.prototype.drawLine, param: 'alpha' },
+    gwglow:     { fn: Particle.prototype.drawGWGlow, param: 'alpha' },
+    gwshockwave: { fn: Particle.prototype.drawGWShockwave, param: 'alpha' }
+};
 
 /**
  * ParticleSystem Class
