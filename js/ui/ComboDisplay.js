@@ -288,9 +288,9 @@ export class ComboDisplay {
      */
     adjustColor(color, factor) {
         const hex = color.replace('#', '');
-        const r = Math.min(255, Math.floor(parseInt(hex.substr(0, 2), 16) * factor));
-        const g = Math.min(255, Math.floor(parseInt(hex.substr(2, 2), 16) * factor));
-        const b = Math.min(255, Math.floor(parseInt(hex.substr(4, 2), 16) * factor));
+        const r = Math.min(255, Math.floor(parseInt(hex.slice(0, 2), 16) * factor));
+        const g = Math.min(255, Math.floor(parseInt(hex.slice(2, 4), 16) * factor));
+        const b = Math.min(255, Math.floor(parseInt(hex.slice(4, 6), 16) * factor));
         return `rgb(${r}, ${g}, ${b})`;
     }
 }
