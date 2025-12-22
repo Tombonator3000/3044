@@ -4,6 +4,138 @@
 
 import { config, getCurrentTheme } from '../config.js';
 
+// Ship pixel patterns - each ship has a unique 2D pixel array
+const SHIP_PATTERNS = {
+    neonFalcon: {
+        pixels: [
+            [0,0,0,0,0,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,1,1,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,1,0],
+            [1,1,0,1,1,1,1,1,0,1,1],
+            [1,0,0,0,1,1,1,0,0,0,1],
+            [1,0,0,0,0,1,0,0,0,0,1],
+            [0,0,0,0,0,1,0,0,0,0,0],
+        ],
+        highlight: { check: (x, y) => y < 4 && x >= 4 && x <= 6, color: '#ffffff' }
+    },
+    glassCannon: {
+        pixels: [
+            [0,0,0,0,0,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,1,0,1,0,1,0,0,0],
+            [0,0,1,0,1,1,1,0,1,0,0],
+            [0,1,0,0,1,1,1,0,0,1,0],
+            [1,0,0,1,1,1,1,1,0,0,1],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,0,1,1,1,0,1,1,0],
+            [1,1,0,0,0,1,0,0,0,1,1],
+            [1,0,0,0,0,0,0,0,0,0,1],
+        ],
+        highlight: { check: (x, y) => y >= 4 && y <= 6 && x >= 4 && x <= 6, color: '#ffff00' }
+    },
+    tank: {
+        pixels: [
+            [0,0,0,0,0,1,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,1,0,0,0,0],
+            [0,0,1,1,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,1,1,0],
+            [1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,1,1,0,1,1,1,1,0,1,1,1],
+            [1,1,1,0,1,1,1,1,0,1,1,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1],
+            [0,1,1,1,1,1,1,1,1,1,1,0],
+            [0,0,1,1,0,0,0,0,1,1,0,0],
+        ],
+        highlight: { check: (x, y) => y >= 4 && y <= 7 && x >= 4 && x <= 7, color: '#00ffff' }
+    },
+    speedster: {
+        pixels: [
+            [0,0,0,0,1,0,0,0,0],
+            [0,0,0,1,1,1,0,0,0],
+            [0,0,0,1,1,1,0,0,0],
+            [0,0,0,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,0,0],
+            [0,0,1,1,1,1,1,0,0],
+            [0,1,0,1,1,1,0,1,0],
+            [1,0,0,1,1,1,0,0,1],
+            [1,0,0,0,1,0,0,0,1],
+            [0,0,0,0,1,0,0,0,0],
+            [0,0,0,0,1,0,0,0,0],
+        ],
+        highlight: { check: (x, y) => y <= 2 && x === 4, color: '#ffff00' },
+        effect: 'speedTrail'
+    },
+    retroClassic: {
+        pixels: [
+            [0,0,0,0,0,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,1,1,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,1,0],
+            [1,1,1,1,1,1,1,1,1,1,1],
+            [1,1,0,1,1,1,1,1,0,1,1],
+            [1,0,0,0,1,1,1,0,0,0,1],
+            [1,0,0,0,0,1,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,1],
+        ],
+        highlight: { check: (x, y) => (x + y) % 3 === 0 && y < 5, color: '#ffffff', noShadow: true }
+    },
+    phantom: {
+        pixels: [
+            [0,0,0,1,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,0],
+            [1,1,0,0,1,1,0,0,1,1],
+            [1,1,0,0,1,1,0,0,1,1],
+            [1,1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1,1,1],
+            [1,1,1,1,1,1,1,1,1,1],
+            [1,0,1,1,0,0,1,1,0,1],
+            [1,0,0,1,0,0,1,0,0,1],
+        ],
+        highlight: { check: (x, y) => y >= 3 && y <= 4 && (x === 2 || x === 3 || x === 6 || x === 7), color: '#ffffff' },
+        effect: 'phasing'
+    },
+    berserker: {
+        pixels: [
+            [0,0,0,0,0,1,0,0,0,0,0],
+            [0,0,0,0,1,1,1,0,0,0,0],
+            [1,0,0,1,1,1,1,1,0,0,1],
+            [1,1,0,1,1,1,1,1,0,1,1],
+            [0,1,1,1,1,1,1,1,1,1,0],
+            [0,0,1,1,1,1,1,1,1,0,0],
+            [0,1,1,0,1,1,1,0,1,1,0],
+            [1,1,0,0,1,1,1,0,0,1,1],
+            [1,0,0,0,0,1,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,0,0,1],
+            [0,0,0,0,0,1,0,0,0,0,0],
+        ],
+        highlights: [
+            { check: (x, y) => y >= 3 && y <= 5 && x >= 4 && x <= 6, colorFn: () => Math.sin(Date.now() * 0.01) > 0 ? '#ff0000' : '#ff4400', shadowColor: '#ff0000' },
+            { check: (x, y) => (y === 2 || y === 3) && (x === 0 || x === 1 || x === 9 || x === 10), color: '#ffaa00' }
+        ]
+    },
+    synth: {
+        pixels: [
+            [0,0,0,1,1,1,1,0,0,0],
+            [0,0,1,1,1,1,1,1,0,0],
+            [0,1,1,1,1,1,1,1,1,0],
+            [0,1,1,1,1,1,1,1,1,0],
+            [1,1,0,1,1,1,1,0,1,1],
+            [1,0,0,1,1,1,1,0,0,1],
+            [1,0,0,0,1,1,0,0,0,1],
+            [1,1,0,0,1,1,0,0,1,1],
+            [0,1,1,0,1,1,0,1,1,0],
+            [0,0,1,1,0,0,1,1,0,0],
+        ],
+        highlight: { check: (x, y) => y < 4, colorFn: (x, y) => `hsl(${(y * 30 + Date.now() * 0.1) % 360}, 100%, 60%)` },
+        effect: 'equalizer'
+    }
+};
+
 export class Player {
     constructor(x, y) {
         this.x = x;
@@ -1112,412 +1244,109 @@ export class Player {
     }
 
     /**
-     * Draw ship based on ship type - each ship has a unique design
+     * Draws the ship based on current shipId using the SHIP_PATTERNS configuration.
+     * This data-driven approach replaces 8 individual ship drawing methods.
      */
     drawShipByType(ctx, color) {
         const shadowsEnabled = config.rendering?.shadowsEnabled !== false;
+        const p = 3; // Pixel size for all ships
 
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
         if (shadowsEnabled) {
-            ctx.shadowBlur = 15; // Reduced from 30
+            ctx.shadowBlur = 15;
             ctx.shadowColor = color;
         }
 
-        switch (this.shipId) {
-            case 'glassCannon':
-                this.drawGlassCannonShip(ctx, color);
-                break;
-            case 'tank':
-                this.drawTankShip(ctx, color);
-                break;
-            case 'speedster':
-                this.drawSpeedsterShip(ctx, color);
-                break;
-            case 'retroClassic':
-                this.drawRetroClassicShip(ctx, color);
-                break;
-            case 'phantom':
-                this.drawPhantomShip(ctx, color);
-                break;
-            case 'berserker':
-                this.drawBerserkerShip(ctx, color);
-                break;
-            case 'synth':
-                this.drawSynthShip(ctx, color);
-                break;
-            case 'neonFalcon':
-            default:
-                this.drawNeonFalconShip(ctx, color);
-                break;
+        // Get ship pattern from configuration, default to neonFalcon
+        const pattern = SHIP_PATTERNS[this.shipId] || SHIP_PATTERNS.neonFalcon;
+        const pixels = pattern.pixels;
+
+        // Calculate centering offsets
+        const offsetX = -pixels[0].length * p / 2;
+        const offsetY = -pixels.length * p / 2;
+
+        // Apply special effects before drawing
+        if (pattern.effect === 'phasing') {
+            const phase = Math.sin(Date.now() * 0.005) * 0.3;
+            ctx.globalAlpha = 0.6 + phase;
         }
-    }
 
-    /**
-     * NEON FALCON - Classic balanced ship (default)
-     * 8-bit pixel art - sleek fighter design
-     */
-    drawNeonFalconShip(ctx, color) {
-        const p = 3; // Pixel size
-        // Shadow already set by drawShipByType
-
-        // 8-bit falcon fighter pattern
-        const falcon = [
-            [0,0,0,0,0,1,0,0,0,0,0],
-            [0,0,0,0,1,1,1,0,0,0,0],
-            [0,0,0,0,1,1,1,0,0,0,0],
-            [0,0,0,1,1,1,1,1,0,0,0],
-            [0,0,1,1,1,1,1,1,1,0,0],
-            [0,1,1,1,1,1,1,1,1,1,0],
-            [1,1,0,1,1,1,1,1,0,1,1],
-            [1,0,0,0,1,1,1,0,0,0,1],
-            [1,0,0,0,0,1,0,0,0,0,1],
-            [0,0,0,0,0,1,0,0,0,0,0],
-        ];
-
-        const offsetX = -falcon[0].length * p / 2;
-        const offsetY = -falcon.length * p / 2;
-
-        falcon.forEach((row, y) => {
+        // Draw each pixel
+        pixels.forEach((row, y) => {
             row.forEach((pixel, x) => {
                 if (pixel) {
-                    // Cockpit area (center top) is brighter
-                    if (y < 4 && x >= 4 && x <= 6) {
-                        ctx.fillStyle = '#ffffff';
-                    } else {
-                        ctx.fillStyle = color;
-                    }
-                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
-                }
-            });
-        });
-    }
-
-    /**
-     * GLASS CANNON - Angular, aggressive design
-     * 8-bit pixel art - sharp angular deadly look
-     */
-    drawGlassCannonShip(ctx, color) {
-        const p = 3; // Pixel size
-        // Shadow already set by drawShipByType
-
-        // 8-bit angular cannon pattern
-        const cannon = [
-            [0,0,0,0,0,1,0,0,0,0,0],
-            [0,0,0,0,1,1,1,0,0,0,0],
-            [0,0,0,1,0,1,0,1,0,0,0],
-            [0,0,1,0,1,1,1,0,1,0,0],
-            [0,1,0,0,1,1,1,0,0,1,0],
-            [1,0,0,1,1,1,1,1,0,0,1],
-            [0,0,1,1,1,1,1,1,1,0,0],
-            [0,1,1,0,1,1,1,0,1,1,0],
-            [1,1,0,0,0,1,0,0,0,1,1],
-            [1,0,0,0,0,0,0,0,0,0,1],
-        ];
-
-        const offsetX = -cannon[0].length * p / 2;
-        const offsetY = -cannon.length * p / 2;
-
-        cannon.forEach((row, y) => {
-            row.forEach((pixel, x) => {
-                if (pixel) {
-                    // Glowing energy core in center
-                    if (y >= 4 && y <= 6 && x >= 4 && x <= 6) {
-                        ctx.fillStyle = '#ffff00';
-                        ctx.shadowColor = '#ffff00';
-                    } else {
-                        ctx.fillStyle = color;
-                        ctx.shadowColor = color;
-                    }
-                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
-                }
-            });
-        });
-    }
-
-    /**
-     * HEAVY TANK - Bulky, armored design
-     * 8-bit pixel art - wide armored fortress
-     */
-    drawTankShip(ctx, color) {
-        const p = 3; // Pixel size
-        // Shadow already set by drawShipByType
-
-        // 8-bit tank pattern - wide and bulky
-        const tank = [
-            [0,0,0,0,0,1,1,0,0,0,0,0],
-            [0,0,0,0,1,1,1,1,0,0,0,0],
-            [0,0,1,1,1,1,1,1,1,1,0,0],
-            [0,1,1,1,1,1,1,1,1,1,1,0],
-            [1,1,1,1,1,1,1,1,1,1,1,1],
-            [1,1,1,0,1,1,1,1,0,1,1,1],
-            [1,1,1,0,1,1,1,1,0,1,1,1],
-            [1,1,1,1,1,1,1,1,1,1,1,1],
-            [0,1,1,1,1,1,1,1,1,1,1,0],
-            [0,0,1,1,0,0,0,0,1,1,0,0],
-        ];
-
-        const offsetX = -tank[0].length * p / 2;
-        const offsetY = -tank.length * p / 2;
-
-        tank.forEach((row, y) => {
-            row.forEach((pixel, x) => {
-                if (pixel) {
-                    // Shield generator in center (cyan glow)
-                    if (y >= 4 && y <= 7 && x >= 4 && x <= 7) {
-                        ctx.fillStyle = '#00ffff';
-                        ctx.shadowColor = '#00ffff';
-                    } else {
-                        ctx.fillStyle = color;
-                        ctx.shadowColor = color;
-                    }
-                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
-                }
-            });
-        });
-    }
-
-    /**
-     * SPEEDSTER - Streamlined, aerodynamic design
-     * 8-bit pixel art - slim and fast looking
-     */
-    drawSpeedsterShip(ctx, color) {
-        const p = 3; // Pixel size
-        // Shadow already set by drawShipByType
-
-        // 8-bit speedster pattern - slim and elongated
-        const speedster = [
-            [0,0,0,0,1,0,0,0,0],
-            [0,0,0,1,1,1,0,0,0],
-            [0,0,0,1,1,1,0,0,0],
-            [0,0,0,1,1,1,0,0,0],
-            [0,0,1,1,1,1,1,0,0],
-            [0,0,1,1,1,1,1,0,0],
-            [0,1,0,1,1,1,0,1,0],
-            [1,0,0,1,1,1,0,0,1],
-            [1,0,0,0,1,0,0,0,1],
-            [0,0,0,0,1,0,0,0,0],
-            [0,0,0,0,1,0,0,0,0],
-        ];
-
-        const offsetX = -speedster[0].length * p / 2;
-        const offsetY = -speedster.length * p / 2;
-
-        speedster.forEach((row, y) => {
-            row.forEach((pixel, x) => {
-                if (pixel) {
-                    // Boost indicator (yellow) at top
-                    if (y <= 2 && x === 4) {
-                        ctx.fillStyle = '#ffff00';
-                        ctx.shadowColor = '#ffff00';
-                    } else {
-                        ctx.fillStyle = color;
-                        ctx.shadowColor = color;
+                    // Determine pixel color based on highlight rules
+                    const pixelStyle = this.getPixelStyle(pattern, x, y, color);
+                    ctx.fillStyle = pixelStyle.fill;
+                    if (pixelStyle.shadow) {
+                        ctx.shadowColor = pixelStyle.shadow;
                     }
                     ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
                 }
             });
         });
 
-        // Speed trail pixels behind
-        ctx.globalAlpha = 0.5;
-        ctx.fillStyle = color;
-        for (let i = 1; i <= 3; i++) {
-            ctx.globalAlpha = 0.5 - i * 0.15;
-            ctx.fillRect(offsetX + 4 * p, offsetY + (10 + i) * p, p - 1, p - 1);
+        // Apply post-draw effects
+        this.drawShipEffects(ctx, pattern, color, offsetX, offsetY, p, pixels.length);
+    }
+
+    /**
+     * Determines the fill and shadow colors for a pixel based on pattern highlight rules.
+     */
+    getPixelStyle(pattern, x, y, baseColor) {
+        // Handle multiple highlight zones (e.g., berserker)
+        if (pattern.highlights) {
+            for (const hl of pattern.highlights) {
+                if (hl.check(x, y)) {
+                    const fillColor = hl.colorFn ? hl.colorFn() : hl.color;
+                    return { fill: fillColor, shadow: hl.shadowColor || fillColor };
+                }
+            }
+            return { fill: baseColor, shadow: baseColor };
         }
-        ctx.globalAlpha = 1;
+
+        // Handle single highlight zone
+        if (pattern.highlight && pattern.highlight.check(x, y)) {
+            const hl = pattern.highlight;
+            const fillColor = hl.colorFn ? hl.colorFn(x, y) : hl.color;
+            if (hl.noShadow) {
+                return { fill: fillColor, shadow: null };
+            }
+            return { fill: fillColor, shadow: fillColor };
+        }
+
+        return { fill: baseColor, shadow: baseColor };
     }
 
     /**
-     * RETRO CLASSIC - Pixelated 8-bit style
-     * 8-bit pixel art - classic arcade ship
+     * Draws special post-draw effects for ships that have them.
      */
-    drawRetroClassicShip(ctx, color) {
-        const p = 3; // Pixel size
-        // Shadow already set by drawShipByType
+    drawShipEffects(ctx, pattern, color, offsetX, offsetY, p, patternHeight) {
+        // Reset alpha if phasing was applied
+        if (pattern.effect === 'phasing') {
+            ctx.globalAlpha = 1;
+        }
 
-        // 8-bit classic arcade ship pattern
-        const retro = [
-            [0,0,0,0,0,1,0,0,0,0,0],
-            [0,0,0,0,1,1,1,0,0,0,0],
-            [0,0,0,1,1,1,1,1,0,0,0],
-            [0,0,1,1,1,1,1,1,1,0,0],
-            [0,1,1,1,1,1,1,1,1,1,0],
-            [1,1,1,1,1,1,1,1,1,1,1],
-            [1,1,0,1,1,1,1,1,0,1,1],
-            [1,0,0,0,1,1,1,0,0,0,1],
-            [1,0,0,0,0,1,0,0,0,0,1],
-            [1,0,0,0,0,0,0,0,0,0,1],
-        ];
+        // Speed trail effect for speedster
+        if (pattern.effect === 'speedTrail') {
+            ctx.fillStyle = color;
+            for (let i = 1; i <= 3; i++) {
+                ctx.globalAlpha = 0.5 - i * 0.15;
+                ctx.fillRect(offsetX + 4 * p, offsetY + (patternHeight - 1 + i) * p, p - 1, p - 1);
+            }
+            ctx.globalAlpha = 1;
+        }
 
-        const offsetX = -retro[0].length * p / 2;
-        const offsetY = -retro.length * p / 2;
-
-        retro.forEach((row, y) => {
-            row.forEach((pixel, x) => {
-                if (pixel) {
-                    // Alternating colors for retro effect
-                    if ((x + y) % 3 === 0 && y < 5) {
-                        ctx.fillStyle = '#ffffff';
-                    } else {
-                        ctx.fillStyle = color;
-                    }
-                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
+        // Equalizer bars effect for synth
+        if (pattern.effect === 'equalizer') {
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowColor = '#00ffff';
+            for (let i = -2; i <= 2; i++) {
+                const barHeight = Math.floor(2 + Math.sin(Date.now() * 0.01 + i) * 2);
+                for (let h = 0; h < barHeight; h++) {
+                    ctx.fillRect(offsetX + (4 + i) * p, offsetY + (patternHeight + h) * p, p - 1, p - 1);
                 }
-            });
-        });
-    }
-
-    /**
-     * PHANTOM - Ethereal, ghostly design
-     * 8-bit pixel art - ghost-like with phase effect
-     */
-    drawPhantomShip(ctx, color) {
-        const p = 3; // Pixel size
-        const phase = Math.sin(Date.now() * 0.005) * 0.3;
-        // Shadow already set by drawShipByType (uses 15)
-
-        // 8-bit ghost/phantom pattern
-        const phantom = [
-            [0,0,0,1,1,1,1,0,0,0],
-            [0,0,1,1,1,1,1,1,0,0],
-            [0,1,1,1,1,1,1,1,1,0],
-            [1,1,0,0,1,1,0,0,1,1],
-            [1,1,0,0,1,1,0,0,1,1],
-            [1,1,1,1,1,1,1,1,1,1],
-            [1,1,1,1,1,1,1,1,1,1],
-            [1,1,1,1,1,1,1,1,1,1],
-            [1,0,1,1,0,0,1,1,0,1],
-            [1,0,0,1,0,0,1,0,0,1],
-        ];
-
-        const offsetX = -phantom[0].length * p / 2;
-        const offsetY = -phantom.length * p / 2;
-
-        // Ghost phasing effect
-        ctx.globalAlpha = 0.6 + phase;
-
-        phantom.forEach((row, y) => {
-            row.forEach((pixel, x) => {
-                if (pixel) {
-                    // Glowing eyes
-                    if (y >= 3 && y <= 4 && (x === 2 || x === 3 || x === 6 || x === 7)) {
-                        ctx.fillStyle = '#ffffff';
-                        ctx.shadowColor = '#ffffff';
-                    } else {
-                        ctx.fillStyle = color;
-                        ctx.shadowColor = color;
-                    }
-                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
-                }
-            });
-        });
-
-        ctx.globalAlpha = 1;
-    }
-
-    /**
-     * BERSERKER - Aggressive, spiked design
-     * 8-bit pixel art - angry spiked warrior
-     */
-    drawBerserkerShip(ctx, color) {
-        const p = 3; // Pixel size
-        // Shadow already set by drawShipByType
-
-        // 8-bit berserker pattern - spiked and aggressive
-        const berserker = [
-            [0,0,0,0,0,1,0,0,0,0,0],
-            [0,0,0,0,1,1,1,0,0,0,0],
-            [1,0,0,1,1,1,1,1,0,0,1],
-            [1,1,0,1,1,1,1,1,0,1,1],
-            [0,1,1,1,1,1,1,1,1,1,0],
-            [0,0,1,1,1,1,1,1,1,0,0],
-            [0,1,1,0,1,1,1,0,1,1,0],
-            [1,1,0,0,1,1,1,0,0,1,1],
-            [1,0,0,0,0,1,0,0,0,0,1],
-            [1,0,0,0,0,0,0,0,0,0,1],
-            [0,0,0,0,0,1,0,0,0,0,0],
-        ];
-
-        const offsetX = -berserker[0].length * p / 2;
-        const offsetY = -berserker.length * p / 2;
-
-        // Rage pulse effect
-        const ragePulse = Math.sin(Date.now() * 0.01) > 0;
-
-        berserker.forEach((row, y) => {
-            row.forEach((pixel, x) => {
-                if (pixel) {
-                    // Rage eye in center (pulsing red)
-                    if (y >= 3 && y <= 5 && x >= 4 && x <= 6) {
-                        ctx.fillStyle = ragePulse ? '#ff0000' : '#ff4400';
-                        ctx.shadowColor = '#ff0000';
-                    }
-                    // Spikes are brighter
-                    else if ((y === 2 || y === 3) && (x === 0 || x === 1 || x === 9 || x === 10)) {
-                        ctx.fillStyle = '#ffaa00';
-                        ctx.shadowColor = '#ffaa00';
-                    } else {
-                        ctx.fillStyle = color;
-                        ctx.shadowColor = color;
-                    }
-                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
-                }
-            });
-        });
-    }
-
-    /**
-     * SYNTHWAVE - Music-reactive, rhythmic design
-     * 8-bit pixel art - music/wave themed with beat pulse
-     */
-    drawSynthShip(ctx, color) {
-        const p = 3; // Pixel size
-        const beat = Math.sin(Date.now() * 0.008) * 0.5 + 0.5;
-        // Shadow already set by drawShipByType
-
-        // 8-bit synthwave pattern - music note inspired
-        const synth = [
-            [0,0,0,1,1,1,1,0,0,0],
-            [0,0,1,1,1,1,1,1,0,0],
-            [0,1,1,1,1,1,1,1,1,0],
-            [0,1,1,1,1,1,1,1,1,0],
-            [1,1,0,1,1,1,1,0,1,1],
-            [1,0,0,1,1,1,1,0,0,1],
-            [1,0,0,0,1,1,0,0,0,1],
-            [1,1,0,0,1,1,0,0,1,1],
-            [0,1,1,0,1,1,0,1,1,0],
-            [0,0,1,1,0,0,1,1,0,0],
-        ];
-
-        const offsetX = -synth[0].length * p / 2;
-        const offsetY = -synth.length * p / 2;
-
-        synth.forEach((row, y) => {
-            row.forEach((pixel, x) => {
-                if (pixel) {
-                    // Rainbow gradient based on y position and beat
-                    const hue = (y * 30 + Date.now() * 0.1) % 360;
-                    if (y < 4) {
-                        ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
-                        ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
-                    } else {
-                        ctx.fillStyle = color;
-                        ctx.shadowColor = color;
-                    }
-                    ctx.fillRect(offsetX + x * p, offsetY + y * p, p - 1, p - 1);
-                }
-            });
-        });
-
-        // Animated equalizer bars below ship
-        ctx.fillStyle = '#00ffff';
-        ctx.shadowColor = '#00ffff';
-        for (let i = -2; i <= 2; i++) {
-            const barHeight = Math.floor(2 + Math.sin(Date.now() * 0.01 + i) * 2);
-            for (let h = 0; h < barHeight; h++) {
-                ctx.fillRect(offsetX + (4 + i) * p, offsetY + (10 + h) * p, p - 1, p - 1);
             }
         }
     }
