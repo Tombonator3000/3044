@@ -356,7 +356,7 @@ export class CollisionSystem {
         if (!gs.gameRunning || gs.gamePaused) return;
 
         // Player collisions (if player exists and not invulnerable)
-        if (gs.player && !gs.playerInvulnerable && gs.player.alive !== false) {
+        if (gs.player && !gs.playerInvulnerable && gs.player.isAlive !== false) {
             this.checkPlayerVsEnemyBullets(gs);
             this.checkPlayerVsEnemies(gs);
         }
@@ -366,7 +366,7 @@ export class CollisionSystem {
         this.checkBulletsVsEnemies(gs);
 
         // Player vs power-ups
-        if (gs.player && gs.player.alive !== false) {
+        if (gs.player && gs.player.isAlive !== false) {
             this.checkPlayerVsPowerUps(gs);
         }
 
