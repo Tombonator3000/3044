@@ -86,7 +86,7 @@ export const HUD_THEMES = {
             combo: {
                 x: 'center', y: -80,
                 width: 500, height: 40,
-                showMultiplier: true,
+                showMultiplier: false,
                 rainbowWhenHigh: true,
                 highThreshold: 10
             },
@@ -201,7 +201,7 @@ export const HUD_THEMES = {
             combo: {
                 x: 'center', y: -90,
                 width: 450, height: 50,
-                showMultiplier: true,
+                showMultiplier: false,
                 rainbowWhenHigh: true,
                 highThreshold: 8,
                 style: 'holographic'
@@ -323,7 +323,7 @@ export const HUD_THEMES = {
             combo: {
                 x: 'center', y: -60,
                 width: 600, height: 20,
-                showMultiplier: true,
+                showMultiplier: false,
                 rainbowWhenHigh: false,
                 style: 'line'
             },
@@ -437,7 +437,7 @@ export const HUD_THEMES = {
             combo: {
                 x: 'center', y: -70,
                 width: 400, height: 30,
-                showMultiplier: true,
+                showMultiplier: false,
                 rainbowWhenHigh: false,
                 style: 'ascii'
             },
