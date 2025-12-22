@@ -134,12 +134,18 @@ export class RadicalSlang {
     }
 
     addText(text, color, combo) {
+        // Randomize position on screen (20%-80% range to avoid edges)
+        const randomX = 0.2 + Math.random() * 0.6; // 20% to 80% of width
+        const randomY = 0.2 + Math.random() * 0.4; // 20% to 60% of height
+
         this.activeTexts.push({
             text: text,
             color: color,
             combo: combo,
-            x: 0,  // Will be centered
-            y: 0,  // Will be set based on canvas
+            x: 0,
+            y: 0,
+            randomXFactor: randomX, // Store random position factor
+            randomYFactor: randomY,
             life: 120,  // 2 seconds at 60fps
             maxLife: 120,
             scale: 0,
@@ -177,8 +183,23 @@ export class RadicalSlang {
 
         for (const text of this.activeTexts) {
             const alpha = Math.min(1, text.life / 30);
-            const x = (text.screenX !== undefined) ? text.screenX : canvasWidth / 2 + text.x;
-            const y = (text.screenY !== undefined) ? text.screenY : canvasHeight * 0.35 + text.y;
+            // Use random position factors if available, otherwise fall back to screenX/screenY or center
+            let x, y;
+            if (text.screenX !== undefined) {
+                x = text.screenX + text.x;
+            } else if (text.randomXFactor !== undefined) {
+                x = canvasWidth * text.randomXFactor + text.x;
+            } else {
+                x = canvasWidth / 2 + text.x;
+            }
+
+            if (text.screenY !== undefined) {
+                y = text.screenY + text.y;
+            } else if (text.randomYFactor !== undefined) {
+                y = canvasHeight * text.randomYFactor + text.y;
+            } else {
+                y = canvasHeight * 0.35 + text.y;
+            }
 
             ctx.save();
             ctx.translate(x, y);

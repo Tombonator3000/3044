@@ -895,29 +895,39 @@ export class CollisionSystem {
 
     /**
      * Create special explosion effects for specific enemy types
+     * Returns true if a special explosion was created (to avoid double explosions)
      * @param {Object} enemy - The killed enemy
      * @param {number} combo - Current combo count
+     * @returns {boolean} True if special explosion was triggered
      */
     createSpecialExplosion(enemy, combo) {
-        if (!this.particleSystem) return;
+        if (!this.particleSystem) return false;
 
         const enemyType = enemy.type || 'default';
         const color = enemy.color || '#ff6600';
 
+        // Only trigger special explosions for very high combos or special enemy types
+        // These replace the normal explosion to avoid stacking
         if (combo >= 50 && this.particleSystem.megaComboExplosion) {
             const comboLevel = Math.floor(combo / 25);
             this.particleSystem.megaComboExplosion(enemy.x, enemy.y, comboLevel);
+            return true;
         } else if ((enemyType === 'electric' || enemyType === 'laser' || enemyType === 'laserdisc')
                    && this.particleSystem.electricExplosion) {
             this.particleSystem.electricExplosion(enemy.x, enemy.y, color);
+            return true;
         } else if ((enemyType === 'glitch' || enemyType === 'vhstracker')
                    && this.particleSystem.glitchExplosion) {
             this.particleSystem.glitchExplosion(enemy.x, enemy.y);
+            return true;
         }
+
+        return false;
     }
 
     /**
      * Create explosion particle effects for enemy death
+     * Only creates ONE explosion - either special or normal, not both
      * @param {Object} enemy - The killed enemy
      * @param {number} score - The score to display
      */
@@ -929,16 +939,21 @@ export class CollisionSystem {
         const color = enemy.color || '#ff6600';
         const enemySize = enemy.size || 20;
 
-        if (this.particleSystem.addGeometryWarsExplosion) {
-            const intensity = this.calculateExplosionIntensity(enemySize, combo);
-            this.particleSystem.addGeometryWarsExplosion(enemy.x, enemy.y, color, intensity);
-            this.createSpecialExplosion(enemy, combo);
-        } else {
-            if (this.particleSystem.addExplosion) {
-                this.particleSystem.addExplosion(enemy.x, enemy.y, color, 15);
-            }
-            if (this.particleSystem.addShockwave) {
-                this.particleSystem.addShockwave(enemy.x, enemy.y, color, 60);
+        // First try special explosion - if triggered, skip normal explosion
+        const hadSpecialExplosion = this.createSpecialExplosion(enemy, combo);
+
+        // Only add normal explosion if no special one was triggered
+        if (!hadSpecialExplosion) {
+            if (this.particleSystem.addGeometryWarsExplosion) {
+                const intensity = this.calculateExplosionIntensity(enemySize, combo);
+                this.particleSystem.addGeometryWarsExplosion(enemy.x, enemy.y, color, intensity);
+            } else {
+                if (this.particleSystem.addExplosion) {
+                    this.particleSystem.addExplosion(enemy.x, enemy.y, color, 15);
+                }
+                if (this.particleSystem.addShockwave) {
+                    this.particleSystem.addShockwave(enemy.x, enemy.y, color, 60);
+                }
             }
         }
 
