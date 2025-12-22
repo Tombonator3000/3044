@@ -111,44 +111,74 @@ export class Player {
         }
     }
 
+    /**
+     * Main update loop - orchestrates all player subsystems
+     * Refactored for clarity: each responsibility is delegated to a focused helper method
+     */
     update(keys, canvas, bulletPool, gameState, touchJoystick, touchButtons, particleSystem, soundSystem, deltaTime = 1) {
         const scaledDeltaTime = Math.max(deltaTime, 0);
 
-        // Daily Challenge: Apply player size multiplier
-        if (gameState && gameState.playerSizeMultiplier) {
-            this.sizeMultiplier = gameState.playerSizeMultiplier;
-            this.size = this.baseSize * this.sizeMultiplier;
-        }
+        this.updateSizeMultiplier(gameState);
 
-        // Handle death and respawn
         if (!this.isAlive) {
-            this.respawnTimer -= scaledDeltaTime;
-            if (this.respawnTimer <= 0) {
-                this.respawn(canvas);
-            }
+            this.handleRespawn(canvas, scaledDeltaTime);
             return;
         }
 
-        // Store previous position for trail
+        // Store previous position for trail calculation
         this.lastX = this.x;
         this.lastY = this.y;
 
-        // Normal movement
+        const movement = this.calculateMovement(keys, touchJoystick, gameState, scaledDeltaTime);
+        this.applyMovement(movement, canvas);
+        this.updateMirrorShip(canvas, scaledDeltaTime);
+        this.updateTrail(movement, scaledDeltaTime);
+        this.handleShooting(keys, touchButtons, bulletPool, gameState, soundSystem, scaledDeltaTime);
+        this.updateInvulnerability(scaledDeltaTime);
+        this.updatePowerUpTimers(gameState, particleSystem, soundSystem, scaledDeltaTime);
+    }
+
+    /**
+     * Apply daily challenge size multiplier
+     */
+    updateSizeMultiplier(gameState) {
+        if (gameState?.playerSizeMultiplier) {
+            this.sizeMultiplier = gameState.playerSizeMultiplier;
+            this.size = this.baseSize * this.sizeMultiplier;
+        }
+    }
+
+    /**
+     * Handle respawn countdown when player is dead
+     */
+    handleRespawn(canvas, deltaTime) {
+        this.respawnTimer -= deltaTime;
+        if (this.respawnTimer <= 0) {
+            this.respawn(canvas);
+        }
+    }
+
+    /**
+     * Calculate movement delta from all input sources
+     * Returns { dx, dy } representing the movement vector
+     */
+    calculateMovement(keys, touchJoystick, gameState, deltaTime) {
         let dx = 0, dy = 0;
 
-        if (keys['ArrowLeft'] === true || keys['a'] === true || keys['A'] === true) dx -= this.speed * scaledDeltaTime;
-        if (keys['ArrowRight'] === true || keys['d'] === true || keys['D'] === true) dx += this.speed * scaledDeltaTime;
-        if (keys['ArrowUp'] === true || keys['w'] === true || keys['W'] === true) dy -= this.speed * scaledDeltaTime;
-        if (keys['ArrowDown'] === true || keys['s'] === true || keys['S'] === true) dy += this.speed * scaledDeltaTime;
+        // Keyboard input
+        if (keys['ArrowLeft'] === true || keys['a'] === true || keys['A'] === true) dx -= this.speed * deltaTime;
+        if (keys['ArrowRight'] === true || keys['d'] === true || keys['D'] === true) dx += this.speed * deltaTime;
+        if (keys['ArrowUp'] === true || keys['w'] === true || keys['W'] === true) dy -= this.speed * deltaTime;
+        if (keys['ArrowDown'] === true || keys['s'] === true || keys['S'] === true) dy += this.speed * deltaTime;
 
-        // Touch joystick support
-        if (touchJoystick && touchJoystick.active) {
+        // Touch joystick input
+        if (touchJoystick?.active) {
             const touchDx = touchJoystick.currentX - touchJoystick.startX;
             const touchDy = touchJoystick.currentY - touchJoystick.startY;
             const dist = Math.sqrt(touchDx * touchDx + touchDy * touchDy);
             if (dist > 10) {
-                dx += (touchDx / dist) * this.speed * scaledDeltaTime;
-                dy += (touchDy / dist) * this.speed * scaledDeltaTime;
+                dx += (touchDx / dist) * this.speed * deltaTime;
+                dy += (touchDy / dist) * this.speed * deltaTime;
             }
         }
 
@@ -158,166 +188,242 @@ export class Player {
             dy *= 0.707;
         }
 
-        // Daily Challenge: Mirror controls modifier - reverse all movement
-        if (gameState && gameState.mirrorControls) {
+        // Daily Challenge: Mirror controls modifier
+        if (gameState?.mirrorControls) {
             dx = -dx;
             dy = -dy;
         }
 
-        // Apply movement with screen wrap (Asteroids-style) or bounded
+        return { dx, dy };
+    }
+
+    /**
+     * Apply movement with screen wrap or bounded mode
+     */
+    applyMovement({ dx, dy }, canvas) {
         if (this.screenWrap) {
             this.x += dx;
             this.y += dy;
-
-            // Wrap horizontally
-            if (this.x < -this.size) {
-                this.x = canvas.logicalWidth + this.size;
-            } else if (this.x > canvas.logicalWidth + this.size) {
-                this.x = -this.size;
-            }
-
-            // Wrap vertically
-            if (this.y < -this.size) {
-                this.y = canvas.logicalHeight + this.size;
-            } else if (this.y > canvas.logicalHeight + this.size) {
-                this.y = -this.size;
-            }
+            this.wrapPosition(canvas);
         } else {
-            // Standard bounded movement
             this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x + dx));
             this.y = Math.max(this.size, Math.min(canvas.logicalHeight - this.size, this.y + dy));
         }
+    }
 
-        // Update mirror ship
+    /**
+     * Wrap position around screen edges (Asteroids-style)
+     */
+    wrapPosition(canvas) {
+        if (this.x < -this.size) {
+            this.x = canvas.logicalWidth + this.size;
+        } else if (this.x > canvas.logicalWidth + this.size) {
+            this.x = -this.size;
+        }
+
+        if (this.y < -this.size) {
+            this.y = canvas.logicalHeight + this.size;
+        } else if (this.y > canvas.logicalHeight + this.size) {
+            this.y = -this.size;
+        }
+    }
+
+    /**
+     * Update mirror ship position and timer
+     */
+    updateMirrorShip(canvas, deltaTime) {
         if (this.mirrorShip > 0) {
-            this.mirrorShip = Math.max(0, this.mirrorShip - scaledDeltaTime);
+            this.mirrorShip = Math.max(0, this.mirrorShip - deltaTime);
             this.mirrorX = canvas.logicalWidth - this.x;
             this.mirrorY = this.y;
         }
+    }
 
-        // 🔥 Update trail
+    /**
+     * Update neon trail when moving
+     */
+    updateTrail({ dx, dy }, deltaTime) {
         if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
-            this.trail.push({
-                x: this.lastX,
-                y: this.lastY,
-                life: 1.0
-            });
-
+            this.trail.push({ x: this.lastX, y: this.lastY, life: 1.0 });
             if (this.trail.length > this.maxTrailLength) {
                 this.trail.shift();
             }
         }
 
-        // Update trail fade
+        // Fade out trail points
         this.trail = this.trail.filter(point => {
-            point.life -= 0.1 * scaledDeltaTime;
+            point.life -= 0.1 * deltaTime;
             return point.life > 0;
         });
+    }
 
-        // Handle shooting
-        this.fireTimer += scaledDeltaTime;
+    /**
+     * Handle shooting input and fire rate
+     */
+    handleShooting(keys, touchButtons, bulletPool, gameState, soundSystem, deltaTime) {
+        this.fireTimer += deltaTime;
         const currentFireRate = this.hasLaser ? Math.max(3, this.fireRate - this.laserPower) : this.fireRate;
+        const isShooting = keys[' '] === true || keys['Space'] === true ||
+                          touchButtons?.fire || this.autoFire;
 
-        const shooting = keys[' '] === true || keys['Space'] === true ||
-                        (touchButtons && touchButtons.fire) || this.autoFire;
-
-        if (this.canShoot && shooting && this.fireTimer > currentFireRate) {
+        if (this.canShoot && isShooting && this.fireTimer > currentFireRate) {
             this.shoot(bulletPool, gameState, soundSystem);
             this.fireTimer = 0;
         }
+    }
 
-        // Update invulnerability
+    /**
+     * Update invulnerability timer
+     */
+    updateInvulnerability(deltaTime) {
         if (this.invulnerable) {
-            this.invulnerableTimer -= scaledDeltaTime;
+            this.invulnerableTimer -= deltaTime;
             if (this.invulnerableTimer <= 0) {
                 this.invulnerable = false;
             }
         }
+    }
 
-        // 🌈 Update fever mode
-        if (this.feverMode > 0) {
-            this.feverMode -= scaledDeltaTime;
-            this.feverBeatTimer += scaledDeltaTime;
-            this.rainbowHue = (this.rainbowHue + 5 * scaledDeltaTime) % 360;
+    /**
+     * Update all power-up timers and effects
+     */
+    updatePowerUpTimers(gameState, particleSystem, soundSystem, deltaTime) {
+        this.updateFeverMode(gameState, soundSystem, deltaTime);
+        this.updateGhostMode(deltaTime);
+        this.updateSimpleTimers(deltaTime);
+        this.updateGodMode(deltaTime);
+        this.updateVortexMode(gameState, particleSystem, deltaTime);
+        this.updateOmegaMode(gameState, deltaTime);
+        this.updateMagnetMode(gameState, deltaTime);
+    }
 
-            if (this.feverBeatTimer >= 15 && soundSystem) {
-                soundSystem.playFeverBeat?.();
-                this.feverBeatTimer -= 15;
-            }
+    /**
+     * Update fever mode (rainbow invulnerability)
+     */
+    updateFeverMode(gameState, soundSystem, deltaTime) {
+        if (this.feverMode <= 0) return;
 
-            if (this.feverMode <= 0) {
-                this.feverMode = 0;
-                this.feverBeatTimer = 0;
-                this.invulnerable = false;
-                if (gameState && gameState.enemies) {
-                    gameState.enemies.forEach(e => {
-                        if (e.behavior === 'flee') {
-                            e.behavior = e.originalBehavior || 'aggressive';
-                            e.points = Math.floor(e.points / 2);
-                            e.color = e.originalColor || '#ff0066';
-                        }
-                    });
-                }
-            }
+        this.feverMode -= deltaTime;
+        this.feverBeatTimer += deltaTime;
+        this.rainbowHue = (this.rainbowHue + 5 * deltaTime) % 360;
+
+        if (this.feverBeatTimer >= 15 && soundSystem) {
+            soundSystem.playFeverBeat?.();
+            this.feverBeatTimer -= 15;
         }
 
-        // Update enhanced power-up timers
-        if (this.ghostMode > 0) {
-            this.ghostMode -= scaledDeltaTime;
-            if (this.ghostMode <= 0) {
-                this.ghostMode = 0;
-                this.invulnerable = false;
+        if (this.feverMode <= 0) {
+            this.feverMode = 0;
+            this.feverBeatTimer = 0;
+            this.invulnerable = false;
+            this.resetFleeingEnemies(gameState);
+        }
+    }
+
+    /**
+     * Reset enemies that were fleeing during fever mode
+     */
+    resetFleeingEnemies(gameState) {
+        gameState?.enemies?.forEach(e => {
+            if (e.behavior === 'flee') {
+                e.behavior = e.originalBehavior || 'aggressive';
+                e.points = Math.floor(e.points / 2);
+                e.color = e.originalColor || '#ff0066';
             }
+        });
+    }
+
+    /**
+     * Update ghost mode (phasing through enemies)
+     */
+    updateGhostMode(deltaTime) {
+        if (this.ghostMode <= 0) return;
+
+        this.ghostMode -= deltaTime;
+        if (this.ghostMode <= 0) {
+            this.ghostMode = 0;
+            this.invulnerable = false;
+        }
+    }
+
+    /**
+     * Update simple countdown timers (reflect, quantum, plasma, matrix, infinity)
+     */
+    updateSimpleTimers(deltaTime) {
+        if (this.reflectActive > 0) {
+            this.reflectActive = Math.max(0, this.reflectActive - deltaTime);
         }
 
-        if (this.reflectActive > 0) this.reflectActive = Math.max(0, this.reflectActive - scaledDeltaTime);
-        if (this.quantumMode > 0) this.quantumMode = Math.max(0, this.quantumMode - scaledDeltaTime);
+        if (this.quantumMode > 0) {
+            this.quantumMode = Math.max(0, this.quantumMode - deltaTime);
+        }
 
         if (this.plasmaMode > 0) {
-            this.plasmaMode = Math.max(0, this.plasmaMode - scaledDeltaTime);
+            this.plasmaMode = Math.max(0, this.plasmaMode - deltaTime);
             if (this.fireTimer > 1) this.fireTimer = 1;
         }
 
         if (this.matrixMode > 0) {
-            this.matrixMode = Math.max(0, this.matrixMode - scaledDeltaTime);
-            this.speed = Math.min(this.speed * Math.pow(1.1, scaledDeltaTime), 8);
+            this.matrixMode = Math.max(0, this.matrixMode - deltaTime);
+            this.speed = Math.min(this.speed * Math.pow(1.1, deltaTime), 8);
         }
 
-        if (this.infinityMode > 0) this.infinityMode = Math.max(0, this.infinityMode - scaledDeltaTime);
+        if (this.infinityMode > 0) {
+            this.infinityMode = Math.max(0, this.infinityMode - deltaTime);
+        }
+    }
 
-        if (this.godMode > 0) {
-            this.godMode -= scaledDeltaTime;
-            if (this.godMode <= 0) {
-                this.godMode = 0;
-                this.invulnerable = false;
-                this.infinitePower = false;
-                this.speed = 5.5;
-            }
+    /**
+     * Update god mode (ultimate power)
+     */
+    updateGodMode(deltaTime) {
+        if (this.godMode <= 0) return;
+
+        this.godMode -= deltaTime;
+        if (this.godMode <= 0) {
+            this.godMode = 0;
+            this.invulnerable = false;
+            this.infinitePower = false;
+            this.speed = 5.5;
+        }
+    }
+
+    /**
+     * Update vortex attraction effect
+     */
+    updateVortexMode(gameState, particleSystem, deltaTime) {
+        if (this.vortexActive <= 0) return;
+
+        this.vortexActive -= deltaTime;
+        this.applyVortexEffect(gameState, particleSystem, deltaTime);
+    }
+
+    /**
+     * Update omega mode pulse attacks
+     */
+    updateOmegaMode(gameState, deltaTime) {
+        if (this.omegaMode <= 0) return;
+
+        this.omegaMode -= deltaTime;
+        this.omegaPulseTimer += deltaTime;
+
+        while (this.omegaPulseTimer >= 8) {
+            this.createOmegaPulse(gameState);
+            this.omegaPulseTimer -= 8;
         }
 
-        // Vortex effect
-        if (this.vortexActive > 0) {
-            this.vortexActive -= scaledDeltaTime;
-            this.applyVortexEffect(gameState, particleSystem, scaledDeltaTime);
+        if (this.omegaMode <= 0) {
+            this.omegaMode = 0;
+            this.omegaPulseTimer = 0;
         }
+    }
 
-        // Omega mode effects
-        if (this.omegaMode > 0) {
-            this.omegaMode -= scaledDeltaTime;
-            this.omegaPulseTimer += scaledDeltaTime;
-            while (this.omegaPulseTimer >= 8) {
-                this.createOmegaPulse(gameState);
-                this.omegaPulseTimer -= 8;
-            }
-            if (this.omegaMode <= 0) {
-                this.omegaMode = 0;
-                this.omegaPulseTimer = 0;
-            }
-        }
-
-        // Magnet effect
+    /**
+     * Update magnet power-up attraction
+     */
+    updateMagnetMode(gameState, deltaTime) {
         if (this.magnetRange > 0) {
-            this.applyMagnetEffect(gameState, scaledDeltaTime);
+            this.applyMagnetEffect(gameState, deltaTime);
         }
     }
 
