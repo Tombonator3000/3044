@@ -4,6 +4,8 @@
  * Get bonus points for being close to enemy bullets without getting hit
  */
 
+import { calculateDistance } from '../utils/MathUtils.js';
+
 export class GrazingSystem {
     constructor() {
         // Grazing configuration
@@ -62,9 +64,7 @@ export class GrazingSystem {
             const bulletId = `${bullet.x.toFixed(0)}_${bullet.y.toFixed(0)}_${bullet.id || Math.random()}`;
             if (this.grazedBullets.has(bulletId)) continue;
 
-            const dx = bullet.x - player.x;
-            const dy = bullet.y - player.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const dist = calculateDistance(bullet.x, bullet.y, player.x, player.y);
 
             // Check if in graze zone (not too close, not too far)
             if (dist < this.grazeRadius && dist > this.minGrazeRadius) {

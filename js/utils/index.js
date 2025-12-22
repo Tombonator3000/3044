@@ -4,4 +4,4 @@
  */
 
 export { logger } from './Logger.js';
-// DrawUtils.js is empty after cleanup - no exports
+export { calculateDistance, calculateDistanceSquared, clamp, lerp } from './MathUtils.js';
