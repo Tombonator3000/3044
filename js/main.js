@@ -1762,6 +1762,7 @@ function initGame(isAttractMode = false) {
         comboTimer: 0,
         comboTimeout: 180,
         enemies: [],
+        asteroids: [],
         powerUps: [],
         boss: null,
         player: player,
