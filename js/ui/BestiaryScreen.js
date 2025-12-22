@@ -212,7 +212,7 @@ export class BestiaryScreen {
         const cards = document.querySelectorAll('.bestiary-card');
         cards.forEach(card => {
             card.addEventListener('click', () => {
-                const index = parseInt(card.dataset.index);
+                const index = parseInt(card.dataset.index, 10);
                 this.selectEnemy(index);
             });
         });

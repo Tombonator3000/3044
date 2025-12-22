@@ -498,7 +498,7 @@ export class MenuManager {
         }
 
         // Return default high scores if none saved
-        const currentHighScore = parseInt(localStorage.getItem('geometry3044_highScore')) || 0;
+        const currentHighScore = parseInt(localStorage.getItem('geometry3044_highScore'), 10) || 0;
         const defaultScores = [
             { initials: 'AAA', score: currentHighScore > 0 ? currentHighScore : 50000 },
             { initials: 'BBB', score: 40000 },

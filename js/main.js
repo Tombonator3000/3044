@@ -652,7 +652,7 @@ function setupMenu() {
     const highScore = localStorage.getItem('geometry3044_highScore') || 0;
     const highScoreEl = document.getElementById('menuHighScore') || document.getElementById('highScoreDisplay');
     if (highScoreEl) {
-        highScoreEl.textContent = parseInt(highScore).toLocaleString();
+        highScoreEl.textContent = parseInt(highScore, 10).toLocaleString();
     }
 
     // Setup new menu buttons
@@ -1278,7 +1278,7 @@ function getAvailableScore() {
         return gameState.score || 0;
     }
     // When not in game, use the stored score bank
-    return parseInt(localStorage.getItem('geometry3044_scoreBank') || '0');
+    return parseInt(localStorage.getItem('geometry3044_scoreBank') || '0', 10);
 }
 
 // Deduct score (from current game or score bank)
@@ -1288,7 +1288,7 @@ function deductScore(amount) {
         // Update HUD
         if (hud) hud.update(gameState, player);
     } else {
-        const currentBank = parseInt(localStorage.getItem('geometry3044_scoreBank') || '0');
+        const currentBank = parseInt(localStorage.getItem('geometry3044_scoreBank') || '0', 10);
         localStorage.setItem('geometry3044_scoreBank', Math.max(0, currentBank - amount).toString());
     }
 }
@@ -1760,7 +1760,7 @@ function initGame(isAttractMode = false) {
         powerUpManager: powerUpManager,
         radicalSlang: radicalSlang,
         screenShake: { x: 0, y: 0, intensity: 0, duration: 0, enabled: GameSettings.screenShake },
-        highScore: parseInt(localStorage.getItem('geometry3044_highScore')) || 0,
+        highScore: parseInt(localStorage.getItem('geometry3044_highScore'), 10) || 0,
         isAttractMode: isAttractMode,
 
         // New gameplay stats
@@ -2657,7 +2657,7 @@ function handlePlayerDeath() {
         }
 
         // Add score to score bank (for purchasing credits)
-        const currentBank = parseInt(localStorage.getItem('geometry3044_scoreBank') || '0');
+        const currentBank = parseInt(localStorage.getItem('geometry3044_scoreBank') || '0', 10);
         const newBank = currentBank + gameState.score;
         localStorage.setItem('geometry3044_scoreBank', newBank.toString());
         console.log('💰 Score added to bank:', gameState.score, '| Total bank:', newBank);
@@ -3220,7 +3220,7 @@ function returnToMenu() {
     const highScore = localStorage.getItem('geometry3044_highScore') || 0;
     const highScoreEl = document.getElementById('menuHighScore') || document.getElementById('highScoreDisplay');
     if (highScoreEl) {
-        highScoreEl.textContent = parseInt(highScore).toLocaleString();
+        highScoreEl.textContent = parseInt(highScore, 10).toLocaleString();
     }
 
     // Update credits and score bank display
