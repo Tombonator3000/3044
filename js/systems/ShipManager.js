@@ -264,20 +264,6 @@ export class ShipManager {
     }
 
     /**
-     * Get unlocked ships
-     */
-    getUnlockedShips() {
-        return Object.values(this.ships).filter(s => s.unlocked);
-    }
-
-    /**
-     * Get locked ships
-     */
-    getLockedShips() {
-        return Object.values(this.ships).filter(s => !s.unlocked);
-    }
-
-    /**
      * Apply ship stats to player
      * @param {Object} player - Player object
      */
@@ -294,106 +280,6 @@ export class ShipManager {
 
         // Return initial lives for game state
         return ship.stats.lives;
-    }
-
-    /**
-     * Get ship special ability handler
-     */
-    getSpecialAbility(shipId) {
-        const ship = this.ships[shipId];
-        if (!ship || !ship.special) return null;
-
-        switch (ship.special) {
-            case 'criticalHits':
-                return {
-                    name: 'Critical Hits',
-                    onShoot: (bullet) => {
-                        if (Math.random() < 0.1) {
-                            bullet.damage *= 3;
-                            bullet.color = '#ff0000';
-                            bullet.size *= 1.5;
-                            bullet.critical = true;
-                        }
-                    }
-                };
-
-            case 'autoShield':
-                return {
-                    name: 'Auto Shield',
-                    onUpdate: (player, deltaTime) => {
-                        if (!player.shieldActive && player.shieldCooldown <= 0) {
-                            player.shield = 1;
-                            player.shieldActive = true;
-                            player.shieldCooldown = 300; // 5 seconds
-                        }
-                        if (player.shieldCooldown > 0) {
-                            player.shieldCooldown -= deltaTime;
-                        }
-                    },
-                    onInit: (player) => {
-                        player.shieldCooldown = 0;
-                    }
-                };
-
-            case 'dashAbility':
-                return {
-                    name: 'Dash',
-                    onDoubleTap: (player, direction) => {
-                        if (player.dashCooldown <= 0) {
-                            player.x += direction.x * 100;
-                            player.y += direction.y * 100;
-                            player.invulnerable = true;
-                            player.invulnerableTimer = 30;
-                            player.dashCooldown = 120;
-                        }
-                    },
-                    onUpdate: (player, deltaTime) => {
-                        if (player.dashCooldown > 0) {
-                            player.dashCooldown -= deltaTime;
-                        }
-                    },
-                    onInit: (player) => {
-                        player.dashCooldown = 0;
-                    }
-                };
-
-            case 'phaseShift':
-                return {
-                    name: 'Phase Shift',
-                    onUpdate: (player, deltaTime) => {
-                        if (!player.phaseTimer) player.phaseTimer = 0;
-                        player.phaseTimer += deltaTime;
-
-                        if (player.phaseTimer >= 600) { // Every 10 seconds
-                            player.invulnerable = true;
-                            player.invulnerableTimer = 60;
-                            player.phaseTimer = 0;
-                        }
-                    }
-                };
-
-            case 'rage':
-                return {
-                    name: 'Berserker Rage',
-                    getDamageMultiplier: (player, gameState) => {
-                        const livesLost = 4 - (gameState.lives || 0);
-                        return 1 + (livesLost * 0.5); // +50% per life lost
-                    }
-                };
-
-            case 'musicSync':
-                return {
-                    name: 'Music Sync',
-                    onUpdate: (player, deltaTime) => {
-                        const beat = Math.sin(Date.now() * 0.01);
-                        player.speed = 5.5 + beat;
-                        player.fireRate = 10 - Math.floor(beat * 2);
-                    }
-                };
-
-            default:
-                return null;
-        }
     }
 
     /**

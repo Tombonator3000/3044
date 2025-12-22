@@ -36,6 +36,8 @@ import { DailyChallengeSystem } from './systems/DailyChallengeSystem.js';
 import { AchievementSystem } from './systems/AchievementSystem.js';
 import { EnemyBestiary } from './systems/EnemyBestiary.js';
 import { BestiaryScreen } from './ui/BestiaryScreen.js';
+import { UFOManager } from './systems/UFOManager.js';
+import { BonusRound } from './systems/BonusRound.js';
 
 // === GLOBAL STATE ===
 let canvas, ctx;
@@ -77,6 +79,8 @@ let dailyChallengeSystem = null;
 let achievementSystem = null;
 let enemyBestiary = null;
 let bestiaryScreen = null;
+let ufoManager = null;
+let bonusRound = null;
 
 // Achievement notification state
 let achievementNotification = null;
@@ -1721,6 +1725,10 @@ function initGame(isAttractMode = false) {
         starfield = new Starfield(canvas.logicalWidth, canvas.logicalHeight);
     }
 
+    // Initialize UFO Manager
+    ufoManager = new UFOManager();
+    bonusRound = null;
+
     // Get difficulty settings FIRST
     const difficultySettings = getDifficultySettings(GameSettings.difficulty);
     console.log(`🎮 Starting game with difficulty: ${difficultySettings.name}`);
@@ -1986,6 +1994,14 @@ function update(deltaTime) {
                 reactiveMusicSystem.triggerWaveComplete();
             }
 
+            // Bonus round every 3 waves (not on boss waves)
+            if (gameState.wave % 3 === 0 && gameState.wave % 5 !== 0) {
+                bonusRound = new BonusRound(gameState.wave);
+                if (radicalSlang?.show) {
+                    radicalSlang.show('BONUS ROUND!', canvas.logicalWidth / 2, canvas.logicalHeight / 2);
+                }
+            }
+
             // Boss wave? (Daily Challenge can override with bossEveryNWaves)
             if (waveManager.isBossWave(gameState) || gameState.wave % 5 === 0) {
                 spawnBoss();
@@ -2048,6 +2064,56 @@ function update(deltaTime) {
     // Daily Challenge: Update chaos mode (random modifier changes every 30 seconds)
     if (dailyChallengeSystem) {
         dailyChallengeSystem.updateChaosMode(gameState, adjustedDeltaTime);
+    }
+
+    // Update UFO Manager
+    if (ufoManager && !bonusRound?.active) {
+        ufoManager.update();
+
+        // Check UFO collisions with player bullets
+        const activeUFOs = ufoManager.getActiveUFOs();
+        for (const ufo of activeUFOs) {
+            const playerBullets = bulletPool?.getActiveBullets() || [];
+            for (const bullet of playerBullets) {
+                if (bullet.active && bullet.isPlayerBullet) {
+                    const dx = bullet.x - ufo.x;
+                    const dy = bullet.y - ufo.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < ufo.size) {
+                        bullet.active = false;
+                        ufo.takeDamage(bullet.damage || 1);
+
+                        if (!ufo.active) {
+                            // UFO destroyed!
+                            gameState.score += ufo.points;
+                            console.log(`🛸 UFO destroyed! +${ufo.points} points!`);
+
+                            if (particleSystem) {
+                                particleSystem.addExplosion(ufo.x, ufo.y, ufo.color);
+                            }
+                            if (soundSystem) {
+                                soundSystem.playExplosion();
+                            }
+                            if (radicalSlang?.show) {
+                                radicalSlang.show('RADICAL!', ufo.x, ufo.y);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Update Bonus Round
+    if (bonusRound?.active && player) {
+        const result = bonusRound.update(player);
+        if (result.points > 0) {
+            gameState.score += result.points;
+            if (soundSystem) {
+                soundSystem.playPowerUp();
+            }
+        }
     }
 
     // Update game mode
@@ -2202,6 +2268,11 @@ function render() {
         gameState.boss.draw(ctx);
     }
 
+    // UFOs
+    if (ufoManager) {
+        ufoManager.draw(ctx);
+    }
+
     // Player bullets
     if (bulletPool) bulletPool.draw(ctx);
 
@@ -2215,6 +2286,11 @@ function render() {
     // PARTICLES - Draw ON TOP of entities for maximum visibility!
     // This is key for Geometry Wars-style explosions to look spectacular
     if (particleSystem) particleSystem.draw(ctx);
+
+    // Bonus Round (draw on top of everything except HUD)
+    if (bonusRound?.active) {
+        bonusRound.draw(ctx);
+    }
 
     // Draw grazing effects
     if (grazingSystem && player) {

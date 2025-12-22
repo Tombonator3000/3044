@@ -4,6 +4,8 @@
  * The closer you are to enemies when killing them, the higher the multiplier
  */
 
+import { calculateDistance } from '../utils/MathUtils.js';
+
 export class RiskRewardSystem {
     constructor() {
         // Distance thresholds for multipliers
@@ -52,9 +54,7 @@ export class RiskRewardSystem {
     processKill(player, enemy, baseScore, gameState, particleSystem, soundSystem) {
         if (!player || !enemy) return baseScore;
 
-        const dx = player.x - enemy.x;
-        const dy = player.y - enemy.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const distance = calculateDistance(player.x, player.y, enemy.x, enemy.y);
 
         const multiplierInfo = this.getMultiplier(distance);
         const finalScore = Math.floor(baseScore * multiplierInfo.multiplier);

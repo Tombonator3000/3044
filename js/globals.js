@@ -55,10 +55,6 @@ export let enemyBulletPool = null;
 export let waveManager = null;
 export let soundSystem = null;
 export let starfield = null;
-export let ufoManager = null;
-export let formationManager = null;
-export let bonusRound = null;
-export let vhsGlitch = null;
 export let weaponManager = null;
 
 // Game control state
@@ -76,16 +72,9 @@ export let musicMuted = false;
 
 // Attract mode
 export let attractMode = false;
-export let attractModeTimer = null;
-export let attractModeAI = null;
-
-// High scores
-export let newHighScoreIndex = -1;
-export let highScoreFromAttractMode = false;
 
 // Animation frame ID
 export let gameLoopId = null;
-export let bossDeathTimeoutId = null;
 
 // Legacy config reference (for backwards compatibility during migration)
 export const config = legacyConfig;
@@ -101,10 +90,6 @@ export function setEnemyBulletPool(ebp) { enemyBulletPool = ebp; }
 export function setWaveManager(wm) { waveManager = wm; }
 export function setSoundSystem(ss) { soundSystem = ss; }
 export function setStarfield(sf) { starfield = sf; }
-export function setUfoManager(um) { ufoManager = um; }
-export function setFormationManager(fm) { formationManager = fm; }
-export function setBonusRound(br) { bonusRound = br; }
-export function setVhsGlitch(vg) { vhsGlitch = vg; }
 export function setWeaponManager(wm) { weaponManager = wm; }
 export function setCredits(c) { credits = c; }
 export function setContinueTimer(t) { continueTimer = t; }
@@ -114,12 +99,7 @@ export function setGameMusic(m) { gameMusic = m; }
 export function setMusicEnabled(e) { musicEnabled = e; }
 export function setMusicMuted(m) { musicMuted = m; }
 export function setAttractMode(a) { attractMode = a; }
-export function setAttractModeTimer(t) { attractModeTimer = t; }
-export function setAttractModeAI(ai) { attractModeAI = ai; }
-export function setNewHighScoreIndex(i) { newHighScoreIndex = i; }
-export function setHighScoreFromAttractMode(h) { highScoreFromAttractMode = h; }
 export function setGameLoopId(id) { gameLoopId = id; }
-export function setBossDeathTimeoutId(id) { bossDeathTimeoutId = id; }
 export function setGameStarting(s) { gameStarting = s; }
 
 // Direct getter for credits (ensures fresh read)
