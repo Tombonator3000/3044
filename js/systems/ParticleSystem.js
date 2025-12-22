@@ -451,6 +451,288 @@ class Particle {
         ctx.fill();
     }
 
+    // ============================================
+    // NEW PARTICLE TYPES - Enhanced Effects
+    // ============================================
+
+    /**
+     * Confetti particle - rotating colored paper/square
+     * Great for celebrations, victories, power-ups
+     */
+    drawConfetti(ctx, size) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+
+        // Simulate 3D rotation by scaling width
+        const scaleX = Math.cos(this.rotation * 2) * 0.5 + 0.5;
+        ctx.scale(scaleX, 1);
+
+        ctx.fillStyle = this.color;
+        const halfSize = size / 2;
+        ctx.fillRect(-halfSize, -halfSize, size, size * 1.5);
+
+        // Add shimmer highlight
+        ctx.globalAlpha *= 0.5;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-halfSize, -halfSize, size * 0.3, size * 0.3);
+
+        ctx.restore();
+    }
+
+    /**
+     * Plasma particle - electric energy orb with pulsing glow
+     * For shields, energy weapons, sci-fi effects
+     */
+    drawPlasma(ctx, size) {
+        const pulse = Math.sin(this.life * 0.3) * 0.3 + 0.7;
+        const currentSize = size * pulse;
+
+        // Outer glow layer
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha *= 0.4;
+
+        const gradient = ctx.createRadialGradient(
+            this.x, this.y, 0,
+            this.x, this.y, currentSize * 2
+        );
+        gradient.addColorStop(0, this.color);
+        gradient.addColorStop(0.5, this.color);
+        gradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, currentSize * 2, 0, 6.283185);
+        ctx.fill();
+        ctx.restore();
+
+        // Core
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, currentSize, 0, 6.283185);
+        ctx.fill();
+
+        // Hot white center
+        ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha *= 0.8;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, currentSize * 0.4, 0, 6.283185);
+        ctx.fill();
+    }
+
+    /**
+     * Vortex particle - spiraling motion with trail
+     * For black holes, portals, suction effects
+     */
+    drawVortex(ctx, size) {
+        const spiralAngle = this.rotation + (this.life * 0.2);
+        const spiralRadius = size * (1 + Math.sin(this.life * 0.1) * 0.3);
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+
+        // Draw spiral trail
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = Math.max(1, size / 3);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+
+        for (let i = 0; i < 6; i++) {
+            const angle = spiralAngle + (i * 0.5);
+            const r = spiralRadius * (1 - i * 0.15);
+            const px = this.x + Math.cos(angle) * r;
+            const py = this.y + Math.sin(angle) * r;
+
+            if (i === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+            ctx.globalAlpha = (1 - i / 6) * 0.8;
+        }
+        ctx.stroke();
+
+        // Center point
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, size * 0.3, 0, 6.283185);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    /**
+     * Bubble particle - translucent sphere with highlight
+     * For underwater, healing, magical effects
+     */
+    drawBubble(ctx, size) {
+        const wobble = Math.sin(this.life * 0.2) * size * 0.1;
+        const currentSize = size + wobble;
+
+        // Outer bubble
+        ctx.save();
+        ctx.globalAlpha *= 0.3;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, currentSize, 0, 6.283185);
+        ctx.fill();
+
+        // Bubble rim
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, currentSize, 0, 6.283185);
+        ctx.stroke();
+
+        // Highlight reflection
+        ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha *= 0.7;
+        ctx.beginPath();
+        ctx.arc(
+            this.x - currentSize * 0.3,
+            this.y - currentSize * 0.3,
+            currentSize * 0.25,
+            0, 6.283185
+        );
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    /**
+     * Ember particle - glowing hot particle that fades
+     * For fire trails, exhaust, heat effects
+     */
+    drawEmber(ctx, size) {
+        const flicker = Math.random() * 0.3 + 0.7;
+
+        // Outer glow
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha *= 0.5 * flicker;
+
+        const gradient = ctx.createRadialGradient(
+            this.x, this.y, 0,
+            this.x, this.y, size * 3
+        );
+        gradient.addColorStop(0, this.color);
+        gradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, size * 3, 0, 6.283185);
+        ctx.fill();
+        ctx.restore();
+
+        // Hot core
+        ctx.fillStyle = '#ffff00';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, size * 0.5, 0, 6.283185);
+        ctx.fill();
+
+        // Outer color
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha *= 0.8;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, size, 0, 6.283185);
+        ctx.fill();
+    }
+
+    /**
+     * Snow particle - gently falling with slight drift
+     * For weather effects, cold themes
+     */
+    drawSnow(ctx, size) {
+        // Soft white circle with slight blue tint
+        ctx.save();
+        ctx.globalAlpha *= 0.8;
+
+        // Outer glow
+        const gradient = ctx.createRadialGradient(
+            this.x, this.y, 0,
+            this.x, this.y, size
+        );
+        gradient.addColorStop(0, '#ffffff');
+        gradient.addColorStop(0.5, this.color);
+        gradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, size, 0, 6.283185);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    /**
+     * Disintegration particle - pixelated breaking apart
+     * For enemy deaths, dissolve effects
+     */
+    drawDisintegrate(ctx, size) {
+        const pixelSize = Math.max(2, size);
+        const offset = Math.sin(this.life * 0.5) * 2;
+
+        ctx.fillStyle = this.color;
+
+        // Draw scattered pixels
+        const half = pixelSize / 2;
+        ctx.fillRect(this.x - half + offset, this.y - half, pixelSize, pixelSize);
+
+        // Additional scattered pixel for broken look
+        if (this.life % 3 === 0) {
+            ctx.globalAlpha *= 0.6;
+            ctx.fillRect(
+                this.x - half - pixelSize,
+                this.y - half + offset,
+                pixelSize * 0.7,
+                pixelSize * 0.7
+            );
+        }
+    }
+
+    /**
+     * Comet particle - fast moving with elongated tail
+     * For projectiles, speed effects
+     */
+    drawComet(ctx, size) {
+        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        const tailLength = Math.min(size * 4, size + speed * 2);
+        const angle = Math.atan2(this.vy, this.vx);
+
+        ctx.save();
+
+        // Tail gradient
+        const gradient = ctx.createLinearGradient(
+            this.x - Math.cos(angle) * tailLength,
+            this.y - Math.sin(angle) * tailLength,
+            this.x,
+            this.y
+        );
+        gradient.addColorStop(0, 'transparent');
+        gradient.addColorStop(0.7, this.color);
+        gradient.addColorStop(1, '#ffffff');
+
+        // Draw tail
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = size;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(this.x - Math.cos(angle) * tailLength, this.y - Math.sin(angle) * tailLength);
+        ctx.lineTo(this.x, this.y);
+        ctx.stroke();
+
+        // Bright head
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, size * 0.6, 0, 6.283185);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
     /**
      * Geometry Wars-style LINE particle with motion blur trail
      * This is the signature look of Geometry Wars explosions
@@ -667,6 +949,17 @@ Particle.renderers = {
     fire:       { fn: Particle.prototype.drawFire },
     smoke:      { fn: Particle.prototype.drawSmoke },
     star:       { fn: Particle.prototype.drawStar },
+
+    // NEW: Enhanced particle types for varied effects
+    confetti:     { fn: Particle.prototype.drawConfetti },
+    plasma:       { fn: Particle.prototype.drawPlasma },
+    vortex:       { fn: Particle.prototype.drawVortex },
+    bubble:       { fn: Particle.prototype.drawBubble },
+    ember:        { fn: Particle.prototype.drawEmber },
+    snow:         { fn: Particle.prototype.drawSnow },
+    disintegrate: { fn: Particle.prototype.drawDisintegrate },
+    comet:        { fn: Particle.prototype.drawComet },
+
     // Special case: score uses this.size instead of currentSize
     score:      { fn: Particle.prototype.drawScore, param: 'size' },
     // Geometry Wars-style particles (receive alpha instead of size)
@@ -965,25 +1258,51 @@ export class ParticleSystem {
     }
 
     /**
-     * Update all particles
+     * Update all particles - OPTIMIZED with chunk processing
+     * Processes particles in chunks to be more cache-friendly
      */
     update() {
         // Early exit if no active particles
         if (this._activeCount === 0) return;
 
+        const particles = this.particles;
+        const len = particles.length;
         let activeCount = 0;
-        for (let i = 0; i < this.particles.length; i++) {
-            const particle = this.particles[i];
+
+        // Process in chunks of 4 for better cache utilization (SIMD-like)
+        const chunkSize = 4;
+        const chunks = Math.floor(len / chunkSize);
+
+        // Process full chunks
+        for (let c = 0; c < chunks; c++) {
+            const base = c * chunkSize;
+            const p0 = particles[base];
+            const p1 = particles[base + 1];
+            const p2 = particles[base + 2];
+            const p3 = particles[base + 3];
+
+            // Update active particles in chunk
+            if (p0.active) { p0.update(); if (p0.active) activeCount++; }
+            if (p1.active) { p1.update(); if (p1.active) activeCount++; }
+            if (p2.active) { p2.update(); if (p2.active) activeCount++; }
+            if (p3.active) { p3.update(); if (p3.active) activeCount++; }
+        }
+
+        // Process remaining particles
+        for (let i = chunks * chunkSize; i < len; i++) {
+            const particle = particles[i];
             if (particle.active) {
                 particle.update();
-                if (particle.active) activeCount++; // Still active after update
+                if (particle.active) activeCount++;
             }
         }
+
         this._activeCount = activeCount;
     }
 
     /**
-     * Draw all active particles
+     * Draw all active particles - OPTIMIZED with batch rendering
+     * Groups particles by type to minimize context state changes
      */
     draw(ctx) {
         // Early exit if no active particles
@@ -992,10 +1311,9 @@ export class ParticleSystem {
         ctx.save();
 
         // CRITICAL: Reset ALL context state to ensure particles are visible
-        // Previous draw calls may have modified these values unexpectedly
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
-        ctx.setLineDash([]);  // Reset any line dash pattern
+        ctx.setLineDash([]);
         ctx.lineDashOffset = 0;
         ctx.lineJoin = 'miter';
         ctx.lineCap = 'butt';
@@ -1004,20 +1322,71 @@ export class ParticleSystem {
         ctx.shadowColor = 'transparent';
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
-        ctx.filter = 'none';  // Reset any CSS filters
+        ctx.filter = 'none';
         ctx.imageSmoothingEnabled = true;
 
-        // Draw all active particles
+        // Use batched rendering for better performance
+        if (this._activeCount > 50) {
+            this._drawBatched(ctx);
+        } else {
+            // For small counts, direct rendering is faster
+            this._drawDirect(ctx);
+        }
+
+        ctx.restore();
+    }
+
+    /**
+     * Direct particle rendering - used for small particle counts
+     * @private
+     */
+    _drawDirect(ctx) {
         for (let i = 0; i < this.particles.length; i++) {
             const particle = this.particles[i];
             if (particle.active) {
-                // Reset alpha before each particle (in case previous particle didn't restore)
                 ctx.globalAlpha = 1;
                 ctx.globalCompositeOperation = 'source-over';
                 particle.draw(ctx);
             }
         }
-        ctx.restore();
+    }
+
+    /**
+     * Batched particle rendering - groups by type for fewer context switches
+     * Particles using 'lighter' blend mode are drawn last for proper glow
+     * @private
+     */
+    _drawBatched(ctx) {
+        // Batch particles by rendering requirements
+        const normalBatch = [];
+        const glowBatch = [];  // Types that use additive blending
+
+        const glowTypes = new Set(['gwline', 'line', 'gwglow', 'gwshockwave', 'plasma', 'ember', 'vortex']);
+
+        for (let i = 0; i < this.particles.length; i++) {
+            const particle = this.particles[i];
+            if (particle.active) {
+                if (glowTypes.has(particle.type)) {
+                    glowBatch.push(particle);
+                } else {
+                    normalBatch.push(particle);
+                }
+            }
+        }
+
+        // Draw normal particles first (source-over)
+        ctx.globalCompositeOperation = 'source-over';
+        for (let i = 0; i < normalBatch.length; i++) {
+            ctx.globalAlpha = 1;
+            normalBatch[i].draw(ctx);
+        }
+
+        // Draw glow particles last (they use lighter blending internally)
+        for (let i = 0; i < glowBatch.length; i++) {
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = 'source-over';
+            glowBatch[i].draw(ctx);
+        }
     }
 
     /**
@@ -2362,6 +2731,489 @@ export class ParticleSystem {
                     type: 'gwshockwave'
                 });
             }, i * 40);
+        }
+    }
+
+    // ============================================
+    // NEW EXPLOSION EFFECTS - Using Enhanced Particle Types
+    // ============================================
+
+    /**
+     * Celebration/Victory explosion with confetti
+     * Perfect for level completion, achievements, high scores
+     */
+    addConfettiExplosion(x, y, count = 50, intensity = 1) {
+        const adjustedCount = getAdjustedCount(count);
+        const colors = ['#ff0080', '#00ff80', '#ffff00', '#00ffff', '#ff8000', '#ff00ff', '#80ff00'];
+
+        // Confetti burst
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + Math.random() * 0.5;
+            const speed = (4 + Math.random() * 8) * intensity;
+
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 3, // Upward bias
+                color: colors[Math.floor(Math.random() * colors.length)],
+                size: 6 + Math.random() * 6,
+                life: 80 + Math.random() * 40,
+                friction: 0.98,
+                gravity: 0.08,
+                type: 'confetti',
+                rotationSpeed: (Math.random() - 0.5) * 0.4
+            });
+        }
+
+        // Star burst accent
+        for (let i = 0; i < 8; i++) {
+            const angle = (Math.PI * 2 * i) / 8;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * 10 * intensity,
+                vy: Math.sin(angle) * 10 * intensity,
+                color: '#ffffff',
+                size: 8,
+                life: 30,
+                friction: 0.92,
+                type: 'star'
+            });
+        }
+
+        // Central flash
+        const flash = this.getParticle();
+        flash.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#ffffff',
+            size: 60 * intensity,
+            life: 15,
+            friction: 1,
+            type: 'glow'
+        });
+    }
+
+    /**
+     * Plasma/Energy explosion
+     * For shields breaking, energy weapons, sci-fi effects
+     */
+    addPlasmaExplosion(x, y, color = '#00ffff', count = 30, intensity = 1) {
+        const adjustedCount = getAdjustedCount(count);
+
+        // Plasma orbs
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + Math.random() * 0.3;
+            const speed = (5 + Math.random() * 8) * intensity;
+
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: color,
+                size: 5 + Math.random() * 5,
+                life: 40 + Math.random() * 30,
+                friction: 0.95,
+                type: 'plasma'
+            });
+        }
+
+        // Electric sparks
+        for (let i = 0; i < adjustedCount / 2; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 8 + Math.random() * 12;
+
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: '#ffffff',
+                size: 2 + Math.random() * 2,
+                life: 15 + Math.random() * 15,
+                friction: 0.9,
+                type: 'spark',
+                bounce: true
+            });
+        }
+
+        // Central plasma core
+        const core = this.getParticle();
+        core.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: color,
+            size: 40 * intensity,
+            life: 25,
+            friction: 1,
+            type: 'plasma'
+        });
+
+        // Shockwave
+        this.addShockwave(x, y, color, 80 * intensity);
+    }
+
+    /**
+     * Vortex/Portal explosion
+     * For black holes, portals, suction effects
+     */
+    addVortexExplosion(x, y, color = '#aa00ff', count = 40, intensity = 1) {
+        const adjustedCount = getAdjustedCount(count);
+
+        // Spiraling vortex particles
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount;
+            const speed = (3 + Math.random() * 6) * intensity;
+            const distance = Math.random() * 30;
+
+            const particle = this.getParticle();
+            particle.reset(
+                x + Math.cos(angle) * distance,
+                y + Math.sin(angle) * distance,
+                {
+                    vx: Math.cos(angle + Math.PI / 2) * speed, // Spiral outward
+                    vy: Math.sin(angle + Math.PI / 2) * speed,
+                    color: i % 2 === 0 ? color : '#ffffff',
+                    size: 8 + Math.random() * 8,
+                    life: 50 + Math.random() * 30,
+                    friction: 0.97,
+                    type: 'vortex',
+                    rotation: angle,
+                    rotationSpeed: 0.1 * (Math.random() > 0.5 ? 1 : -1)
+                }
+            );
+        }
+
+        // Inner core glow
+        const core = this.getParticle();
+        core.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#ffffff',
+            size: 50 * intensity,
+            life: 30,
+            friction: 1,
+            type: 'gwglow'
+        });
+
+        // Multiple expanding rings
+        for (let i = 0; i < 3; i++) {
+            setTimeout(() => {
+                this.addShockwave(x, y, color, 60 + i * 30);
+            }, i * 50);
+        }
+    }
+
+    /**
+     * Bubble burst explosion
+     * For underwater, healing, magical effects
+     */
+    addBubbleExplosion(x, y, color = '#00aaff', count = 25) {
+        const adjustedCount = getAdjustedCount(count);
+
+        // Rising bubbles
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + Math.random() * 0.5;
+            const speed = 2 + Math.random() * 4;
+
+            const particle = this.getParticle();
+            particle.reset(x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 30, {
+                vx: Math.cos(angle) * speed,
+                vy: -Math.abs(Math.sin(angle) * speed) - 1, // Always rise
+                color: color,
+                size: 6 + Math.random() * 10,
+                life: 60 + Math.random() * 40,
+                friction: 0.99,
+                gravity: -0.03, // Rise effect
+                type: 'bubble'
+            });
+        }
+
+        // Small sparkles for pop effect
+        for (let i = 0; i < 12; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * 6,
+                vy: Math.sin(angle) * 6,
+                color: '#ffffff',
+                size: 2,
+                life: 20,
+                friction: 0.9,
+                type: 'spark'
+            });
+        }
+    }
+
+    /**
+     * Ember/Fire trail explosion
+     * For fire damage, burning effects, heat
+     */
+    addEmberExplosion(x, y, count = 40, intensity = 1) {
+        const adjustedCount = getAdjustedCount(count);
+        const colors = ['#ff0000', '#ff4400', '#ff8800', '#ffcc00'];
+
+        // Embers flying outward and upward
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + Math.random() * 0.5;
+            const speed = (3 + Math.random() * 7) * intensity;
+
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 2, // Upward bias
+                color: colors[Math.floor(Math.random() * colors.length)],
+                size: 3 + Math.random() * 4,
+                life: 50 + Math.random() * 40,
+                friction: 0.97,
+                gravity: -0.04, // Rise like embers
+                type: 'ember'
+            });
+        }
+
+        // Comet-like fast embers
+        for (let i = 0; i < 8; i++) {
+            const angle = (Math.PI * 2 * i) / 8 + Math.random() * 0.2;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * 12 * intensity,
+                vy: Math.sin(angle) * 12 * intensity,
+                color: '#ffff00',
+                size: 4,
+                life: 25,
+                friction: 0.94,
+                type: 'comet'
+            });
+        }
+
+        // Central fire glow
+        const glow = this.getParticle();
+        glow.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#ff4400',
+            size: 50 * intensity,
+            life: 20,
+            friction: 1,
+            type: 'glow'
+        });
+    }
+
+    /**
+     * Disintegration effect
+     * For enemy dissolving, teleport effects
+     */
+    addDisintegrationExplosion(x, y, color = '#00ff00', count = 60, intensity = 1) {
+        const adjustedCount = getAdjustedCount(count);
+
+        // Pixelated disintegration
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + Math.random() * 0.5;
+            const speed = (2 + Math.random() * 5) * intensity;
+            const offset = Math.random() * 20;
+
+            const particle = this.getParticle();
+            particle.reset(
+                x + Math.cos(angle) * offset,
+                y + Math.sin(angle) * offset,
+                {
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    color: Math.random() > 0.3 ? color : '#ffffff',
+                    size: 4 + Math.random() * 4,
+                    life: 40 + Math.random() * 40,
+                    friction: 0.96,
+                    gravity: 0.02,
+                    type: 'disintegrate'
+                }
+            );
+        }
+
+        // Glitch effect - RGB split
+        const rgbColors = ['#ff0000', '#00ff00', '#0000ff'];
+        for (let c = 0; c < 3; c++) {
+            const offsetX = (c - 1) * 5;
+            for (let i = 0; i < 5; i++) {
+                const particle = this.getParticle();
+                particle.reset(x + offsetX, y, {
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    color: rgbColors[c],
+                    size: 6,
+                    life: 25,
+                    friction: 0.95,
+                    type: 'pixel'
+                });
+            }
+        }
+    }
+
+    /**
+     * Comet impact explosion
+     * For projectile impacts, meteor strikes
+     */
+    addCometExplosion(x, y, color = '#ffaa00', count = 30, intensity = 1) {
+        const adjustedCount = getAdjustedCount(count);
+
+        // Comet fragments flying outward
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + Math.random() * 0.3;
+            const speed = (6 + Math.random() * 10) * intensity;
+
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: i % 3 === 0 ? '#ffffff' : color,
+                size: 3 + Math.random() * 4,
+                life: 35 + Math.random() * 25,
+                friction: 0.95,
+                gravity: 0.05,
+                type: 'comet'
+            });
+        }
+
+        // Impact flash
+        const flash = this.getParticle();
+        flash.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#ffffff',
+            size: 70 * intensity,
+            life: 12,
+            friction: 1,
+            type: 'gwglow'
+        });
+
+        // Ground sparks
+        for (let i = 0; i < 16; i++) {
+            const angle = Math.PI + (Math.random() - 0.5) * Math.PI; // Lower half
+            const speed = 8 + Math.random() * 8;
+
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: color,
+                size: 2,
+                life: 20,
+                friction: 0.9,
+                gravity: 0.15,
+                type: 'spark',
+                bounce: true,
+                bounceDamping: 0.5
+            });
+        }
+
+        this.addShockwave(x, y, color, 100 * intensity);
+    }
+
+    /**
+     * Snow/Ice explosion
+     * For freeze effects, cold damage, winter themes
+     */
+    addSnowExplosion(x, y, count = 40) {
+        const adjustedCount = getAdjustedCount(count);
+
+        // Snowflakes
+        for (let i = 0; i < adjustedCount; i++) {
+            const angle = (Math.PI * 2 * i) / adjustedCount + Math.random() * 0.5;
+            const speed = 2 + Math.random() * 4;
+
+            const particle = this.getParticle();
+            particle.reset(x + (Math.random() - 0.5) * 40, y + (Math.random() - 0.5) * 40, {
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed + 0.5, // Slight downward drift
+                color: Math.random() > 0.3 ? '#ffffff' : '#aaddff',
+                size: 4 + Math.random() * 6,
+                life: 80 + Math.random() * 40,
+                friction: 0.99,
+                gravity: 0.01,
+                type: 'snow'
+            });
+        }
+
+        // Ice crystals
+        for (let i = 0; i < 8; i++) {
+            const angle = (Math.PI * 2 * i) / 8;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * 6,
+                vy: Math.sin(angle) * 6,
+                color: '#88ddff',
+                size: 10,
+                life: 40,
+                friction: 0.94,
+                type: 'star'
+            });
+        }
+
+        // Cold mist
+        const mist = this.getParticle();
+        mist.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#aaddff',
+            size: 80,
+            life: 30,
+            friction: 1,
+            type: 'glow'
+        });
+    }
+
+    /**
+     * Massive combined explosion - uses multiple new particle types
+     * For boss deaths, mega events, level transitions
+     */
+    addMegaExplosion(x, y, color = '#ff00ff', intensity = 1.5) {
+        // Initial flash
+        const flash = this.getParticle();
+        flash.reset(x, y, {
+            vx: 0,
+            vy: 0,
+            color: '#ffffff',
+            size: 100 * intensity,
+            life: 15,
+            friction: 1,
+            type: 'gwglow'
+        });
+
+        // Plasma core
+        this.addPlasmaExplosion(x, y, color, 40, intensity);
+
+        // Delayed ember ring
+        setTimeout(() => {
+            this.addEmberExplosion(x, y, 30, intensity * 0.8);
+        }, 50);
+
+        // Delayed confetti celebration
+        setTimeout(() => {
+            this.addConfettiExplosion(x, y, 30, intensity * 0.6);
+        }, 100);
+
+        // Vortex effect
+        setTimeout(() => {
+            this.addVortexExplosion(x, y, color, 25, intensity * 0.5);
+        }, 150);
+
+        // Multiple shockwaves
+        for (let i = 0; i < 4; i++) {
+            setTimeout(() => {
+                this.addShockwave(x, y, i % 2 === 0 ? color : '#ffffff', 80 + i * 40);
+            }, i * 60);
+        }
+
+        // Comet fragments
+        for (let i = 0; i < 12; i++) {
+            const angle = (Math.PI * 2 * i) / 12;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(angle) * 15 * intensity,
+                vy: Math.sin(angle) * 15 * intensity,
+                color: color,
+                size: 5,
+                life: 40,
+                friction: 0.96,
+                type: 'comet'
+            });
         }
     }
 }
