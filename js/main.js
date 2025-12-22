@@ -1931,6 +1931,18 @@ function update(deltaTime) {
                     canvas, enemyBulletPool, gameState, particleSystem, adjustedDeltaTime);
     }
 
+    // Update asteroids
+    if (gameState.asteroids) {
+        for (let i = gameState.asteroids.length - 1; i >= 0; i--) {
+            const asteroid = gameState.asteroids[i];
+            if (!asteroid.active) {
+                gameState.asteroids.splice(i, 1);
+                continue;
+            }
+            asteroid.update(canvas, adjustedDeltaTime);
+        }
+    }
+
     // Update boss
     if (gameState.boss) {
         gameState.boss.update(player?.x || canvas.logicalWidth / 2, player?.y || canvas.logicalHeight - 100,
@@ -2261,6 +2273,13 @@ function render() {
     // Enemies
     for (const enemy of gameState.enemies) {
         if (enemy.draw) enemy.draw(ctx);
+    }
+
+    // Asteroids
+    if (gameState.asteroids) {
+        for (const asteroid of gameState.asteroids) {
+            if (asteroid.draw) asteroid.draw(ctx);
+        }
     }
 
     // Boss
