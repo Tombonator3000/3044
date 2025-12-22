@@ -169,6 +169,9 @@ export class Player {
         this.lastX = x;
         this.lastY = y;
 
+        // 🚀 EXHAUST PARTICLE properties
+        this.exhaustTime = 0; // For criss-cross swivel animation
+
         // ⚡ ENHANCED POWER-UP PROPERTIES
         this.hasLaser = false;
         this.laserPower = 1;
@@ -265,6 +268,7 @@ export class Player {
         this.applyMovement(movement, canvas);
         this.updateMirrorShip(canvas, scaledDeltaTime);
         this.updateTrail(movement, scaledDeltaTime);
+        this.emitExhaustParticles(movement, particleSystem, scaledDeltaTime);
         this.handleShooting(keys, touchButtons, bulletPool, gameState, soundSystem, scaledDeltaTime);
         this.updateInvulnerability(scaledDeltaTime);
         this.updatePowerUpTimers(gameState, particleSystem, soundSystem, scaledDeltaTime);
@@ -387,6 +391,52 @@ export class Player {
             point.life -= 0.1 * deltaTime;
             return point.life > 0;
         });
+    }
+
+    /**
+     * Emit fiery exhaust particles when ship is moving
+     * Creates Geometry Wars style 3-stream effect with criss-crossing side streams
+     */
+    emitExhaustParticles({ dx, dy }, particleSystem, deltaTime) {
+        if (!particleSystem?.addShipExhaust) return;
+
+        // Update exhaust animation time for criss-cross swivel
+        this.exhaustTime += deltaTime;
+
+        // Calculate movement speed
+        const speed = Math.sqrt(dx * dx + dy * dy);
+        if (speed < 0.3) return; // Only emit when moving
+
+        // Ship always faces up in this game, so exhaust goes down (Math.PI/2)
+        // But we can also calculate direction from movement for more dynamic effect
+        const shipAngle = -Math.PI / 2; // Ship faces up
+
+        // Emit exhaust from the bottom center of the ship
+        const exhaustOffsetY = this.size * 0.6; // Exhaust position behind ship
+        const exhaustX = this.x;
+        const exhaustY = this.y + exhaustOffsetY;
+
+        // Emit particles with criss-cross animation
+        particleSystem.addShipExhaust(
+            exhaustX,
+            exhaustY,
+            shipAngle,
+            speed,
+            this.shipColor || this.color,
+            this.exhaustTime
+        );
+
+        // Also emit from mirror ship if active
+        if (this.mirrorShip > 0 && this.mirrorX !== undefined) {
+            particleSystem.addShipExhaust(
+                this.mirrorX,
+                this.mirrorY + exhaustOffsetY,
+                shipAngle,
+                speed * 0.8,
+                this.shipColor || this.color,
+                this.exhaustTime
+            );
+        }
     }
 
     /**
