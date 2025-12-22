@@ -2321,9 +2321,9 @@ function updatePcHud() {
     if (highScoreEl) highScoreEl.textContent = Math.floor(gameState.highScore || 0).toLocaleString();
     if (waveEl) waveEl.textContent = gameState.wave || 1;
 
-    // Calculate multiplier from combo
-    const multiplier = 1 + (gameState.combo || 0) * 0.1;
-    if (multiplierEl) multiplierEl.textContent = `x${multiplier.toFixed(1)}`;
+    // Calculate multiplier from combo (matches CollisionSystem.updateScoreAndCombo formula)
+    const multiplier = 1 + Math.floor((gameState.combo || 0) / 5);
+    if (multiplierEl) multiplierEl.textContent = `x${multiplier}`;
 
     // Boss health bar
     if (bossSection && bossHealthFill) {

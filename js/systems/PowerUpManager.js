@@ -287,4 +287,78 @@ export class PowerUpManager {
         this.totalCollected = 0;
         this.powerUpCounts = {};
     }
+
+    /**
+     * Get currently active power-ups for UI display
+     * Returns array of active powerups with name, icon, color, and duration info
+     */
+    getActivePowerUps() {
+        if (!this.player) return [];
+
+        const active = [];
+        const p = this.player;
+
+        // Frame-based powerups (can show actual duration)
+        if (p.godMode > 0) {
+            active.push({ name: 'GOD', icon: 'G', color: '#ffd700', duration: p.godMode, maxDuration: 900 });
+        }
+        if (p.feverMode > 0) {
+            active.push({ name: 'FEVER', icon: 'F', color: '#ff00ff', duration: p.feverMode, maxDuration: 900 });
+        }
+        if (p.ghostMode > 0) {
+            active.push({ name: 'GHOST', icon: 'G', color: '#88ffff', duration: p.ghostMode, maxDuration: 480 });
+        }
+        if (p.matrixMode > 0) {
+            active.push({ name: 'MATRIX', icon: 'M', color: '#00ff00', duration: p.matrixMode, maxDuration: 600 });
+        }
+        if (p.omegaMode > 0) {
+            active.push({ name: 'OMEGA', icon: 'O', color: '#ff8800', duration: p.omegaMode, maxDuration: 600 });
+        }
+        if (p.infinityMode > 0) {
+            active.push({ name: 'INFINITY', icon: '∞', color: '#ffffff', duration: p.infinityMode, maxDuration: 600 });
+        }
+        if (p.vortexActive > 0) {
+            active.push({ name: 'VORTEX', icon: 'V', color: '#8800ff', duration: p.vortexActive, maxDuration: 480 });
+        }
+        if (p.mirrorShip > 0) {
+            active.push({ name: 'MIRROR', icon: 'M', color: '#00ffff', duration: p.mirrorShip, maxDuration: 600 });
+        }
+        if (p.quantumMode > 0) {
+            active.push({ name: 'QUANTUM', icon: 'Q', color: '#ff00aa', duration: p.quantumMode, maxDuration: 600 });
+        }
+        if (p.plasmaMode > 0) {
+            active.push({ name: 'PLASMA', icon: 'P', color: '#ff4400', duration: p.plasmaMode, maxDuration: 480 });
+        }
+
+        // Boolean/timeout-based powerups (show as active without precise duration)
+        if (p.hasLaser) {
+            active.push({ name: 'LASER', icon: 'L', color: '#ff0000', duration: 1, maxDuration: 1 });
+        }
+        if (p.hasSpread && p.spreadCount > 3) {
+            active.push({ name: 'SPREAD', icon: 'S', color: '#ffaa00', duration: 1, maxDuration: 1 });
+        }
+        if (p.hasHoming) {
+            active.push({ name: 'HOMING', icon: 'H', color: '#00ff88', duration: 1, maxDuration: 1 });
+        }
+        if (p.hasPierce) {
+            active.push({ name: 'PIERCE', icon: 'P', color: '#ff00ff', duration: 1, maxDuration: 1 });
+        }
+        if (p.hasBounce) {
+            active.push({ name: 'BOUNCE', icon: 'B', color: '#00ffff', duration: 1, maxDuration: 1 });
+        }
+        if (p.hasChain) {
+            active.push({ name: 'CHAIN', icon: 'C', color: '#88ffff', duration: 1, maxDuration: 1 });
+        }
+        if (p.magnetRange > 0) {
+            active.push({ name: 'MAGNET', icon: 'M', color: '#ff88ff', duration: 1, maxDuration: 1 });
+        }
+        if (p.autoFire) {
+            active.push({ name: 'AUTO', icon: 'A', color: '#ffff00', duration: 1, maxDuration: 1 });
+        }
+        if (p.shieldActive || p.shieldTimer > 0) {
+            active.push({ name: 'SHIELD', icon: 'S', color: '#00aaff', duration: p.shieldTimer || 1, maxDuration: 300 });
+        }
+
+        return active;
+    }
 }
