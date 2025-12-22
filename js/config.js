@@ -227,7 +227,7 @@ export const config = {
 // 🎨 WAVE THEMES — 6 unike temaer som bytter per wave
 export const waveThemes = {
     1: {
-        name: 'MIAMI VICE',
+        name: 'MIAMI NICE',
         primary: '#ff0080',
         secondary: '#00ffff',
         accent: '#ff00ff',
@@ -236,7 +236,7 @@ export const waveThemes = {
         gridHue: 300
     },
     2: {
-        name: 'TRON LEGACY',
+        name: 'TROONING TIME',
         primary: '#00ffff',
         secondary: '#ff8000',
         accent: '#0080ff',
@@ -254,7 +254,7 @@ export const waveThemes = {
         gridHue: 330
     },
     4: {
-        name: 'BLADE RUNNER',
+        name: 'BLADE RUNNING',
         primary: '#0088ff',
         secondary: '#ff0044',
         accent: '#00ff88',
@@ -272,7 +272,7 @@ export const waveThemes = {
         gridHue: 15
     },
     6: {
-        name: 'GHOST IN SHELL',
+        name: 'GHOSTLY SHELL',
         primary: '#00ff66',
         secondary: '#00ccff',
         accent: '#66ffcc',
