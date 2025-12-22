@@ -1096,9 +1096,9 @@ function populateDailyChallenge() {
     const challengeInfo = document.getElementById('challengeInfo');
     if (!challengeInfo || !dailyChallengeSystem) return;
 
-    const challenge = dailyChallengeSystem.currentChallenge;
+    let challenge = dailyChallengeSystem.currentChallenge;
     if (!challenge) {
-        dailyChallengeSystem.generateDailyChallenge();
+        challenge = dailyChallengeSystem.generateDailyChallenge();
     }
 
     const status = dailyChallengeSystem.getStatus();
@@ -1889,6 +1889,11 @@ function update(deltaTime) {
         }
     }
 
+    // Daily Challenge: Apply global speed multiplier
+    if (gameState && gameState.globalSpeedMultiplier) {
+        adjustedDeltaTime *= gameState.globalSpeedMultiplier;
+    }
+
     // Update starfield
     if (starfield) starfield.update(adjustedDeltaTime);
 
@@ -1981,8 +1986,8 @@ function update(deltaTime) {
                 reactiveMusicSystem.triggerWaveComplete();
             }
 
-            // Boss wave?
-            if (waveManager.isBossWave() || gameState.wave % 5 === 0) {
+            // Boss wave? (Daily Challenge can override with bossEveryNWaves)
+            if (waveManager.isBossWave(gameState) || gameState.wave % 5 === 0) {
                 spawnBoss();
             } else {
                 waveManager.startWave(gameState.wave, gameState);
@@ -2038,6 +2043,11 @@ function update(deltaTime) {
 
     if (reactiveMusicSystem) {
         reactiveMusicSystem.update(gameState, adjustedDeltaTime);
+    }
+
+    // Daily Challenge: Update chaos mode (random modifier changes every 30 seconds)
+    if (dailyChallengeSystem) {
+        dailyChallengeSystem.updateChaosMode(gameState, adjustedDeltaTime);
     }
 
     // Update game mode

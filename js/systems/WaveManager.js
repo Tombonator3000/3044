@@ -299,8 +299,9 @@ export class WaveManager {
             return;
         }
 
-        // Don't spawn if wave complete
-        if (this.waveComplete) return;
+        // Don't spawn if wave complete (unless in continuous spawn mode)
+        const continuousSpawn = gameState?.continuousSpawn || false;
+        if (this.waveComplete && !continuousSpawn) return;
 
         // Spawn enemies
         this.spawnTimer--;
@@ -308,7 +309,10 @@ export class WaveManager {
         // Check if we're in sidescroller mode
         const sidescrollerMode = gameState?.sidescrollerMode || false;
 
-        if (this.spawnTimer <= 0 && this.enemiesSpawned < this.enemiesPerWave) {
+        // Daily Challenge: Continuous spawn mode - keep spawning endlessly
+        const canSpawn = continuousSpawn || this.enemiesSpawned < this.enemiesPerWave;
+
+        if (this.spawnTimer <= 0 && canSpawn) {
             const enemyType = this.getEnemyTypeForWave(this.wave);
             const pos = this.getSpawnPosition(canvas, enemyType, sidescrollerMode);
 
@@ -359,6 +363,12 @@ export class WaveManager {
         }
 
         // Check if wave is complete - count directly instead of filter()
+        // Daily Challenge: Continuous spawn never completes waves
+        if (continuousSpawn) {
+            // In continuous spawn, waves don't complete - just keep spawning
+            return;
+        }
+
         let aliveEnemies = 0;
         for (let i = 0; i < enemies.length; i++) {
             if (enemies[i].active) aliveEnemies++;
@@ -375,7 +385,11 @@ export class WaveManager {
         return this.waveComplete;
     }
 
-    isBossWave() {
+    isBossWave(gameState = null) {
+        // Daily Challenge: Boss every N waves modifier
+        if (gameState && gameState.bossEveryNWaves) {
+            return this.wave % gameState.bossEveryNWaves === 0;
+        }
         return this.bossWaves.includes(this.wave);
     }
 

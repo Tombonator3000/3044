@@ -435,4 +435,60 @@ export class DailyChallengeSystem {
             challenge: this.currentChallenge
         };
     }
+
+    /**
+     * Update chaos mode - randomly change modifiers every 30 seconds
+     * Call this from the main game loop
+     */
+    updateChaosMode(gameState, deltaTime = 1) {
+        if (!gameState || !gameState.chaosMode) return;
+
+        // Initialize chaos timer if not set
+        if (!gameState.chaosTimer) {
+            gameState.chaosTimer = 0;
+            gameState.chaosInterval = 30 * 60; // 30 seconds at 60fps
+        }
+
+        gameState.chaosTimer += deltaTime;
+
+        // Change modifier every 30 seconds
+        if (gameState.chaosTimer >= gameState.chaosInterval) {
+            gameState.chaosTimer = 0;
+
+            // Get list of possible modifiers (excluding chaos itself)
+            const modifierKeys = Object.keys(CHALLENGE_MODIFIERS).filter(k => k !== 'chaos');
+            const randomKey = modifierKeys[Math.floor(Math.random() * modifierKeys.length)];
+            const randomModifier = CHALLENGE_MODIFIERS[randomKey];
+
+            // Clear previous modifier effects
+            this.clearModifierEffects(gameState);
+
+            // Apply new random modifier
+            randomModifier.apply(gameState);
+
+            // Store current chaos modifier for display
+            gameState.currentChaosModifier = randomModifier;
+
+            console.log(`🎲 CHAOS MODE: Switching to ${randomModifier.name}`);
+        }
+    }
+
+    /**
+     * Clear modifier effects before applying a new one in chaos mode
+     */
+    clearModifierEffects(gameState) {
+        // Reset all modifier-related properties
+        gameState.mirrorControls = false;
+        gameState.enemySizeMultiplier = 1;
+        gameState.enemySpeedMultiplier = 1;
+        gameState.enemyFireRateMultiplier = 1;
+        gameState.globalSpeedMultiplier = 1;
+        gameState.playerSizeMultiplier = 1;
+        gameState.oneHitKill = false;
+        gameState.noShields = false;
+        gameState.enemyHealthMultiplier = 1;
+        gameState.continuousSpawn = false;
+        gameState.bossEveryNWaves = 0;
+        // Note: don't clear chaosMode itself, lives, or scoreMultiplier
+    }
 }

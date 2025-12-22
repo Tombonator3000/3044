@@ -271,7 +271,7 @@ export class Enemy {
 
         // Setup enemy from configuration (defaults to triangle if unknown type)
         const cfg = ENEMY_CONFIG[type] || ENEMY_CONFIG.triangle;
-        this.setupFromConfig(cfg, currentWave, intelligenceLevel, difficulty);
+        this.setupFromConfig(cfg, currentWave, intelligenceLevel, difficulty, gameState);
 
         // Store original values for fever mode
         this.originalBehavior = this.behavior;
@@ -292,7 +292,7 @@ export class Enemy {
      * @param {number} intelligence - Intelligence level (0-5)
      * @param {Object} difficulty - Difficulty settings with multipliers
      */
-    setupFromConfig(cfg, wave, intelligence, difficulty = {}) {
+    setupFromConfig(cfg, wave, intelligence, difficulty = {}, gameState = null) {
         const {
             enemySpeed = 1.0,
             enemyFireRate = 1.0,
@@ -300,9 +300,16 @@ export class Enemy {
             enemyHP = 1.0
         } = difficulty;
 
+        // Daily Challenge modifiers from gameState
+        const challengeSizeMultiplier = gameState?.enemySizeMultiplier || 1.0;
+        const challengeSpeedMultiplier = gameState?.enemySpeedMultiplier || 1.0;
+        const challengeFireRateMultiplier = gameState?.enemyFireRateMultiplier || 1.0;
+        const challengeHealthMultiplier = gameState?.enemyHealthMultiplier || 1.0;
+
         // Static properties
         this.sides = cfg.sides;
-        this.size = cfg.size;
+        this.baseSize = cfg.size;
+        this.size = cfg.size * challengeSizeMultiplier;
         this.color = cfg.color;
         this.behavior = cfg.behavior;
         this.role = cfg.role;
@@ -313,24 +320,24 @@ export class Enemy {
         if (cfg.customDraw) this.customDraw = cfg.customDraw;
         if (cfg.bulletPattern) this.bulletPattern = cfg.bulletPattern;
 
-        // Scaled HP with difficulty multiplier
+        // Scaled HP with difficulty multiplier and challenge modifier
         const baseHP = this.calcScaledInt(cfg.hp, wave);
-        this.hp = Math.max(1, Math.ceil(baseHP * enemyHP));
+        this.hp = Math.max(1, Math.ceil(baseHP * enemyHP * challengeHealthMultiplier));
 
-        // Scaled speed with difficulty multiplier
+        // Scaled speed with difficulty multiplier and challenge modifier
         const baseSpeed = this.calcScaledValue(cfg.speed, wave);
-        this.speed = baseSpeed * enemySpeed;
+        this.speed = baseSpeed * enemySpeed * challengeSpeedMultiplier;
 
         // Scaled points
         this.points = this.calcScaledInt(cfg.points, wave);
 
-        // Scaled fire rate with difficulty multiplier
-        // Higher enemyFireRate = slower shooting (easy mode)
-        // Lower enemyFireRate = faster shooting (hard mode)
+        // Scaled fire rate with difficulty multiplier and challenge modifier
+        // Lower fireRate value = faster shooting
+        // challengeFireRateMultiplier > 1 means FASTER shooting (bullet hell)
         const baseFireRate = cfg.fireRate
             ? this.calcScaledValue(cfg.fireRate, intelligence, 'intScale')
             : 999;
-        this.fireRate = Math.max(20, Math.floor(baseFireRate * enemyFireRate));
+        this.fireRate = Math.max(5, Math.floor(baseFireRate * enemyFireRate / challengeFireRateMultiplier));
 
         // Scaled bullet speed with difficulty multiplier
         const baseBulletSpeed = cfg.bulletSpeed
@@ -370,6 +377,9 @@ export class Enemy {
 
     update(playerX, playerY, canvas, enemyBulletPool, gameState, particleSystem, deltaTime = 1) {
         if (!this.active) return;
+
+        // Store gameState reference for use in takeDamage
+        this.gameState = gameState;
 
         const scaledDeltaTime = Math.max(deltaTime, 0);
         this.moveTimer += scaledDeltaTime;
@@ -778,6 +788,13 @@ export class Enemy {
     }
 
     takeDamage(amount = 1) {
+        // Daily Challenge: One-hit kill modifier - any damage kills enemy
+        if (this.gameState && this.gameState.oneHitKill) {
+            this.hp = 0;
+            this.active = false;
+            return true; // Killed
+        }
+
         // Shield absorbs damage first
         if (this.shieldActive && this.shieldStrength > 0) {
             this.shieldStrength -= amount;

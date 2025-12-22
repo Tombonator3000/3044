@@ -9,7 +9,9 @@ export class Player {
         this.x = x;
         this.y = y;
         this.speed = 5.5;
+        this.baseSize = 20;
         this.size = 20;
+        this.sizeMultiplier = 1;
         this.color = config.colors.player;
         this.weaponLevel = 1;
         this.fireRate = 10;
@@ -111,6 +113,13 @@ export class Player {
 
     update(keys, canvas, bulletPool, gameState, touchJoystick, touchButtons, particleSystem, soundSystem, deltaTime = 1) {
         const scaledDeltaTime = Math.max(deltaTime, 0);
+
+        // Daily Challenge: Apply player size multiplier
+        if (gameState && gameState.playerSizeMultiplier) {
+            this.sizeMultiplier = gameState.playerSizeMultiplier;
+            this.size = this.baseSize * this.sizeMultiplier;
+        }
+
         // Handle death and respawn
         if (!this.isAlive) {
             this.respawnTimer -= scaledDeltaTime;
@@ -147,6 +156,12 @@ export class Player {
         if (dx !== 0 && dy !== 0) {
             dx *= 0.707;
             dy *= 0.707;
+        }
+
+        // Daily Challenge: Mirror controls modifier - reverse all movement
+        if (gameState && gameState.mirrorControls) {
+            dx = -dx;
+            dy = -dy;
         }
 
         // Apply movement with screen wrap (Asteroids-style) or bounded

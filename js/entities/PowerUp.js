@@ -179,6 +179,12 @@ export class PowerUp {
                 player.weaponLevel = Math.min((player.weaponLevel || 1) + 1, 5);
                 break;
             case 'shield':
+                // Daily Challenge: No shields modifier - skip shield power-ups
+                if (gameState && gameState.noShields) {
+                    // Convert to points bonus instead
+                    if (gameState) gameState.score += 500 * (gameState.wave || 1);
+                    break;
+                }
                 // Shield gives +1 point, max 3 shield points total (reduced from +3 with no cap)
                 player.shield = Math.min((player.shield || 0) + 1, 3);
                 player.shieldActive = true;
