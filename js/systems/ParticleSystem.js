@@ -2363,73 +2363,130 @@ export class ParticleSystem {
      */
     addShipExhaust(x, y, shipAngle, speed = 1, color = '#00ff00', time = 0) {
         // Only emit if ship is moving
-        if (speed < 0.5) return;
+        if (speed < 0.3) return;
 
-        const intensity = Math.min(speed / 8, 1.5);
+        const intensity = Math.min(speed / 6, 1.8);
         const exhaustAngle = shipAngle + Math.PI; // Opposite of ship direction
 
-        // Sine wave swivel for side streams (like Geometry Wars)
-        const swivelAmount = Math.sin(time * 0.15) * 0.4;
+        // Dual sine waves for smooth criss-cross swivel pattern (XNA Geometry Wars style)
+        // The two side streams oscillate in opposite directions
+        const swivelAmount = Math.sin(time * 0.12) * 0.5;
+        const swivelSecondary = Math.cos(time * 0.08) * 0.15; // Secondary oscillation for organic feel
 
-        // === CENTER STREAM (hot yellow-white) ===
-        for (let i = 0; i < 2; i++) {
+        // === CENTER STREAM (hot yellow-white core) ===
+        // This is the hottest part - bright white/yellow particles
+        const centerParticleCount = Math.ceil(2 * intensity);
+        for (let i = 0; i < centerParticleCount; i++) {
             const particle = this.getParticle();
-            const spreadAngle = exhaustAngle + (Math.random() - 0.5) * 0.2;
-            const exhaustSpeed = 3 + Math.random() * 4 * intensity;
+            const spreadAngle = exhaustAngle + (Math.random() - 0.5) * 0.15;
+            const exhaustSpeed = 4 + Math.random() * 5 * intensity;
 
+            // Alternate between hot white and yellow for heat gradient
+            const centerColors = ['#ffffff', '#ffffcc', '#ffffaa', '#ffff88'];
             particle.reset(x, y, {
                 vx: Math.cos(spreadAngle) * exhaustSpeed,
                 vy: Math.sin(spreadAngle) * exhaustSpeed,
-                color: i === 0 ? '#ffffff' : '#ffffaa', // Hot white-yellow core
-                size: 2 + Math.random() * 2,
-                life: 15 + Math.random() * 10,
-                friction: 0.92,
+                color: centerColors[i % centerColors.length],
+                size: 2.5 + Math.random() * 2,
+                life: 18 + Math.random() * 12,
+                friction: 0.91,
                 type: 'gwline',
-                length: 6 + Math.random() * 4,
-                maxTrail: 3,
+                length: 8 + Math.random() * 5,
+                maxTrail: 4,
                 bounce: false
             });
         }
 
-        // === SIDE STREAMS (red/orange, swiveling) ===
-        const sideOffsets = [-0.5, 0.5]; // Left and right
-        const sideColors = ['#ff4400', '#ff6600', '#ff8800'];
+        // === SIDE STREAMS (red/orange, criss-crossing) ===
+        // These swivel back and forth in opposite directions
+        const sideOffsets = [
+            { offset: -0.6, swivel: swivelAmount + swivelSecondary },
+            { offset: 0.6, swivel: -swivelAmount - swivelSecondary }
+        ];
+        // Gradient from orange to deep red for cooler outer flames
+        const sideColorGradient = [
+            ['#ff6600', '#ff7711', '#ff8822'], // Left stream - more orange
+            ['#ff4400', '#ff5500', '#ff3300']  // Right stream - more red
+        ];
 
-        for (const offset of sideOffsets) {
-            // Opposite swivel for criss-cross pattern
-            const sideAngle = exhaustAngle + offset * 0.8 + (offset > 0 ? swivelAmount : -swivelAmount);
+        sideOffsets.forEach((side, streamIndex) => {
+            // Criss-cross pattern: streams cross paths as they swivel
+            const sideAngle = exhaustAngle + side.offset + side.swivel;
+            const colors = sideColorGradient[streamIndex];
 
-            const particle = this.getParticle();
-            const exhaustSpeed = 2 + Math.random() * 3 * intensity;
+            // Emit 1-2 particles per side stream based on intensity
+            const sideCount = Math.random() < intensity ? 2 : 1;
+            for (let i = 0; i < sideCount; i++) {
+                const particle = this.getParticle();
+                const exhaustSpeed = 3 + Math.random() * 4 * intensity;
+                const angleJitter = (Math.random() - 0.5) * 0.1;
 
-            particle.reset(x, y, {
-                vx: Math.cos(sideAngle) * exhaustSpeed,
-                vy: Math.sin(sideAngle) * exhaustSpeed,
-                color: sideColors[Math.floor(Math.random() * sideColors.length)],
-                size: 2 + Math.random() * 2,
-                life: 12 + Math.random() * 8,
-                friction: 0.90,
-                type: 'gwline',
-                length: 5 + Math.random() * 3,
-                maxTrail: 2,
-                bounce: false
+                particle.reset(x, y, {
+                    vx: Math.cos(sideAngle + angleJitter) * exhaustSpeed,
+                    vy: Math.sin(sideAngle + angleJitter) * exhaustSpeed,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: 2 + Math.random() * 2.5,
+                    life: 14 + Math.random() * 10,
+                    friction: 0.89,
+                    type: 'gwline',
+                    length: 6 + Math.random() * 4,
+                    maxTrail: 3,
+                    bounce: false
+                });
+            }
+        });
+
+        // === GLOW PARTICLES (makes fire glow more brightly) ===
+        // Additional glow particles tinted and blended with regular particles
+        if (Math.random() < 0.6 * intensity) {
+            const glowParticle = this.getParticle();
+            const glowAngle = exhaustAngle + (Math.random() - 0.5) * 0.3;
+            const glowSpeed = 2 + Math.random() * 3;
+            // Glow colors blend from yellow to orange
+            const glowColors = ['#ffaa44', '#ffcc66', '#ff9933', '#ffdd77'];
+
+            glowParticle.reset(x, y, {
+                vx: Math.cos(glowAngle) * glowSpeed,
+                vy: Math.sin(glowAngle) * glowSpeed,
+                color: glowColors[Math.floor(Math.random() * glowColors.length)],
+                size: 6 + Math.random() * 4,
+                life: 10 + Math.random() * 8,
+                friction: 0.94,
+                type: 'gwglow',
+                alpha: 0.4 + Math.random() * 0.3
             });
         }
 
-        // Occasional spark particles
-        if (Math.random() < 0.3 * intensity) {
-            const sparkAngle = exhaustAngle + (Math.random() - 0.5) * 0.8;
-            const sparkSpeed = 4 + Math.random() * 6;
+        // === SPARK PARTICLES (bright yellow accents) ===
+        if (Math.random() < 0.35 * intensity) {
+            const sparkAngle = exhaustAngle + (Math.random() - 0.5) * 0.9;
+            const sparkSpeed = 5 + Math.random() * 7;
             const particle = this.getParticle();
             particle.reset(x, y, {
                 vx: Math.cos(sparkAngle) * sparkSpeed,
                 vy: Math.sin(sparkAngle) * sparkSpeed,
-                color: '#ffff00',
-                size: 2,
-                life: 8 + Math.random() * 6,
-                friction: 0.88,
+                color: Math.random() > 0.5 ? '#ffff00' : '#ffff88',
+                size: 1.5 + Math.random() * 1.5,
+                life: 6 + Math.random() * 8,
+                friction: 0.86,
                 type: 'spark',
                 bounce: true
+            });
+        }
+
+        // === OCCASIONAL EMBER PARTICLES (trailing hot embers) ===
+        if (Math.random() < 0.2 * intensity) {
+            const emberAngle = exhaustAngle + (Math.random() - 0.5) * 0.6;
+            const emberSpeed = 1.5 + Math.random() * 2.5;
+            const particle = this.getParticle();
+            particle.reset(x, y, {
+                vx: Math.cos(emberAngle) * emberSpeed,
+                vy: Math.sin(emberAngle) * emberSpeed,
+                color: '#ff4400',
+                size: 2 + Math.random() * 2,
+                life: 20 + Math.random() * 15,
+                friction: 0.96,
+                type: 'ember'
             });
         }
     }
