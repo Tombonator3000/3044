@@ -180,6 +180,9 @@ export class CollisionSystem {
 
     /**
      * Main collision check method - called from main.js
+     * Orchestrates collision detection across all entity types.
+     * Each collision type is delegated to a focused helper method for clarity.
+     *
      * @param {Object} gameState - The game state object
      * @param {Object} bulletPool - Player bullet pool
      * @param {Object} enemyBulletPool - Enemy bullet pool
@@ -198,214 +201,272 @@ export class CollisionSystem {
         const player = gameState.player;
         const playerSize = player?.size || 20;
 
-        // Player bullets vs enemies
+        // Build spatial hash once for enemy-related collisions
         if (bulletPool) {
             this.buildEnemySpatialHash(gameState);
-            const bullets = bulletPool.getActiveBullets?.() || bulletPool.bullets || [];
-
-            for (const bullet of bullets) {
-                if (!bullet.active || !bullet.isPlayer) continue;
-
-                const bulletRadius = bullet.radius || bullet.size || CONFIG.bullets?.playerRadius || 4;
-                const searchRadius = Math.max(
-                    1,
-                    Math.ceil((bulletRadius + this.maxEnemyRadius) / this.cellSize)
-                );
-                const nearby = this.getNearby(bullet.x, bullet.y, searchRadius);
-
-                for (const { entity: enemy, type } of nearby) {
-                    if (type !== 'enemy' || !enemy.active) continue;
-
-                    this.stats.checksPerFrame++;
-
-                    if (this.circleCollision(bullet, enemy)) {
-                        this.stats.collisionsDetected++;
-
-                        // Damage enemy
-                        const killed = enemy.takeDamage?.(bullet.damage || 10);
-
-                        // Remove bullet (unless piercing)
-                        if (!bullet.pierce) {
-                            bullet.active = false;
-                        }
-
-                        if (killed || !enemy.active) {
-                            this.handleEnemyKill(enemy);
-                        } else {
-                            // Hit effect
-                            if (particleSystem?.addSparkle) {
-                                particleSystem.addSparkle(enemy.x, enemy.y, enemy.color, 3);
-                            }
-                            if (soundSystem?.playHit) {
-                                soundSystem.playHit();
-                            }
-                        }
-
-                        break;
-                    }
-                }
-            }
         }
 
-        // Player bullets vs boss
-        if (bulletPool && gameState.boss?.active) {
-            const bullets = bulletPool.getActiveBullets?.() || bulletPool.bullets || [];
-            const bossHitbox = { x: gameState.boss.x, y: gameState.boss.y, size: gameState.boss.size };
+        // Delegate to focused collision handlers
+        this.checkPlayerBulletsVsEnemiesMain(bulletPool);
+        this.checkPlayerBulletsVsBoss(bulletPool, gameState);
+        this.checkEnemyBulletsVsPlayerMain(enemyBulletPool, player, playerSize);
+        this.checkEnemiesVsPlayerMain(player, playerSize, gameState);
+        this.checkPlayerBulletsVsAsteroids(bulletPool, gameState);
+        this.checkAsteroidsVsPlayerMain(player, playerSize, gameState);
+        this.checkPlayerVsPowerUpsMain(player, playerSize, gameState);
+    }
 
-            for (const bullet of bullets) {
-                if (!bullet.active || !bullet.isPlayer) continue;
+    /**
+     * Check player bullets vs enemies using spatial hashing
+     * @private
+     */
+    checkPlayerBulletsVsEnemiesMain(bulletPool) {
+        if (!bulletPool) return;
+
+        const bullets = bulletPool.getActiveBullets?.() || bulletPool.bullets || [];
+
+        for (const bullet of bullets) {
+            if (!bullet.active || !bullet.isPlayer) continue;
+
+            const bulletRadius = bullet.radius || bullet.size || CONFIG.bullets?.playerRadius || 4;
+            const searchRadius = Math.max(
+                1,
+                Math.ceil((bulletRadius + this.maxEnemyRadius) / this.cellSize)
+            );
+            const nearby = this.getNearby(bullet.x, bullet.y, searchRadius);
+
+            for (const { entity: enemy, type } of nearby) {
+                if (type !== 'enemy' || !enemy.active) continue;
 
                 this.stats.checksPerFrame++;
 
-                if (this.circleCollision(bullet, bossHitbox)) {
+                if (this.circleCollision(bullet, enemy)) {
                     this.stats.collisionsDetected++;
-
-                    gameState.boss.takeDamage?.(bullet.damage || 10);
-                    bullet.active = false;
-
-                    // Hit effect
-                    if (particleSystem?.addSparkle) {
-                        particleSystem.addSparkle(gameState.boss.x, gameState.boss.y, '#ffffff', 5);
-                    }
-                    if (soundSystem?.playHit) {
-                        soundSystem.playHit();
-                    }
-                }
-            }
-        }
-
-        // Enemy bullets vs player
-        if (enemyBulletPool && player?.isAlive && !player.invulnerable) {
-            const bullets = enemyBulletPool.getActiveBullets?.() || enemyBulletPool.bullets || [];
-            // Player hitbox increased from 0.5 to 0.7 for more challenging collision
-            const playerHitbox = { x: player.x, y: player.y, size: playerSize * 0.7 };
-
-            for (const bullet of bullets) {
-                if (!bullet.active) continue;
-
-                this.stats.checksPerFrame++;
-
-                if (this.circleCollision(bullet, playerHitbox)) {
-                    this.stats.collisionsDetected++;
-
-                    bullet.active = false;
-                    player.takeDamage?.(1);
+                    this.handleBulletEnemyCollision(bullet, enemy);
                     break;
                 }
             }
         }
+    }
 
-        // Enemies vs player collision
-        if (player?.isAlive && !player.invulnerable) {
-            // Player hitbox increased from 0.5 to 0.7 for more challenging collision
-            const playerHitbox = { x: player.x, y: player.y, size: playerSize * 0.7 };
+    /**
+     * Handle the result of a bullet hitting an enemy
+     * @private
+     */
+    handleBulletEnemyCollision(bullet, enemy) {
+        const killed = enemy.takeDamage?.(bullet.damage || 10);
 
-            for (const enemy of gameState.enemies) {
-                if (!enemy.active) continue;
+        // Remove bullet (unless piercing)
+        if (!bullet.pierce) {
+            bullet.active = false;
+        }
 
-                this.stats.checksPerFrame++;
+        if (killed || !enemy.active) {
+            this.handleEnemyKill(enemy);
+        } else {
+            // Hit effect
+            if (this.particleSystem?.addSparkle) {
+                this.particleSystem.addSparkle(enemy.x, enemy.y, enemy.color, 3);
+            }
+            if (this.soundSystem?.playHit) {
+                this.soundSystem.playHit();
+            }
+        }
+    }
 
-                if (this.circleCollision(enemy, playerHitbox)) {
-                    this.stats.collisionsDetected++;
+    /**
+     * Check player bullets vs boss
+     * @private
+     */
+    checkPlayerBulletsVsBoss(bulletPool, gameState) {
+        if (!bulletPool || !gameState.boss?.active) return;
 
-                    player.takeDamage?.(1);
-                    enemy.takeDamage?.(100); // Destroy enemy on collision
+        const bullets = bulletPool.getActiveBullets?.() || bulletPool.bullets || [];
+        const bossHitbox = { x: gameState.boss.x, y: gameState.boss.y, size: gameState.boss.size };
 
-                    if (particleSystem?.addExplosion) {
-                        particleSystem.addExplosion(enemy.x, enemy.y, '#ff00ff', 20);
-                    }
-                    break;
+        for (const bullet of bullets) {
+            if (!bullet.active || !bullet.isPlayer) continue;
+
+            this.stats.checksPerFrame++;
+
+            if (this.circleCollision(bullet, bossHitbox)) {
+                this.stats.collisionsDetected++;
+
+                gameState.boss.takeDamage?.(bullet.damage || 10);
+                bullet.active = false;
+
+                // Hit effect
+                if (this.particleSystem?.addSparkle) {
+                    this.particleSystem.addSparkle(gameState.boss.x, gameState.boss.y, '#ffffff', 5);
+                }
+                if (this.soundSystem?.playHit) {
+                    this.soundSystem.playHit();
                 }
             }
         }
+    }
 
-        // Player bullets vs asteroids
-        if (bulletPool && gameState.asteroids?.length > 0) {
-            const bullets = bulletPool.getActiveBullets?.() || bulletPool.bullets || [];
+    /**
+     * Check enemy bullets vs player
+     * @private
+     */
+    checkEnemyBulletsVsPlayerMain(enemyBulletPool, player, playerSize) {
+        if (!enemyBulletPool || !player?.isAlive || player.invulnerable) return;
 
-            for (const bullet of bullets) {
-                if (!bullet.active || !bullet.isPlayer) continue;
+        const bullets = enemyBulletPool.getActiveBullets?.() || enemyBulletPool.bullets || [];
+        // Player hitbox increased from 0.5 to 0.7 for more challenging collision
+        const playerHitbox = { x: player.x, y: player.y, size: playerSize * 0.7 };
 
-                for (let i = gameState.asteroids.length - 1; i >= 0; i--) {
-                    const asteroid = gameState.asteroids[i];
-                    if (!asteroid.active) continue;
+        for (const bullet of bullets) {
+            if (!bullet.active) continue;
 
-                    this.stats.checksPerFrame++;
+            this.stats.checksPerFrame++;
 
-                    if (asteroid.checkCollision(bullet)) {
-                        this.stats.collisionsDetected++;
+            if (this.circleCollision(bullet, playerHitbox)) {
+                this.stats.collisionsDetected++;
 
-                        // Damage asteroid
-                        const destroyed = asteroid.takeDamage(bullet.damage || 1);
-
-                        // Remove bullet (unless piercing)
-                        if (!bullet.pierce) {
-                            bullet.active = false;
-                        }
-
-                        if (destroyed) {
-                            this.handleAsteroidKill(asteroid, gameState, particleSystem, soundSystem);
-                        } else {
-                            // Hit effect
-                            if (particleSystem?.addSparkle) {
-                                particleSystem.addSparkle(asteroid.x, asteroid.y, asteroid.primaryColor, 5);
-                            }
-                            if (soundSystem?.playHit) {
-                                soundSystem.playHit();
-                            }
-                        }
-
-                        break;
-                    }
-                }
+                bullet.active = false;
+                player.takeDamage?.(1);
+                break;
             }
         }
+    }
 
-        // Asteroids vs player collision
-        if (player?.isAlive && !player.invulnerable && gameState.asteroids?.length > 0) {
-            const playerHitbox = { x: player.x, y: player.y, size: playerSize * 0.7, radius: playerSize * 0.7 };
+    /**
+     * Check enemies vs player collision (contact damage)
+     * @private
+     */
+    checkEnemiesVsPlayerMain(player, playerSize, gameState) {
+        if (!player?.isAlive || player.invulnerable) return;
 
-            for (const asteroid of gameState.asteroids) {
+        // Player hitbox increased from 0.5 to 0.7 for more challenging collision
+        const playerHitbox = { x: player.x, y: player.y, size: playerSize * 0.7 };
+
+        for (const enemy of gameState.enemies) {
+            if (!enemy.active) continue;
+
+            this.stats.checksPerFrame++;
+
+            if (this.circleCollision(enemy, playerHitbox)) {
+                this.stats.collisionsDetected++;
+
+                player.takeDamage?.(1);
+                enemy.takeDamage?.(100); // Destroy enemy on collision
+
+                if (this.particleSystem?.addExplosion) {
+                    this.particleSystem.addExplosion(enemy.x, enemy.y, '#ff00ff', 20);
+                }
+                break;
+            }
+        }
+    }
+
+    /**
+     * Check player bullets vs asteroids
+     * @private
+     */
+    checkPlayerBulletsVsAsteroids(bulletPool, gameState) {
+        if (!bulletPool || !gameState.asteroids?.length) return;
+
+        const bullets = bulletPool.getActiveBullets?.() || bulletPool.bullets || [];
+
+        for (const bullet of bullets) {
+            if (!bullet.active || !bullet.isPlayer) continue;
+
+            for (let i = gameState.asteroids.length - 1; i >= 0; i--) {
+                const asteroid = gameState.asteroids[i];
                 if (!asteroid.active) continue;
 
                 this.stats.checksPerFrame++;
 
-                if (asteroid.checkCollision(playerHitbox)) {
+                if (asteroid.checkCollision(bullet)) {
                     this.stats.collisionsDetected++;
-
-                    player.takeDamage?.(1);
-
-                    if (particleSystem?.addExplosion) {
-                        particleSystem.addExplosion(player.x, player.y, '#ff00ff', 15);
-                    }
-
-                    // Grid impact
-                    addGridImpact(player.x, player.y, 50, 150);
-
+                    this.handleBulletAsteroidCollision(bullet, asteroid, gameState);
                     break;
                 }
             }
         }
+    }
 
-        // Player vs power-ups
-        if (player?.isAlive) {
-            const collectRadius = { x: player.x, y: player.y, size: playerSize * 1.5 };
+    /**
+     * Handle the result of a bullet hitting an asteroid
+     * @private
+     */
+    handleBulletAsteroidCollision(bullet, asteroid, gameState) {
+        const destroyed = asteroid.takeDamage(bullet.damage || 1);
 
-            for (let i = gameState.powerUps.length - 1; i >= 0; i--) {
-                const powerUp = gameState.powerUps[i];
-                if (!powerUp.active) continue;
+        // Remove bullet (unless piercing)
+        if (!bullet.pierce) {
+            bullet.active = false;
+        }
 
-                this.stats.checksPerFrame++;
+        if (destroyed) {
+            this.handleAsteroidKill(asteroid, gameState, this.particleSystem, this.soundSystem);
+        } else {
+            // Hit effect
+            if (this.particleSystem?.addSparkle) {
+                this.particleSystem.addSparkle(asteroid.x, asteroid.y, asteroid.primaryColor, 5);
+            }
+            if (this.soundSystem?.playHit) {
+                this.soundSystem.playHit();
+            }
+        }
+    }
 
-                if (this.circleCollision(powerUp, collectRadius)) {
-                    this.stats.collisionsDetected++;
+    /**
+     * Check asteroids vs player collision
+     * @private
+     */
+    checkAsteroidsVsPlayerMain(player, playerSize, gameState) {
+        if (!player?.isAlive || player.invulnerable || !gameState.asteroids?.length) return;
 
-                    powerUp.collect?.(player, gameState, soundSystem, particleSystem);
+        const playerHitbox = { x: player.x, y: player.y, size: playerSize * 0.7, radius: playerSize * 0.7 };
 
-                    // Register with power-up manager
-                    if (gameState.powerUpManager?.registerPowerUp) {
-                        gameState.powerUpManager.registerPowerUp(powerUp.type, powerUp.tier);
-                    }
+        for (const asteroid of gameState.asteroids) {
+            if (!asteroid.active) continue;
+
+            this.stats.checksPerFrame++;
+
+            if (asteroid.checkCollision(playerHitbox)) {
+                this.stats.collisionsDetected++;
+
+                player.takeDamage?.(1);
+
+                if (this.particleSystem?.addExplosion) {
+                    this.particleSystem.addExplosion(player.x, player.y, '#ff00ff', 15);
+                }
+
+                // Grid impact
+                addGridImpact(player.x, player.y, 50, 150);
+
+                break;
+            }
+        }
+    }
+
+    /**
+     * Check player vs power-ups collection
+     * @private
+     */
+    checkPlayerVsPowerUpsMain(player, playerSize, gameState) {
+        if (!player?.isAlive) return;
+
+        const collectRadius = { x: player.x, y: player.y, size: playerSize * 1.5 };
+
+        for (let i = gameState.powerUps.length - 1; i >= 0; i--) {
+            const powerUp = gameState.powerUps[i];
+            if (!powerUp.active) continue;
+
+            this.stats.checksPerFrame++;
+
+            if (this.circleCollision(powerUp, collectRadius)) {
+                this.stats.collisionsDetected++;
+
+                powerUp.collect?.(player, gameState, this.soundSystem, this.particleSystem);
+
+                // Register with power-up manager
+                if (gameState.powerUpManager?.registerPowerUp) {
+                    gameState.powerUpManager.registerPowerUp(powerUp.type, powerUp.tier);
                 }
             }
         }
