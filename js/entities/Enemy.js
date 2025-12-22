@@ -246,6 +246,7 @@ export class Enemy {
         this.y = y;
         this.type = type;
         this.active = true;
+        this.alive = true;
         this.rotation = 0;
         this.moveTimer = 0;
         this.fireTimer = 0;
