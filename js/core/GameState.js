@@ -52,6 +52,10 @@ export class GameState {
         this.enemyBullets = [];
         this.powerUps = [];
         this.explosions = [];
+        this.asteroids = [];  // Classic Asteroids-style obstacles
+
+        // Asteroid wave configuration (waves with asteroid fields)
+        this.asteroidWaves = [3, 7, 11, 13, 17, 21, 23, 27];
 
         // Combo system
         this.combo = 0;
@@ -246,6 +250,13 @@ export class GameState {
      */
     isSidescrollerWave() {
         return this.sidescrollerMode;
+    }
+
+    /**
+     * Check if current wave is an asteroid wave
+     */
+    isAsteroidWave(waveNumber = this.wave) {
+        return this.asteroidWaves.includes(waveNumber);
     }
 
     /**

@@ -5,6 +5,7 @@
 
 import { CONFIG } from '../config.js';
 import { PowerUp } from '../entities/PowerUp.js';
+import { Asteroid } from '../entities/Asteroid.js';
 import { addGridImpact } from '../rendering/GridRenderer.js';
 
 /**
@@ -313,6 +314,74 @@ export class CollisionSystem {
                     if (particleSystem?.addExplosion) {
                         particleSystem.addExplosion(enemy.x, enemy.y, '#ff00ff', 20);
                     }
+                    break;
+                }
+            }
+        }
+
+        // Player bullets vs asteroids
+        if (bulletPool && gameState.asteroids?.length > 0) {
+            const bullets = bulletPool.getActiveBullets?.() || bulletPool.bullets || [];
+
+            for (const bullet of bullets) {
+                if (!bullet.active || !bullet.isPlayer) continue;
+
+                for (let i = gameState.asteroids.length - 1; i >= 0; i--) {
+                    const asteroid = gameState.asteroids[i];
+                    if (!asteroid.active) continue;
+
+                    this.stats.checksPerFrame++;
+
+                    if (asteroid.checkCollision(bullet)) {
+                        this.stats.collisionsDetected++;
+
+                        // Damage asteroid
+                        const destroyed = asteroid.takeDamage(bullet.damage || 1);
+
+                        // Remove bullet (unless piercing)
+                        if (!bullet.pierce) {
+                            bullet.active = false;
+                        }
+
+                        if (destroyed) {
+                            this.handleAsteroidKill(asteroid, gameState, particleSystem, soundSystem);
+                        } else {
+                            // Hit effect
+                            if (particleSystem?.addSparkle) {
+                                particleSystem.addSparkle(asteroid.x, asteroid.y, asteroid.primaryColor, 5);
+                            }
+                            if (soundSystem?.playHit) {
+                                soundSystem.playHit();
+                            }
+                        }
+
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Asteroids vs player collision
+        if (player?.isAlive && !player.invulnerable && gameState.asteroids?.length > 0) {
+            const playerHitbox = { x: player.x, y: player.y, size: playerSize * 0.7, radius: playerSize * 0.7 };
+
+            for (const asteroid of gameState.asteroids) {
+                if (!asteroid.active) continue;
+
+                this.stats.checksPerFrame++;
+
+                if (asteroid.checkCollision(playerHitbox)) {
+                    this.stats.collisionsDetected++;
+
+                    player.takeDamage?.(1);
+
+                    if (particleSystem?.addExplosion) {
+                        particleSystem.addExplosion(player.x, player.y, '#ff00ff', 15);
+                    }
+
+                    // Grid impact
+                    addGridImpact(player.x, player.y, 50, 150);
+
                     break;
                 }
             }
@@ -989,6 +1058,76 @@ export class CollisionSystem {
             this.soundSystem.playExplosion();
         } else if (this.soundSystem?.play) {
             this.soundSystem.play('explosion');
+        }
+    }
+
+    /**
+     * Handle asteroid destruction with effects and child spawning
+     * @param {Object} asteroid - The destroyed asteroid
+     * @param {Object} gameState - The game state
+     * @param {Object} particleSystem - Particle system for effects
+     * @param {Object} soundSystem - Sound system for audio
+     */
+    handleAsteroidKill(asteroid, gameState, particleSystem, soundSystem) {
+        if (!gameState) return;
+
+        // Add score
+        const score = asteroid.points || 100;
+        gameState.score = (gameState.score || 0) + score;
+
+        // Increment combo
+        gameState.combo = (gameState.combo || 0) + 1;
+        gameState.maxCombo = Math.max(gameState.maxCombo || 0, gameState.combo);
+        gameState.comboTimer = gameState.comboTimeout || 180;
+
+        // Grid ripple effect
+        const impactForce = 40 + asteroid.size * 1.5;
+        const impactRadius = 100 + asteroid.size * 2;
+        addGridImpact(asteroid.x, asteroid.y, impactForce, impactRadius);
+
+        // Explosion effects
+        if (particleSystem) {
+            // Rocky explosion with debris
+            if (particleSystem.addExplosion) {
+                particleSystem.addExplosion(asteroid.x, asteroid.y, asteroid.primaryColor, 20);
+            }
+            if (particleSystem.addShockwave) {
+                particleSystem.addShockwave(asteroid.x, asteroid.y, asteroid.accentColor || '#ffaa00', 80);
+            }
+            if (particleSystem.addScorePopup) {
+                particleSystem.addScorePopup(asteroid.x, asteroid.y - 20, score);
+            }
+        }
+
+        // Sound effect
+        if (soundSystem?.playExplosion) {
+            soundSystem.playExplosion();
+        }
+
+        // Screen shake
+        if (gameState.screenShake) {
+            const shakeIntensity = 3 + asteroid.size * 0.15;
+            gameState.screenShake.intensity = Math.min(
+                (gameState.screenShake.intensity || 0) + shakeIntensity,
+                12
+            );
+            gameState.screenShake.duration = Math.max(
+                gameState.screenShake.duration || 0,
+                10
+            );
+        }
+
+        // Spawn child asteroids (classic Asteroids behavior!)
+        const children = asteroid.getChildAsteroids();
+        for (const child of children) {
+            const newAsteroid = new Asteroid(child.x, child.y, child.sizeType, gameState);
+            newAsteroid.sidescrollerMode = asteroid.sidescrollerMode;
+            gameState.asteroids.push(newAsteroid);
+        }
+
+        // Small chance to drop power-up from large asteroids
+        if (asteroid.sizeType === 'large' && Math.random() < 0.15) {
+            this.trySpawnPowerUp(asteroid.x, asteroid.y, 1);
         }
     }
 

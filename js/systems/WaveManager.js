@@ -4,6 +4,7 @@
 
 import { config, getCurrentTheme } from '../config.js';
 import { Enemy } from '../entities/Enemy.js';
+import { Asteroid } from '../entities/Asteroid.js';
 import { logger } from '../utils/Logger.js';
 
 // ============================================
@@ -169,6 +170,22 @@ const ENEMY_SPAWN_POSITIONS = {
 };
 
 // ============================================
+// ASTEROID CONFIGURATION
+// ============================================
+const ASTEROID_CONFIG = {
+    // How many asteroids to spawn per asteroid wave
+    countPerWave: { base: 3, waveScale: 0.5 },
+    // Spawn delay between asteroids
+    spawnDelay: 180,  // 3 seconds
+    // Size distribution (weighted)
+    sizeWeights: {
+        large: 3,
+        medium: 2,
+        small: 1
+    }
+};
+
+// ============================================
 // WAVE MANAGER CLASS
 // ============================================
 
@@ -188,6 +205,12 @@ export class WaveManager {
 
         // Boss waves
         this.bossWaves = [5, 10, 15, 20, 25, 30];
+
+        // Asteroid spawning
+        this.asteroidsPerWave = 0;
+        this.asteroidsSpawned = 0;
+        this.asteroidSpawnTimer = 0;
+        this.asteroidSpawnDelay = ASTEROID_CONFIG.spawnDelay;
     }
 
     startWave(waveNum, gameState = null) {
@@ -211,6 +234,17 @@ export class WaveManager {
         // Wave 1: 60 frames, Wave 10: 30 frames, Wave 15+: 15 frames minimum
         const baseSpawnDelay = Math.max(15, 60 - (waveNum * 3));
         this.spawnDelay = Math.max(8, Math.floor(baseSpawnDelay * difficulty.spawnDelay));
+
+        // Setup asteroid spawning for asteroid waves
+        this.asteroidsSpawned = 0;
+        this.asteroidSpawnTimer = 60; // Start spawning asteroids after 1 second
+        if (gameState?.isAsteroidWave?.(waveNum)) {
+            const baseAsteroids = ASTEROID_CONFIG.countPerWave.base + Math.floor(waveNum * ASTEROID_CONFIG.countPerWave.waveScale);
+            this.asteroidsPerWave = Math.floor(baseAsteroids * difficulty.enemyCount);
+            logger.game(`🪨 Asteroid wave! Spawning ${this.asteroidsPerWave} asteroids`);
+        } else {
+            this.asteroidsPerWave = 0;
+        }
 
         logger.game(`Wave ${waveNum} starting: ${this.enemiesPerWave} enemies, spawn delay: ${this.spawnDelay}, difficulty: ${difficulty.name || 'normal'}`);
     }
@@ -362,6 +396,16 @@ export class WaveManager {
             }
         }
 
+        // Spawn asteroids for asteroid waves
+        if (this.asteroidsPerWave > 0 && this.asteroidsSpawned < this.asteroidsPerWave) {
+            this.asteroidSpawnTimer--;
+            if (this.asteroidSpawnTimer <= 0) {
+                this.spawnAsteroid(canvas, gameState, sidescrollerMode);
+                this.asteroidsSpawned++;
+                this.asteroidSpawnTimer = this.asteroidSpawnDelay;
+            }
+        }
+
         // Check if wave is complete - count directly instead of filter()
         // Daily Challenge: Continuous spawn never completes waves
         if (continuousSpawn) {
@@ -374,10 +418,85 @@ export class WaveManager {
             if (enemies[i].active) aliveEnemies++;
         }
 
-        if (this.enemiesSpawned >= this.enemiesPerWave && aliveEnemies === 0) {
+        // Also count active asteroids - wave not complete until all asteroids are destroyed
+        let aliveAsteroids = 0;
+        if (gameState?.asteroids) {
+            for (let i = 0; i < gameState.asteroids.length; i++) {
+                if (gameState.asteroids[i].active) aliveAsteroids++;
+            }
+        }
+
+        if (this.enemiesSpawned >= this.enemiesPerWave && aliveEnemies === 0 &&
+            this.asteroidsSpawned >= this.asteroidsPerWave && aliveAsteroids === 0) {
             this.waveComplete = true;
             this.waveActive = false;
             console.log(`✅ Wave ${this.wave} complete!`);
+        }
+    }
+
+    /**
+     * Spawn an asteroid at a random position
+     */
+    spawnAsteroid(canvas, gameState, sidescrollerMode = false) {
+        if (!gameState?.asteroids) return;
+
+        const sizeType = this.getRandomAsteroidSize();
+        const pos = this.getAsteroidSpawnPosition(canvas, sidescrollerMode);
+
+        const asteroid = new Asteroid(pos.x, pos.y, sizeType, gameState);
+        asteroid.sidescrollerMode = sidescrollerMode;
+        gameState.asteroids.push(asteroid);
+
+        logger.game(`🪨 Spawned ${sizeType} asteroid at (${Math.floor(pos.x)}, ${Math.floor(pos.y)})`);
+    }
+
+    /**
+     * Get random asteroid size based on weighted distribution
+     */
+    getRandomAsteroidSize() {
+        const weights = ASTEROID_CONFIG.sizeWeights;
+        const totalWeight = weights.large + weights.medium + weights.small;
+        const roll = Math.random() * totalWeight;
+
+        if (roll < weights.large) return 'large';
+        if (roll < weights.large + weights.medium) return 'medium';
+        return 'small';
+    }
+
+    /**
+     * Get spawn position for asteroid
+     */
+    getAsteroidSpawnPosition(canvas, sidescrollerMode = false) {
+        const padding = 60;
+
+        if (sidescrollerMode) {
+            // Spawn from right side in sidescroller mode
+            return {
+                x: canvas.logicalWidth + padding,
+                y: padding + Math.random() * (canvas.logicalHeight - padding * 2)
+            };
+        }
+
+        // Spawn from edges (not bottom, where player usually is)
+        const edge = Math.floor(Math.random() * 3); // 0 = top, 1 = left, 2 = right
+
+        switch (edge) {
+            case 0: // Top
+                return {
+                    x: padding + Math.random() * (canvas.logicalWidth - padding * 2),
+                    y: -padding
+                };
+            case 1: // Left
+                return {
+                    x: -padding,
+                    y: padding + Math.random() * (canvas.logicalHeight * 0.6)
+                };
+            case 2: // Right
+            default:
+                return {
+                    x: canvas.logicalWidth + padding,
+                    y: padding + Math.random() * (canvas.logicalHeight * 0.6)
+                };
         }
     }
 
@@ -438,6 +557,17 @@ export class WaveManager {
             ctx.fillStyle = '#ff00ff';
             ctx.shadowColor = '#ff00ff';
             ctx.fillText('← HORIZONTAL ATTACK →', 0, 70);
+        } else if (this.asteroidsPerWave > 0) {
+            // Show asteroid belt indicator
+            ctx.fillStyle = '#ffaa00';
+            ctx.shadowColor = '#ffaa00';
+            ctx.fillText('ASTEROID BELT', 0, 40);
+
+            // Additional indicator
+            ctx.font = 'bold 16px "Courier New", monospace';
+            ctx.fillStyle = '#ff6600';
+            ctx.shadowColor = '#ff6600';
+            ctx.fillText('🪨 DESTROY THE ROCKS! 🪨', 0, 70);
         } else {
             ctx.fillText(theme.name, 0, 40);
         }
