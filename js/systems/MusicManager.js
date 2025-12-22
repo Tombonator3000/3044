@@ -264,15 +264,48 @@ export class MusicManager {
 
         const source = this.audioContext.createBufferSource();
         source.buffer = buffer;
-        source.loop = true;
+        source.loop = false; // Don't loop - switch tracks when song ends
         source.connect(this.musicGain);
         source.start(0);
+
+        // When track ends, play a different random track
+        source.onended = () => {
+            // Only switch if this is still the current source and music is enabled
+            if (this.currentSource === source && this.musicEnabled && !this.isTransitioning) {
+                console.log(`🎵 Track ended: ${trackName}, switching to new track`);
+                this.playNextGameTrack(trackName);
+            }
+        };
 
         this.currentSource = source;
         this.currentTrack = trackName;
         this.isTransitioning = false;
 
         console.log(`🎵 Playing: ${trackName}`);
+    }
+
+    /**
+     * Play a different random game track (avoids repeating same track)
+     * @param {string} currentTrackName - The track that just finished
+     */
+    playNextGameTrack(currentTrackName) {
+        if (!this.initialized || !this.musicEnabled) return;
+        if (this.gameTracks.length === 0) return;
+
+        // Filter out the current track to avoid immediate repeat
+        let availableTracks = this.gameTracks.filter(t => t.name !== currentTrackName);
+
+        // If only one track available, use all tracks
+        if (availableTracks.length === 0) {
+            availableTracks = this.gameTracks;
+        }
+
+        // Select random track from available
+        const randomIndex = Math.floor(Math.random() * availableTracks.length);
+        const track = availableTracks[randomIndex];
+
+        console.log(`🎵 Switching to: ${track.name}`);
+        this.transitionTo(track.name, track.buffer, 0.5);
     }
 
     /**
