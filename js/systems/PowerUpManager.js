@@ -107,12 +107,24 @@ export class PowerUpManager {
     activateCombo(recipe) {
         console.log(`🔥 COMBO ACTIVATED: ${recipe.name}`);
 
+        // Standardized combo durations based on power level
+        const comboDurations = {
+            'PULSE CANNON': 480,    // 8 seconds (common ingredients)
+            'DEATH BLOSSOM': 480,   // 8 seconds
+            'CHAIN LIGHTNING': 480, // 8 seconds
+            'BLACK HOLE': 420,      // 7 seconds (rare ingredients)
+            'TIME WARP': 420,       // 7 seconds
+            'ARMAGEDDON': 360,      // 6 seconds (epic/legendary - powerful)
+            'ASCENSION': 360        // 6 seconds (legendary - very powerful)
+        };
+        const duration = comboDurations[recipe.name] || 480;
+
         this.comboEffects.push({
             name: recipe.name,
             color: recipe.color,
             description: recipe.description,
-            duration: 600,  // 10 seconds
-            maxDuration: 600,
+            duration: duration,
+            maxDuration: duration,
             flashTimer: 60
         });
 
@@ -141,26 +153,30 @@ export class PowerUpManager {
                 this.player.pierceCount = 3;
                 break;
             case 'BLACK HOLE':
-                this.player.vortexActive = 600;
-                this.player.vortexPower = 5;
+                // Standardized to 7 seconds, reduced power
+                this.player.vortexActive = 420;
+                this.player.vortexPower = 4;  // Reduced from 5
                 this.player.novaReady = true;
-                this.player.novaPower = 3;
+                this.player.novaPower = 2;  // Reduced from 3
                 break;
             case 'TIME WARP':
-                this.player.matrixMode = 600;
-                this.player.ghostMode = 600;
+                // Standardized to 7 seconds
+                this.player.matrixMode = 420;
+                this.player.ghostMode = 420;
                 this.player.invulnerable = true;
                 break;
             case 'ARMAGEDDON':
-                this.player.omegaMode = 600;
-                this.player.infinityMode = 600;
+                // Reduced durations for balance
+                this.player.omegaMode = 360;
+                this.player.infinityMode = 360;
                 this.player.infinitePower = true;
                 break;
             case 'ASCENSION':
-                this.player.godMode = 900;
-                this.player.feverMode = 900;
+                // Reduced from 15 seconds to 6 seconds, and toned down effects
+                this.player.godMode = 360;
+                this.player.feverMode = 360;
                 this.player.invulnerable = true;
-                this.player.speed = 8;
+                this.player.speed = 7;  // Reduced from 8
                 break;
         }
     }

@@ -8,11 +8,11 @@ import { calculateDistance } from '../utils/MathUtils.js';
 
 export class GrazingSystem {
     constructor() {
-        // Grazing configuration
-        this.grazeRadius = 40;          // Distance to trigger graze
-        this.minGrazeRadius = 15;       // Too close = danger zone
-        this.pointsPerGraze = 50;       // Base points per graze
-        this.maxGrazeMultiplier = 8;    // Max multiplier for consecutive grazes
+        // Grazing configuration (balanced - reduced from original values)
+        this.grazeRadius = 32;          // Distance to trigger graze (was 40 - too generous)
+        this.minGrazeRadius = 18;       // Too close = danger zone (was 15)
+        this.pointsPerGraze = 35;       // Base points per graze (was 50)
+        this.maxGrazeMultiplier = 5;    // Max multiplier for consecutive grazes (was 8)
 
         // State
         this.grazeCount = 0;            // Current graze streak
