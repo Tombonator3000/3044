@@ -1227,7 +1227,81 @@ export class CollisionSystem {
     }
 
     /**
-     * Handle player hit with EPIC effects
+     * Reset combo state when player dies
+     * @param {Object} gs - Game state
+     * @private
+     */
+    resetComboOnDeath(gs) {
+        gs.combo = 0;
+        gs.radicalSlang?.resetCombo?.();
+    }
+
+    /**
+     * Create epic death explosion effects for player
+     * Uses fallback chain to find available explosion method
+     * @param {number} x - Player X position
+     * @param {number} y - Player Y position
+     * @private
+     */
+    createPlayerDeathEffects(x, y) {
+        if (!this.particleSystem) return;
+
+        const color = '#00ff00';
+        const ps = this.particleSystem;
+
+        // Try explosion methods in order of preference
+        const explosionMethod =
+            ps.addGeometryWarsPlayerDeath?.bind(ps, x, y, color) ||
+            ps.epicDeathExplosion?.bind(ps, x, y, color) ||
+            ps.synthwaveExplosion?.bind(ps, x, y) ||
+            ps.addExplosion?.bind(ps, x, y, color, 30);
+
+        explosionMethod?.();
+    }
+
+    /**
+     * Play death sound effect with fallback
+     * @private
+     */
+    playPlayerDeathSound() {
+        if (this.soundSystem?.playPlayerDeath) {
+            this.soundSystem.playPlayerDeath();
+        } else {
+            this.soundSystem?.play?.('playerDeath');
+        }
+    }
+
+    /**
+     * Apply intense screen shake for player death
+     * @param {Object} gs - Game state
+     * @private
+     */
+    applyPlayerDeathScreenShake(gs) {
+        if (!gs.screenShake) return;
+        gs.screenShake.intensity = 15;
+        gs.screenShake.duration = 30;
+    }
+
+    /**
+     * Handle game over or respawn based on remaining lives
+     * @param {Object} player - The player object
+     * @param {Object} gs - Game state
+     * @private
+     */
+    handlePlayerDeathOutcome(player, gs) {
+        if (gs.lives <= 0) {
+            if (typeof window.gameOver === 'function') {
+                window.gameOver();
+            }
+        } else {
+            player.die?.();
+        }
+    }
+
+    /**
+     * Handle player hit with death effects
+     * Orchestrates damage, effects, and game state updates
+     * @param {Object} player - The player object
      */
     handlePlayerHit(player) {
         const gs = this.gameState;
@@ -1238,57 +1312,15 @@ export class CollisionSystem {
         if (died) {
             gs.lives = Math.max((gs.lives || 0) - 1, 0);
 
-            // Reset combo
-            gs.combo = 0;
-            if (gs.radicalSlang?.resetCombo) {
-                gs.radicalSlang.resetCombo();
-            }
-
-            // === MASSIVE GRID RIPPLE for player death ===
+            this.resetComboOnDeath(gs);
             addGridImpact(player.x, player.y, 100, 300);
-
-            // Epic Geometry Wars death explosion
-            if (this.particleSystem) {
-                if (this.particleSystem.addGeometryWarsPlayerDeath) {
-                    // Use the new Geometry Wars player death with line particles
-                    this.particleSystem.addGeometryWarsPlayerDeath(player.x, player.y, '#00ff00');
-                } else if (this.particleSystem.epicDeathExplosion) {
-                    this.particleSystem.epicDeathExplosion(player.x, player.y, '#00ff00');
-                } else if (this.particleSystem.synthwaveExplosion) {
-                    this.particleSystem.synthwaveExplosion(player.x, player.y);
-                } else if (this.particleSystem.addExplosion) {
-                    this.particleSystem.addExplosion(player.x, player.y, '#00ff00', 30);
-                }
-            }
-
-            // Sound
-            if (this.soundSystem?.playPlayerDeath) {
-                this.soundSystem.playPlayerDeath();
-            } else if (this.soundSystem?.play) {
-                this.soundSystem.play('playerDeath');
-            }
-
-            // Screen shake
-            if (gs.screenShake) {
-                gs.screenShake.intensity = 15;
-                gs.screenShake.duration = 30;
-            }
-
-            // Check game over
-            if (gs.lives <= 0) {
-                if (typeof window.gameOver === 'function') {
-                    window.gameOver();
-                }
-            } else {
-                // Respawn
-                player.die?.();
-            }
+            this.createPlayerDeathEffects(player.x, player.y);
+            this.playPlayerDeathSound();
+            this.applyPlayerDeathScreenShake(gs);
+            this.handlePlayerDeathOutcome(player, gs);
         }
 
-        // Call external callback if provided
-        if (this._onPlayerHit) {
-            this._onPlayerHit();
-        }
+        this._onPlayerHit?.();
     }
 
     /**
