@@ -21,6 +21,43 @@ export const MenuState = {
     OPTIONS: 'options'
 };
 
+/**
+ * Screen visibility configuration for each menu state.
+ * Maps each state to the screens that should be visible and their display types.
+ * Screens not listed are hidden.
+ */
+const SCREEN_VISIBILITY_CONFIG = {
+    [MenuState.MAIN]: [
+        { key: 'menuScreen', display: 'flex' }
+    ],
+    [MenuState.GAME]: [
+        { key: 'gameUI', display: 'flex' },
+        { key: 'gameHighScore', display: 'block' },
+        { id: 'touchControlsLayer', display: 'block' }
+    ],
+    [MenuState.PAUSED]: [
+        { key: 'gameUI', display: 'flex' },
+        { key: 'gameHighScore', display: 'block' },
+        { id: 'pauseOverlay', display: 'flex' },
+        { id: 'touchControlsLayer', display: 'block' }
+    ],
+    [MenuState.GAME_OVER]: [
+        { key: 'gameOverScreen', display: 'flex' }
+    ],
+    [MenuState.HIGH_SCORE_ENTRY]: [
+        { key: 'highScoreEntryScreen', display: 'flex' }
+    ],
+    [MenuState.HIGH_SCORE_LIST]: [
+        { key: 'highScoreListScreen', display: 'flex' }
+    ],
+    [MenuState.CONTINUE]: [
+        { key: 'continueScreen', display: 'flex' }
+    ],
+    [MenuState.OPTIONS]: [
+        { id: 'optionsScreen', display: 'flex' }
+    ]
+};
+
 // Game settings with defaults
 export const GameSettings = {
     // Audio settings
@@ -305,57 +342,52 @@ export class MenuManager {
     }
 
     /**
-     * Update screen visibility based on current state
+     * Update screen visibility based on current state.
+     * Uses SCREEN_VISIBILITY_CONFIG to determine which screens to show.
      */
     updateScreenVisibility() {
-        // Hide all screens first
-        if (cachedUI.menuScreen) cachedUI.menuScreen.style.display = 'none';
-        if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'none';
-        if (cachedUI.gameOverScreen) cachedUI.gameOverScreen.style.display = 'none';
-        if (cachedUI.continueScreen) cachedUI.continueScreen.style.display = 'none';
-        if (cachedUI.highScoreEntryScreen) cachedUI.highScoreEntryScreen.style.display = 'none';
-        if (cachedUI.highScoreListScreen) cachedUI.highScoreListScreen.style.display = 'none';
-        if (cachedUI.gameHighScore) cachedUI.gameHighScore.style.display = 'none';
+        this.hideAllScreens();
+        this.showScreensForState(this.currentState);
+    }
 
-        const pauseOverlay = document.getElementById('pauseOverlay');
-        if (pauseOverlay) pauseOverlay.style.display = 'none';
+    /**
+     * Hide all UI screens
+     */
+    hideAllScreens() {
+        // Screens from cachedUI
+        const cachedScreens = [
+            'menuScreen', 'gameUI', 'gameOverScreen', 'continueScreen',
+            'highScoreEntryScreen', 'highScoreListScreen', 'gameHighScore'
+        ];
+        for (const key of cachedScreens) {
+            if (cachedUI[key]) {
+                cachedUI[key].style.display = 'none';
+            }
+        }
 
-        const optionsScreen = document.getElementById('optionsScreen');
-        if (optionsScreen) optionsScreen.style.display = 'none';
-        const touchControlsLayer = document.getElementById('touchControlsLayer');
-        if (touchControlsLayer) touchControlsLayer.style.display = 'none';
+        // Screens accessed by ID
+        const idScreens = ['pauseOverlay', 'optionsScreen', 'touchControlsLayer'];
+        for (const id of idScreens) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.style.display = 'none';
+            }
+        }
+    }
 
-        // Show appropriate screen
-        switch (this.currentState) {
-            case MenuState.MAIN:
-                if (cachedUI.menuScreen) cachedUI.menuScreen.style.display = 'flex';
-                break;
-            case MenuState.GAME:
-                if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'flex';
-                if (cachedUI.gameHighScore) cachedUI.gameHighScore.style.display = 'block';
-                if (touchControlsLayer) touchControlsLayer.style.display = 'block';
-                break;
-            case MenuState.PAUSED:
-                if (cachedUI.gameUI) cachedUI.gameUI.style.display = 'flex';
-                if (cachedUI.gameHighScore) cachedUI.gameHighScore.style.display = 'block';
-                if (pauseOverlay) pauseOverlay.style.display = 'flex';
-                if (touchControlsLayer) touchControlsLayer.style.display = 'block';
-                break;
-            case MenuState.GAME_OVER:
-                if (cachedUI.gameOverScreen) cachedUI.gameOverScreen.style.display = 'flex';
-                break;
-            case MenuState.HIGH_SCORE_ENTRY:
-                if (cachedUI.highScoreEntryScreen) cachedUI.highScoreEntryScreen.style.display = 'flex';
-                break;
-            case MenuState.HIGH_SCORE_LIST:
-                if (cachedUI.highScoreListScreen) cachedUI.highScoreListScreen.style.display = 'flex';
-                break;
-            case MenuState.CONTINUE:
-                if (cachedUI.continueScreen) cachedUI.continueScreen.style.display = 'flex';
-                break;
-            case MenuState.OPTIONS:
-                if (optionsScreen) optionsScreen.style.display = 'flex';
-                break;
+    /**
+     * Show screens for a specific menu state
+     * @param {string} state - The menu state
+     */
+    showScreensForState(state) {
+        const screenConfig = SCREEN_VISIBILITY_CONFIG[state];
+        if (!screenConfig) return;
+
+        for (const { key, id, display } of screenConfig) {
+            const element = key ? cachedUI[key] : document.getElementById(id);
+            if (element) {
+                element.style.display = display;
+            }
         }
     }
 
