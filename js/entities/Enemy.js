@@ -16,49 +16,49 @@ const ENEMY_CONFIG = {
     triangle: {
         sides: 3,
         size: 15,
-        hp: { base: 1 },
-        speed: { base: 2.2, waveScale: 0.18, min: 1.8 },
+        hp: { base: 1, waveScale: 0.15 },  // Now scales slightly (was no scaling)
+        speed: { base: 2.2, waveScale: 0.15, min: 1.8 },  // Reduced speed scaling
         color: '#ff3366',
         points: { base: 100, waveScale: 15 },
         behavior: 'aggressive',
-        fireRate: { base: 120, intScale: -15, min: 50 },
-        bulletSpeed: { base: 5, intScale: 0.5 },
-        dodgeChance: { base: 0.05, intScale: 0.03 },
+        fireRate: { base: 120, intScale: -12, min: 60 },  // Slightly slower min fire rate
+        bulletSpeed: { base: 5, intScale: 0.4 },  // Reduced bullet speed scaling
+        dodgeChance: { base: 0.05, intScale: 0.02 },  // Reduced dodge scaling
         role: 'scout'
     },
     square: {
         sides: 4,
         size: 25,
-        hp: { base: 3, waveScale: 0.5 },
-        speed: { base: 1.5, waveScale: 0.08, min: 1.0 },
+        hp: { base: 3, waveScale: 0.35 },  // Reduced HP scaling (was 0.5)
+        speed: { base: 1.5, waveScale: 0.06, min: 1.0 },  // Slower speed scaling
         color: '#ff8800',
         points: { base: 200, waveScale: 25 },
         behavior: 'patrol',
-        fireRate: { base: 180, intScale: -20, min: 80 },
-        bulletSpeed: { base: 4, intScale: 0.3 },
-        dodgeChance: { base: 0.02, intScale: 0.02 },
+        fireRate: { base: 180, intScale: -15, min: 100 },  // Slower fire rate
+        bulletSpeed: { base: 4, intScale: 0.25 },  // Reduced bullet speed scaling
+        dodgeChance: { base: 0.02, intScale: 0.015 },  // Reduced dodge scaling
         role: 'heavy',
         special: (enemy, wave, intelligence) => {
-            enemy.shieldActive = intelligence >= 2;
-            enemy.shieldStrength = intelligence;
+            enemy.shieldActive = intelligence >= 3;  // Higher intelligence required (was 2)
+            enemy.shieldStrength = Math.max(1, intelligence - 1);  // Weaker shield
         }
     },
     pentagon: {
         sides: 5,
         size: 20,
-        hp: { base: 2, waveScale: 1/3 },
+        hp: { base: 2, waveScale: 0.25 },  // Reduced HP scaling (was 1/3)
         speed: { base: 1.2, waveScale: 0.05, min: 0.8 },
         color: '#aa00ff',
         points: { base: 300, waveScale: 35 },
         behavior: 'sniper',
-        fireRate: { base: 200, intScale: -25, min: 100 },
-        bulletSpeed: { base: 8, intScale: 0.8 },
-        dodgeChance: { base: 0.1, intScale: 0.05 },
+        fireRate: { base: 200, intScale: -20, min: 120 },  // Slower min fire rate
+        bulletSpeed: { base: 7, intScale: 0.5 },  // Reduced base and scaling (was 8/0.8)
+        dodgeChance: { base: 0.08, intScale: 0.03 },  // Reduced dodge
         role: 'sniper',
         special: (enemy, wave, intelligence) => {
-            enemy.aimPrediction = intelligence >= 1;
-            enemy.burstFire = intelligence >= 3;
-            enemy.burstCount = 3;
+            enemy.aimPrediction = intelligence >= 2;  // Requires higher intelligence (was 1)
+            enemy.burstFire = intelligence >= 4;  // Requires higher intelligence (was 3)
+            enemy.burstCount = 2;  // Reduced burst count (was 3)
         }
     },
     divebomber: {
@@ -80,18 +80,18 @@ const ENEMY_CONFIG = {
     sinewave: {
         sides: 6,
         size: 22,
-        hp: { base: 4, waveScale: 0.5 },
-        speed: { base: 2, waveScale: 0.1 },
+        hp: { base: 3, waveScale: 0.35 },  // Reduced HP (was 4/0.5)
+        speed: { base: 2, waveScale: 0.08 },  // Slightly slower scaling
         color: '#00ffaa',
         points: { base: 400, waveScale: 50 },
         behavior: 'sinewave',
-        fireRate: { base: 100, intScale: -10, min: 60 },
-        bulletSpeed: { base: 6, intScale: 0.5 },
+        fireRate: { base: 110, intScale: -8, min: 70 },  // Slower fire rate
+        bulletSpeed: { base: 5.5, intScale: 0.4 },  // Slightly slower bullets
         bulletPattern: 'spread',
         role: 'elite',
         special: (enemy, wave) => {
-            enemy.sineAmplitude = 100 + (wave * 5);
-            enemy.sineFrequency = 0.02 + (wave * 0.002);
+            enemy.sineAmplitude = 80 + (wave * 4);  // Reduced amplitude
+            enemy.sineFrequency = 0.02 + (wave * 0.0015);  // Slower frequency scaling
             enemy.sineOffset = Math.random() * Math.PI * 2;
         }
     },
@@ -138,20 +138,20 @@ const ENEMY_CONFIG = {
     laserdisc: {
         sides: 0,
         size: 18,
-        hp: { base: 2, waveScale: 1/3 },
-        speed: { base: 2.5, waveScale: 0.15 },
+        hp: { base: 2, waveScale: 0.25 },  // Reduced HP scaling
+        speed: { base: 2.2, waveScale: 0.12 },  // Slightly slower
         color: '#ff6600',
         secondaryColor: '#ffff00',
         points: { base: 325, waveScale: 35 },
         behavior: 'orbit',
-        fireRate: { base: 80, intScale: -8, min: 40 },
-        bulletSpeed: { base: 7, intScale: 0.6 },
+        fireRate: { base: 110, intScale: -8, min: 70 },  // Much slower fire rate (was 80/40)
+        bulletSpeed: { base: 6, intScale: 0.4 },  // Slower bullets
         bulletPattern: 'laser',
         role: 'laser',
         customDraw: 'disc',
         special: (enemy, wave, intelligence) => {
-            enemy.spinSpeed = 0.15 + (intelligence * 0.02);
-            enemy.orbitRadius = 50 + (wave * 3);
+            enemy.spinSpeed = 0.12 + (intelligence * 0.015);  // Slower spin
+            enemy.orbitRadius = 50 + (wave * 2);  // Smaller orbit growth
             enemy.orbitCenter = { x: 0, y: 0 };
             enemy.orbitAngle = Math.random() * Math.PI * 2;
         }
@@ -179,20 +179,20 @@ const ENEMY_CONFIG = {
     },
     arcadeboss: {
         sides: 0,
-        size: 35,
-        hp: { base: 8, waveScale: 1 },
-        speed: { base: 0.8, waveScale: 0.05 },
+        size: 32,  // Slightly smaller
+        hp: { base: 5, waveScale: 0.5 },  // Reduced HP significantly (was 8/1)
+        speed: { base: 0.8, waveScale: 0.04 },
         color: '#ffff00',
         secondaryColor: '#ff00ff',
-        points: { base: 800, waveScale: 80 },
+        points: { base: 600, waveScale: 50 },  // Reduced points to match difficulty
         behavior: 'boss',
-        fireRate: { base: 100, intScale: -10, min: 50 },
-        bulletSpeed: { base: 5, intScale: 0.4 },
+        fireRate: { base: 120, intScale: -8, min: 70 },  // Slower fire rate
+        bulletSpeed: { base: 4.5, intScale: 0.3 },  // Slower bullets
         role: 'miniboss',
         customDraw: 'arcade',
         special: (enemy, wave, intelligence) => {
             enemy.spawnTimer = 0;
-            enemy.spawnInterval = 180 - (intelligence * 15);
+            enemy.spawnInterval = 200 - (intelligence * 10);  // Slower spawn interval
             enemy.screenGlow = 0;
         }
     },

@@ -131,13 +131,13 @@ export const config = {
         hudPadding: 20
     },
 
-    // Power-up drop rates (in percentages)
+    // Power-up drop rates (in percentages) - balanced for better progression
     dropRates: {
-        legendary: 0.003,   // 0.3%
-        epic: 0.018,        // 1.5% cumulative
-        rare: 0.098,        // 8% cumulative
-        uncommon: 0.318,    // 22% cumulative
-        common: 1.0         // Rest (~68%)
+        legendary: 0.015,   // 1.5% (was 0.3% - too rare)
+        epic: 0.055,        // 4% cumulative (was 1.5%)
+        rare: 0.155,        // 10% cumulative (was 8%)
+        uncommon: 0.355,    // 20% cumulative (was 22%)
+        common: 1.0         // Rest (~64.5%)
     },
 
     // Effect durations (in frames at 60fps)
@@ -148,7 +148,7 @@ export const config = {
         veryLong: 900       // 15 seconds
     },
 
-    // Difficulty multipliers - drastically different per level
+    // Difficulty multipliers - balanced for fair challenge
     difficulty: {
         easy: {
             name: 'EASY',
@@ -157,17 +157,17 @@ export const config = {
             bombs: 5,                    // More bombs
             playerSpeed: 1.1,            // Slightly faster player
             // Enemy nerfs
-            enemyCount: 0.5,             // Half the enemies
-            enemySpeed: 0.6,             // Much slower enemies
-            enemyFireRate: 2.0,          // Enemies shoot half as often (higher = slower)
-            enemyBulletSpeed: 0.5,       // Slower bullets
-            enemyHP: 0.7,                // Less HP
-            spawnDelay: 1.5,             // Slower spawning
-            // Rewards
-            scoreMultiplier: 0.5,        // Half score
-            powerUpDropRate: 1.5,        // More power-ups
+            enemyCount: 0.6,             // 60% enemies (was 50%)
+            enemySpeed: 0.7,             // Slower enemies (was 0.6)
+            enemyFireRate: 1.8,          // Enemies shoot slower (was 2.0)
+            enemyBulletSpeed: 0.6,       // Slower bullets (was 0.5)
+            enemyHP: 0.8,                // Less HP (was 0.7)
+            spawnDelay: 1.4,             // Slower spawning
+            // Rewards - no score penalty, use separate leaderboard instead
+            scoreMultiplier: 0.8,        // 80% score (was 50% - too punishing)
+            powerUpDropRate: 1.3,        // More power-ups (was 1.5)
             // Wave progression
-            waveScaling: 0.5             // Slower difficulty ramp
+            waveScaling: 0.6             // Slower difficulty ramp
         },
         normal: {
             name: 'NORMAL',
@@ -191,35 +191,35 @@ export const config = {
             lives: 2,                    // Fewer lives
             bombs: 2,                    // Fewer bombs
             playerSpeed: 1.0,
-            // Enemy buffs
-            enemyCount: 1.5,             // 50% more enemies
-            enemySpeed: 1.4,             // Faster enemies
-            enemyFireRate: 0.7,          // Enemies shoot 43% faster
-            enemyBulletSpeed: 1.3,       // Faster bullets
-            enemyHP: 1.3,                // More HP
-            spawnDelay: 0.7,             // Faster spawning
+            // Enemy buffs - slightly reduced from before
+            enemyCount: 1.3,             // 30% more enemies (was 50%)
+            enemySpeed: 1.25,            // Faster enemies (was 1.4)
+            enemyFireRate: 0.8,          // Enemies shoot 25% faster (was 43%)
+            enemyBulletSpeed: 1.2,       // Faster bullets (was 1.3)
+            enemyHP: 1.2,                // More HP (was 1.3)
+            spawnDelay: 0.8,             // Faster spawning (was 0.7)
             // Rewards
             scoreMultiplier: 1.5,        // 50% more score
-            powerUpDropRate: 0.8,        // Fewer power-ups
-            waveScaling: 1.3             // Faster difficulty ramp
+            powerUpDropRate: 0.85,       // Slightly fewer power-ups (was 0.8)
+            waveScaling: 1.2             // Faster difficulty ramp (was 1.3)
         },
         extreme: {
             name: 'EXTREME',
-            // Brutal settings
-            lives: 1,                    // One life only!
-            bombs: 1,                    // One bomb only!
-            playerSpeed: 0.9,            // Slightly slower player
-            // Nightmare enemies
-            enemyCount: 2.0,             // Double enemies
-            enemySpeed: 1.8,             // Much faster enemies
-            enemyFireRate: 0.5,          // Enemies shoot twice as fast
-            enemyBulletSpeed: 1.6,       // Very fast bullets
-            enemyHP: 1.5,                // More HP
-            spawnDelay: 0.4,             // Rapid spawning
+            // Challenging but playable settings (was nearly impossible)
+            lives: 2,                    // Two lives (was 1 - too harsh)
+            bombs: 2,                    // Two bombs (was 1)
+            playerSpeed: 1.0,            // Normal speed (was 0.9 - unfair)
+            // Tough but fair enemies
+            enemyCount: 1.6,             // 60% more enemies (was 100%)
+            enemySpeed: 1.5,             // Fast enemies (was 1.8)
+            enemyFireRate: 0.65,         // Enemies shoot faster (was 0.5)
+            enemyBulletSpeed: 1.4,       // Fast bullets (was 1.6)
+            enemyHP: 1.3,                // More HP (was 1.5)
+            spawnDelay: 0.6,             // Fast spawning (was 0.4)
             // Rewards
-            scoreMultiplier: 3.0,        // Triple score!
-            powerUpDropRate: 0.5,        // Rare power-ups
-            waveScaling: 1.8             // Aggressive difficulty ramp
+            scoreMultiplier: 2.5,        // High score bonus (was 3.0)
+            powerUpDropRate: 0.7,        // Fewer power-ups (was 0.5)
+            waveScaling: 1.5             // Fast difficulty ramp (was 1.8)
         }
     }
 };

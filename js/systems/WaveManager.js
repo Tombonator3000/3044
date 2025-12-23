@@ -231,9 +231,9 @@ export class WaveManager {
         this.enemiesPerWave = Math.max(5, Math.floor(baseEnemies * difficulty.enemyCount));
 
         // Adjust spawn rate for higher waves (faster spawning) with difficulty multiplier
-        // Wave 1: 60 frames, Wave 10: 30 frames, Wave 15+: 15 frames minimum
-        const baseSpawnDelay = Math.max(15, 60 - (waveNum * 3));
-        this.spawnDelay = Math.max(8, Math.floor(baseSpawnDelay * difficulty.spawnDelay));
+        // Wave 1: 60 frames, Wave 10: 40 frames, Wave 20+: 25 frames minimum (balanced)
+        const baseSpawnDelay = Math.max(25, 60 - (waveNum * 2));  // Slower scaling, higher minimum
+        this.spawnDelay = Math.max(18, Math.floor(baseSpawnDelay * difficulty.spawnDelay));  // Higher floor
 
         // Setup asteroid spawning for asteroid waves
         this.asteroidsSpawned = 0;

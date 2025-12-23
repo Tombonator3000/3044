@@ -47,7 +47,8 @@ export class Boss {
 
     setupBoss() {
         const baseHP = 100;
-        const waveMultiplier = 1 + (this.wave * 0.2);
+        // Cap wave multiplier at 3x (wave 10 equivalent) to prevent tedious late-game boss fights
+        const waveMultiplier = Math.min(3.0, 1 + (this.wave * 0.15));  // Reduced from 0.2 to 0.15
 
         switch (this.type) {
             case 'guardian':
@@ -96,35 +97,35 @@ export class Boss {
 
             case 'mothership':
                 this.name = 'THE MOTHERSHIP';
-                this.size = 100;
-                this.maxHp = Math.floor(baseHP * 2 * waveMultiplier);
+                this.size = 95;  // Slightly smaller
+                this.maxHp = Math.floor(baseHP * 1.8 * waveMultiplier);  // Reduced from 2x
                 this.hp = this.maxHp;
                 this.color = '#ffff00';
                 this.secondaryColor = '#ff8800';
                 this.speed = 1;
-                this.points = 10000 * Math.ceil(this.wave / 5);
+                this.points = 8000 * Math.ceil(this.wave / 5);  // Reduced from 10000
                 this.shape = 'diamond';
                 this.hasShield = true;
-                this.shieldHP = 100;
+                this.shieldHP = 75;  // Reduced from 100
                 this.canSpawnMinions = true;
                 this.attackPatterns = ['spawn', 'beam', 'nova'];
                 break;
 
             case 'overlord':
                 this.name = '★ THE OVERLORD ★';
-                this.size = 90;
-                this.maxHp = Math.floor(baseHP * 2.5 * waveMultiplier);
+                this.size = 85;  // Slightly smaller
+                this.maxHp = Math.floor(baseHP * 2.0 * waveMultiplier);  // Reduced from 2.5x
                 this.hp = this.maxHp;
                 this.color = '#ffd700';
                 this.secondaryColor = '#ff0080';
-                this.speed = 2.5;
-                this.points = 15000 * Math.ceil(this.wave / 5);
+                this.speed = 2.0;  // Reduced from 2.5
+                this.points = 12000 * Math.ceil(this.wave / 5);  // Reduced from 15000
                 this.shape = 'star';
                 this.hasShield = true;
-                this.shieldHP = 75;
+                this.shieldHP = 50;  // Reduced from 75
                 this.canTeleport = true;
-                this.canSpawnMinions = true;
-                this.attackPatterns = ['all']; // Uses all patterns
+                this.canSpawnMinions = false;  // Removed minion spawning - was too overwhelming
+                this.attackPatterns = ['spread', 'spiral', 'barrage', 'blink']; // Focused attack set instead of 'all'
                 break;
         }
 

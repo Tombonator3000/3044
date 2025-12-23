@@ -8,12 +8,12 @@ import { calculateDistance } from '../utils/MathUtils.js';
 
 export class RiskRewardSystem {
     constructor() {
-        // Distance thresholds for multipliers
+        // Distance thresholds for multipliers (balanced - was 8x/4x/2x/1.5x/1x)
         this.thresholds = [
-            { distance: 50,  multiplier: 8, name: 'POINT BLANK', color: '#ff0000' },
-            { distance: 100, multiplier: 4, name: 'DANGER ZONE', color: '#ff8800' },
-            { distance: 200, multiplier: 2, name: 'CLOSE CALL', color: '#ffff00' },
-            { distance: 400, multiplier: 1.5, name: 'RISKY', color: '#00ff00' },
+            { distance: 50,  multiplier: 3, name: 'POINT BLANK', color: '#ff0000' },
+            { distance: 100, multiplier: 2, name: 'DANGER ZONE', color: '#ff8800' },
+            { distance: 200, multiplier: 1.5, name: 'CLOSE CALL', color: '#ffff00' },
+            { distance: 400, multiplier: 1.25, name: 'RISKY', color: '#00ff00' },
             { distance: Infinity, multiplier: 1, name: '', color: '#ffffff' }
         ];
 
