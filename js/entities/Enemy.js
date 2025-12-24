@@ -240,6 +240,41 @@ const ENEMY_CONFIG = {
     }
 };
 
+// ============================================
+// BEHAVIOR DISPATCH MAP
+// Maps behavior names to method names for cleaner dispatching
+// All behavior methods receive (playerX, playerY, canvas, deltaTime)
+// ============================================
+const BEHAVIOR_DISPATCH = {
+    aggressive: 'aggressiveBehavior',
+    patrol: 'patrolBehavior',
+    sniper: 'sniperBehavior',
+    dive: 'diveBehavior',
+    sinewave: 'sinewaveBehavior',
+    flee: 'fleeBehavior',
+    phase: 'phaseBehavior',
+    ghost: 'ghostBehavior',
+    orbit: 'orbitBehavior',
+    glitch: 'glitchBehavior',
+    boss: 'bossBehavior',
+    pulse: 'pulseBehavior',
+    invader: 'invaderBehavior'
+};
+
+// ============================================
+// CUSTOM DRAW DISPATCH MAP
+// Maps customDraw types to method names
+// ============================================
+const CUSTOM_DRAW_DISPATCH = {
+    skull: 'drawPixelSkull',
+    ghost: 'drawGhostByte',
+    disc: 'drawLaserDisc',
+    vhs: 'drawVHSTracker',
+    arcade: 'drawArcadeBoss',
+    synthwave: 'drawSynthwave',
+    invader: 'drawPixelInvader'
+};
+
 export class Enemy {
     constructor(x, y, type, gameState) {
         this.x = x;
@@ -392,54 +427,13 @@ export class Enemy {
         this.lastPlayerX = playerX;
         this.lastPlayerY = playerY;
 
-        // Execute behavior
-        switch (this.behavior) {
-            case 'aggressive':
-                this.aggressiveBehavior(playerX, playerY, canvas, scaledDeltaTime);
-                break;
-            case 'patrol':
-                this.patrolBehavior(canvas, scaledDeltaTime);
-                break;
-            case 'sniper':
-                this.sniperBehavior(playerX, playerY, canvas, scaledDeltaTime);
-                break;
-            case 'dive':
-                this.diveBehavior(playerX, playerY, canvas, scaledDeltaTime);
-                break;
-            case 'sinewave':
-                this.sinewaveBehavior(canvas, scaledDeltaTime);
-                break;
-            case 'flee':
-                this.fleeBehavior(playerX, playerY, canvas, scaledDeltaTime);
-                break;
-            // NEW 8-BIT BEHAVIORS
-            case 'phase':
-                this.phaseBehavior(playerX, playerY, canvas, scaledDeltaTime);
-                break;
-            case 'ghost':
-                this.ghostBehavior(playerX, playerY, canvas, scaledDeltaTime);
-                break;
-            case 'orbit':
-                this.orbitBehavior(playerX, playerY, canvas, scaledDeltaTime);
-                break;
-            case 'glitch':
-                this.glitchBehavior(playerX, playerY, canvas, scaledDeltaTime);
-                break;
-            case 'boss':
-                this.bossBehavior(playerX, playerY, canvas, scaledDeltaTime);
-                break;
-            case 'pulse':
-                this.pulseBehavior(playerX, playerY, canvas, scaledDeltaTime);
-                break;
-            case 'invader':
-                this.invaderBehavior(canvas, scaledDeltaTime);
-                break;
-            default:
-                if (this.sidescrollerMode) {
-                    this.x -= this.speed * scaledDeltaTime; // Move left in sidescroller
-                } else {
-                    this.y += this.speed * scaledDeltaTime; // Move down in normal
-                }
+        // Execute behavior using dispatch map for cleaner code
+        const behaviorMethod = BEHAVIOR_DISPATCH[this.behavior];
+        if (behaviorMethod && typeof this[behaviorMethod] === 'function') {
+            this[behaviorMethod](playerX, playerY, canvas, scaledDeltaTime);
+        } else {
+            // Default behavior for unknown behavior types
+            this.defaultBehavior(canvas, scaledDeltaTime);
         }
 
         // Try to dodge player bullets
@@ -467,6 +461,18 @@ export class Enemy {
         }
     }
 
+    /**
+     * Default behavior for unknown behavior types
+     * Moves enemy in the appropriate direction based on game mode
+     */
+    defaultBehavior(canvas, deltaTime) {
+        if (this.sidescrollerMode) {
+            this.x -= this.speed * deltaTime; // Move left in sidescroller
+        } else {
+            this.y += this.speed * deltaTime; // Move down in normal
+        }
+    }
+
     aggressiveBehavior(playerX, playerY, canvas, deltaTime) {
         if (this.sidescrollerMode) {
             // Sidescroller: Move toward player vertically, left horizontally
@@ -489,7 +495,7 @@ export class Enemy {
         }
     }
 
-    patrolBehavior(canvas, deltaTime) {
+    patrolBehavior(playerX, playerY, canvas, deltaTime) {
         if (this.sidescrollerMode) {
             // Sidescroller: Move in vertical wave pattern, left horizontally
             this.y += Math.sin(this.moveTimer * 0.03) * this.speed * 2 * deltaTime;
@@ -538,7 +544,7 @@ export class Enemy {
         }
     }
 
-    sinewaveBehavior(canvas, deltaTime) {
+    sinewaveBehavior(playerX, playerY, canvas, deltaTime) {
         if (this.sidescrollerMode) {
             // Sidescroller: Wave up/down while moving left
             this.x -= this.speed * deltaTime;
@@ -691,7 +697,7 @@ export class Enemy {
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
 
-    invaderBehavior(canvas, deltaTime) {
+    invaderBehavior(playerX, playerY, canvas, deltaTime) {
         this.stepTimer += deltaTime;
         this.legFrame = Math.floor(this.moveTimer / 15) % 2;
 
@@ -898,28 +904,10 @@ export class Enemy {
         const s = this.size;
         const pixelSize = 3;
 
-        switch(this.customDraw) {
-            case 'skull':
-                this.drawPixelSkull(ctx, s, pixelSize);
-                break;
-            case 'ghost':
-                this.drawGhostByte(ctx, s, pixelSize);
-                break;
-            case 'disc':
-                this.drawLaserDisc(ctx, s, pixelSize);
-                break;
-            case 'vhs':
-                this.drawVHSTracker(ctx, s, pixelSize);
-                break;
-            case 'arcade':
-                this.drawArcadeBoss(ctx, s, pixelSize);
-                break;
-            case 'synthwave':
-                this.drawSynthwave(ctx, s, pixelSize);
-                break;
-            case 'invader':
-                this.drawPixelInvader(ctx, s, pixelSize);
-                break;
+        // Use dispatch map for cleaner custom drawing
+        const drawMethod = CUSTOM_DRAW_DISPATCH[this.customDraw];
+        if (drawMethod && typeof this[drawMethod] === 'function') {
+            this[drawMethod](ctx, s, pixelSize);
         }
     }
 
