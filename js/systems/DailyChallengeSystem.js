@@ -3,6 +3,8 @@
  * New challenges every day with special modifiers
  */
 
+import { logger } from '../utils/Logger.js';
+
 // Challenge modifiers
 export const CHALLENGE_MODIFIERS = {
     mirror: {
@@ -129,7 +131,9 @@ export class DailyChallengeSystem {
                 this.challengeCompleted = data.completed || false;
                 this.challengeScore = data.score || 0;
             }
-        } catch (e) {}
+        } catch (e) {
+            logger.error('Failed to load daily challenge data:', e.message);
+        }
     }
 
     /**
@@ -143,7 +147,9 @@ export class DailyChallengeSystem {
                 score: this.challengeScore,
                 bestScore: this.bestScore
             }));
-        } catch (e) {}
+        } catch (e) {
+            logger.error('Failed to save daily challenge data:', e.message);
+        }
     }
 
     /**
