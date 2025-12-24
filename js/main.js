@@ -2691,36 +2691,33 @@ let playerInitials = ['A', 'A', 'A'];
 let currentInitialIndex = 0;
 let isNewHighScore = false;
 
-function handlePlayerDeath() {
-    gameState.lives--;
-
-    // Reset combo
-    gameState.combo = 0;
-    if (radicalSlang) radicalSlang.resetCombo();
+/**
+ * Play all visual and audio effects when player dies.
+ * Handles particles, grid impact, sound, screen shake, and VHS glitch.
+ */
+function playDeathEffects() {
+    if (!player) return;
 
     // Show danger phrase
-    if (radicalSlang?.showDangerPhrase && player) {
+    if (radicalSlang?.showDangerPhrase) {
         radicalSlang.showDangerPhrase(player.x, player.y);
     }
 
     // Epic death explosion with ship-specific particles
-    if (particleSystem && player) {
-        // Use ship-specific death explosion if available
+    if (particleSystem) {
+        const shipColor = player.shipColor || '#00ff00';
         if (particleSystem.shipDeathExplosion) {
-            const shipColor = player.shipColor || '#00ff00';
             const shipId = player.shipId || 'neonFalcon';
             particleSystem.shipDeathExplosion(player.x, player.y, shipId, shipColor);
         } else if (particleSystem.epicDeathExplosion) {
-            particleSystem.epicDeathExplosion(player.x, player.y, player.shipColor || '#00ff00');
+            particleSystem.epicDeathExplosion(player.x, player.y, shipColor);
         } else {
-            particleSystem.addExplosion(player.x, player.y, player.shipColor || '#00ff00', 30);
+            particleSystem.addExplosion(player.x, player.y, shipColor, 30);
         }
     }
 
     // Massive grid impact for player death
-    if (player) {
-        addGridImpact(player.x, player.y, 100, 300);
-    }
+    addGridImpact(player.x, player.y, 100, 300);
 
     // Sound
     if (soundSystem) soundSystem.playExplosion();
@@ -2731,85 +2728,98 @@ function handlePlayerDeath() {
 
     // VHS glitch
     if (vhsEffect) vhsEffect.triggerGlitch(2.5, 60);
+}
+
+/**
+ * Handle game over state: stop music, update scores, process achievements and unlocks.
+ */
+function handleGameOverState() {
+    gameState.gameOver = true;
+
+    // Stop music and play game over sound
+    if (musicManager) musicManager.stopCurrentMusic();
+    if (soundSystem) soundSystem.playGameOver();
+
+    // Check if this is a new high score (top 10)
+    isNewHighScore = menuManager?.isHighScore(gameState.score) || false;
+
+    // Update high score if needed
+    if (gameState.score > gameState.highScore) {
+        gameState.highScore = gameState.score;
+        localStorage.setItem('geometry3044_highScore', gameState.highScore);
+    }
+
+    // Add score to score bank (for purchasing credits)
+    const currentBank = parseInt(localStorage.getItem('geometry3044_scoreBank') || '0', 10);
+    const newBank = currentBank + gameState.score;
+    localStorage.setItem('geometry3044_scoreBank', newBank.toString());
+    console.log('💰 Score added to bank:', gameState.score, '| Total bank:', newBank);
+
+    // Update achievements and stats
+    processAchievementsAndUnlocks();
+
+    // Set death screen state based on high score status
+    if (isNewHighScore) {
+        deathScreenState = 'highscore_entry';
+        playerInitials = ['A', 'A', 'A'];
+        currentInitialIndex = 0;
+    } else {
+        deathScreenState = 'death_choice';
+    }
+}
+
+/**
+ * Process achievements, save bestiary, and check for unlocks.
+ */
+function processAchievementsAndUnlocks() {
+    if (!achievementSystem || !grazingSystem || !riskRewardSystem) return;
+
+    const sessionStats = {
+        kills: gameState.sessionStats?.kills || 0,
+        score: gameState.score,
+        wave: gameState.wave,
+        maxCombo: gameState.maxCombo,
+        grazes: grazingSystem.getStats().sessionGrazes,
+        maxGrazeStreak: grazingSystem.getStats().maxStreak,
+        pointBlankKills: riskRewardSystem.getStats().pointBlankKills,
+        powerUpsCollected: gameState.sessionStats?.powerUpsCollected || 0,
+        bossKills: gameState.sessionStats?.bossKills || 0,
+        gameMode: gameState.gameMode
+    };
+
+    const newAchievements = achievementSystem.updateStats(sessionStats);
+    if (newAchievements.length > 0) {
+        achievementNotification = newAchievements[0];
+        achievementNotificationTimer = 0;
+        if (soundSystem?.playAchievement) soundSystem.playAchievement();
+    }
+
+    // Save bestiary data
+    if (enemyBestiary) enemyBestiary.forceSave();
+
+    // Check for new ship/mode unlocks
+    if (shipManager) shipManager.checkUnlocks(achievementSystem.stats);
+    if (gameModeManager) gameModeManager.checkUnlocks(achievementSystem.stats);
+}
+
+/**
+ * Main player death handler - orchestrates death effects, game over, or respawn.
+ */
+function handlePlayerDeath() {
+    gameState.lives--;
+
+    // Reset combo
+    gameState.combo = 0;
+    if (radicalSlang) radicalSlang.resetCombo();
+
+    // Play all death effects (particles, sound, screen shake, etc.)
+    playDeathEffects();
 
     if (gameState.lives <= 0) {
-        // Game over
-        gameState.gameOver = true;
-
-        if (musicManager) {
-            musicManager.stopCurrentMusic();
-        }
-        if (soundSystem) {
-            soundSystem.playGameOver();
-        }
-
-        // Check if this is a new high score (top 10)
-        isNewHighScore = menuManager?.isHighScore(gameState.score) || false;
-
-        // Update high score if needed
-        if (gameState.score > gameState.highScore) {
-            gameState.highScore = gameState.score;
-            localStorage.setItem('geometry3044_highScore', gameState.highScore);
-        }
-
-        // Add score to score bank (for purchasing credits)
-        const currentBank = parseInt(localStorage.getItem('geometry3044_scoreBank') || '0', 10);
-        const newBank = currentBank + gameState.score;
-        localStorage.setItem('geometry3044_scoreBank', newBank.toString());
-        console.log('💰 Score added to bank:', gameState.score, '| Total bank:', newBank);
-
-        // Update achievements and stats
-        if (achievementSystem && grazingSystem && riskRewardSystem) {
-            const sessionStats = {
-                kills: gameState.sessionStats?.kills || 0,
-                score: gameState.score,
-                wave: gameState.wave,
-                maxCombo: gameState.maxCombo,
-                grazes: grazingSystem.getStats().sessionGrazes,
-                maxGrazeStreak: grazingSystem.getStats().maxStreak,
-                pointBlankKills: riskRewardSystem.getStats().pointBlankKills,
-                powerUpsCollected: gameState.sessionStats?.powerUpsCollected || 0,
-                bossKills: gameState.sessionStats?.bossKills || 0,
-                gameMode: gameState.gameMode
-            };
-
-            const newAchievements = achievementSystem.updateStats(sessionStats);
-            if (newAchievements.length > 0) {
-                achievementNotification = newAchievements[0];
-                achievementNotificationTimer = 0;
-                // Play achievement sound
-                if (soundSystem && soundSystem.playAchievement) {
-                    soundSystem.playAchievement();
-                }
-            }
-
-            // Save bestiary data
-            if (enemyBestiary) {
-                enemyBestiary.forceSave();
-            }
-
-            // Check for new ship/mode unlocks
-            if (shipManager) {
-                shipManager.checkUnlocks(achievementSystem.stats);
-            }
-            if (gameModeManager) {
-                gameModeManager.checkUnlocks(achievementSystem.stats);
-            }
-        }
-
-        // Set death screen state
-        if (isNewHighScore) {
-            deathScreenState = 'highscore_entry';
-            playerInitials = ['A', 'A', 'A'];
-            currentInitialIndex = 0;
-        } else {
-            deathScreenState = 'death_choice';
-        }
+        handleGameOverState();
     } else {
-        // Respawn
-        if (player) {
-            player.respawn(canvas);
-        }
+        // Respawn player
+        if (player) player.respawn(canvas);
     }
 }
 
