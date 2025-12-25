@@ -16,6 +16,9 @@ export class BestiaryScreen {
 
         // Animation
         this.animTimer = 0;
+
+        // Bound event handler for proper cleanup
+        this._boundKeydownHandler = null;
     }
 
     /**
@@ -33,6 +36,13 @@ export class BestiaryScreen {
      */
     hide() {
         this.visible = false;
+
+        // Remove keyboard event listener to prevent memory leak
+        if (this._boundKeydownHandler) {
+            document.removeEventListener('keydown', this._boundKeydownHandler);
+            this._boundKeydownHandler = null;
+        }
+
         const screen = document.getElementById('bestiaryScreen');
         if (screen) {
             screen.style.display = 'none';
@@ -217,8 +227,13 @@ export class BestiaryScreen {
             });
         });
 
-        // Keyboard navigation
-        document.addEventListener('keydown', this.handleKeydown.bind(this));
+        // Keyboard navigation - store reference for cleanup
+        // Remove existing listener first to prevent duplicates
+        if (this._boundKeydownHandler) {
+            document.removeEventListener('keydown', this._boundKeydownHandler);
+        }
+        this._boundKeydownHandler = this.handleKeydown.bind(this);
+        document.addEventListener('keydown', this._boundKeydownHandler);
     }
 
     /**
