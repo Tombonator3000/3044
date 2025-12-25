@@ -197,7 +197,8 @@ export class PowerUp {
                 break;
             case 'speed':
                 player.speed = Math.min((player.speed || 5.5) + 0.5, 8);
-                setTimeout(() => { player.speed = Math.max(player.speed - 0.5, 5.5); }, 10000);
+                clearTimeout(player._speedTimeout);
+                player._speedTimeout = setTimeout(() => { player.speed = Math.max(player.speed - 0.5, 5.5); }, 10000);
                 break;
 
             // Uncommon (now with 45 second duration)
@@ -237,7 +238,8 @@ export class PowerUp {
                 break;
             case 'autofire':
                 player.autoFire = true;
-                setTimeout(() => { player.autoFire = false; }, 15000);
+                clearTimeout(player._autofireTimeout);
+                player._autofireTimeout = setTimeout(() => { player.autoFire = false; }, 15000);
                 break;
             case 'life':
                 if (gameState) gameState.lives = Math.min((gameState.lives || 0) + 1, 9);
