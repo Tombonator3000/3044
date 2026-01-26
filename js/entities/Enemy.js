@@ -262,6 +262,36 @@ const BEHAVIOR_DISPATCH = {
 };
 
 // ============================================
+// FLOCKING/COORDINATION CONSTANTS
+// Used for group AI behavior
+// ============================================
+const FLOCKING_CONFIG = {
+    separationRadius: 40,      // Min distance between enemies
+    alignmentRadius: 100,      // Range for alignment behavior
+    cohesionRadius: 150,       // Range for cohesion behavior
+    separationWeight: 1.5,     // How strongly enemies avoid each other
+    alignmentWeight: 0.8,      // How strongly enemies match direction
+    cohesionWeight: 0.3,       // How strongly enemies group together
+    flankingWeight: 1.2,       // How strongly enemies try to flank player
+    maxFlockingForce: 2.0      // Maximum steering force from flocking
+};
+
+// ============================================
+// THREAT LEVEL THRESHOLDS
+// Player power levels that trigger enemy reactions
+// ============================================
+const THREAT_THRESHOLDS = {
+    low: 0,
+    medium: 3,      // Player weapon level 3+
+    high: 5,        // Player weapon level 5+ or fever mode
+    extreme: 8      // God mode or multiple high-tier power-ups
+};
+
+// Static reference to all active enemies for flocking calculations
+// Updated each frame by WaveManager or main game loop
+let activeEnemies = [];
+
+// ============================================
 // CUSTOM DRAW DISPATCH MAP
 // Maps customDraw types to method names
 // ============================================
@@ -276,6 +306,22 @@ const CUSTOM_DRAW_DISPATCH = {
 };
 
 export class Enemy {
+    /**
+     * Static method to update the list of active enemies for flocking calculations
+     * Should be called once per frame before updating individual enemies
+     * @param {Enemy[]} enemies - Array of all active enemies
+     */
+    static updateActiveEnemies(enemies) {
+        activeEnemies = enemies;
+    }
+
+    /**
+     * Static method to get flocking config (for debugging/tuning)
+     */
+    static getFlockingConfig() {
+        return { ...FLOCKING_CONFIG };
+    }
+
     constructor(x, y, type, gameState) {
         this.x = x;
         this.y = y;
@@ -292,6 +338,13 @@ export class Enemy {
         this.alertLevel = 0;
         this.formationRole = 'none';
         this.communicationTimer = 0;
+
+        // Flocking/coordination state
+        this.flockingEnabled = true;
+        this.flankingAngle = Math.random() * Math.PI * 2;  // Initial flanking direction
+        this.threatResponse = 'normal';  // 'normal', 'cautious', 'aggressive', 'flee'
+        this.lastThreatCheck = 0;
+        this.nearbyEnemyCount = 0;  // Updated during flocking calculation
 
         const currentWave = (gameState && gameState.wave) ? gameState.wave : 1;
         const intelligenceLevel = Math.min(Math.floor(currentWave / 3), 5);
@@ -423,12 +476,25 @@ export class Enemy {
         this.glowPulse = (this.glowPulse + 0.1 * scaledDeltaTime) % (Math.PI * 2);
         this.rotation += 0.02 * scaledDeltaTime;
 
-        // Store player position for AI
+        // Store player position for AI (used for prediction)
         this.lastPlayerX = playerX;
         this.lastPlayerY = playerY;
 
+        // Periodic threat assessment (every 60 frames for performance)
+        this.lastThreatCheck += scaledDeltaTime;
+        if (this.lastThreatCheck >= 60) {
+            this.assessThreat(gameState);
+            this.lastThreatCheck = 0;
+        }
+
+        // Override behavior if threat response is 'flee'
+        let effectiveBehavior = this.behavior;
+        if (this.threatResponse === 'flee' && this.behavior !== 'flee') {
+            effectiveBehavior = 'flee';
+        }
+
         // Execute behavior using dispatch map for cleaner code
-        const behaviorMethod = BEHAVIOR_DISPATCH[this.behavior];
+        const behaviorMethod = BEHAVIOR_DISPATCH[effectiveBehavior];
         if (behaviorMethod && typeof this[behaviorMethod] === 'function') {
             this[behaviorMethod](playerX, playerY, canvas, scaledDeltaTime);
         } else {
@@ -436,13 +502,26 @@ export class Enemy {
             this.defaultBehavior(canvas, scaledDeltaTime);
         }
 
-        // Try to dodge player bullets
-        if (this.dodgeChance > 0 && Math.random() < this.dodgeChance * 0.1 * scaledDeltaTime) {
+        // Apply flocking forces for supported behaviors
+        if (this.flockingEnabled && (this.behavior === 'aggressive' || this.behavior === 'patrol')) {
+            const flockMove = this.applyFlockingMovement(playerX, playerY, scaledDeltaTime);
+            this.x += flockMove.x;
+            this.y += flockMove.y;
+
+            // Re-clamp to bounds after flocking
+            this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
+            this.y = Math.max(-20, Math.min(canvas.logicalHeight + 20, this.y));
+        }
+
+        // Try to dodge player bullets (increased chance when cautious)
+        const dodgeMultiplier = this.threatResponse === 'cautious' ? 2.0 : 1.0;
+        if (this.dodgeChance > 0 && Math.random() < this.dodgeChance * 0.1 * scaledDeltaTime * dodgeMultiplier) {
             this.tryDodge(gameState);
         }
 
-        // Fire at player
-        if (this.fireTimer >= this.fireRate && this.behavior !== 'dive') {
+        // Fire at player (faster when aggressive threat response)
+        const fireRateMultiplier = this.threatResponse === 'aggressive' ? 0.8 : 1.0;
+        if (this.fireTimer >= this.fireRate * fireRateMultiplier && effectiveBehavior !== 'dive') {
             this.shoot(playerX, playerY, enemyBulletPool);
             this.fireTimer = 0;
         }
@@ -486,8 +565,19 @@ export class Enemy {
         } else {
             // Normal: Move toward player horizontally, down vertically
             const dx = playerX - this.x;
-            const step = Math.min(Math.abs(dx) * 0.02, this.speed);
-            this.x += Math.sign(dx) * step * deltaTime;
+            const dy = playerY - this.y;
+
+            // Enhanced flanking: if multiple enemies nearby, try to spread out
+            let targetX = playerX;
+            if (this.nearbyEnemyCount >= 2 && this.intelligence >= 1) {
+                // Calculate flanking offset based on enemy's unique angle
+                const flankOffset = Math.sin(this.flankingAngle) * 80;
+                targetX = playerX + flankOffset;
+            }
+
+            const adjustedDx = targetX - this.x;
+            const step = Math.min(Math.abs(adjustedDx) * 0.025, this.speed);  // Slightly faster tracking
+            this.x += Math.sign(adjustedDx) * step * deltaTime;
             this.y += this.speed * deltaTime;
 
             // Bounds
@@ -496,16 +586,26 @@ export class Enemy {
     }
 
     patrolBehavior(playerX, playerY, canvas, deltaTime) {
+        // Pre-compute sin value (used multiple times)
+        const sinVal = Math.sin(this.moveTimer * 0.03);
+
         if (this.sidescrollerMode) {
             // Sidescroller: Move in vertical wave pattern, left horizontally
-            this.y += Math.sin(this.moveTimer * 0.03) * this.speed * 2 * deltaTime;
+            this.y += sinVal * this.speed * 2 * deltaTime;
             this.x -= this.speed * 0.5 * deltaTime;
 
             // Bounds
             this.y = Math.max(this.size, Math.min(canvas.logicalHeight - this.size, this.y));
         } else {
             // Normal: Move in horizontal pattern, down
-            this.x += Math.sin(this.moveTimer * 0.03) * this.speed * 2 * deltaTime;
+            // Smarter patrol: bias movement toward player's general direction
+            let patrolOffset = sinVal * this.speed * 2;
+            if (this.intelligence >= 1) {
+                const playerBias = (playerX > this.x) ? 0.3 : -0.3;
+                patrolOffset += playerBias * this.speed;
+            }
+
+            this.x += patrolOffset * deltaTime;
             this.y += this.speed * 0.5 * deltaTime;
 
             // Bounds
@@ -518,9 +618,19 @@ export class Enemy {
         if (this.y < 100) {
             this.y += this.speed * deltaTime;
         } else {
-            // Strafe to get better angle
+            // Strafe to get better firing angle
             const dx = playerX - this.x;
-            this.x += Math.sign(dx) * Math.min(0.5, Math.abs(dx) * 0.005) * deltaTime;
+
+            // Smarter strafing: try to maintain optimal firing distance
+            const optimalOffset = this.intelligence >= 2 ? 30 : 0;  // Slight offset for unpredictability
+            const targetX = playerX + (this.x > playerX ? -optimalOffset : optimalOffset);
+            const adjustedDx = targetX - this.x;
+
+            // Faster strafing when player is moving
+            const playerMoving = Math.abs(playerX - this.lastPlayerX) > 2;
+            const strafeSpeed = playerMoving ? 0.8 : 0.5;
+
+            this.x += Math.sign(adjustedDx) * Math.min(strafeSpeed, Math.abs(adjustedDx) * 0.008) * deltaTime;
         }
 
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
@@ -528,19 +638,41 @@ export class Enemy {
 
     diveBehavior(playerX, playerY, canvas, deltaTime) {
         if (!this.diving) {
-            // Approach slowly
+            // Approach slowly, tracking player horizontally
             this.y += this.speed * deltaTime;
 
-            // Start dive when close enough
-            if (this.y > 100 && Math.random() < 0.02 * deltaTime) {
+            // Track player horizontally while approaching (smarter approach)
+            if (this.intelligence >= 1) {
+                const dx = playerX - this.x;
+                this.x += Math.sign(dx) * Math.min(Math.abs(dx) * 0.01, 1) * deltaTime;
+            }
+
+            // Start dive when close enough - smarter timing based on distance to player
+            const dySq = (playerY - this.y) * (playerY - this.y);
+            const dxSq = (playerX - this.x) * (playerX - this.x);
+            const distToPlayerSq = dxSq + dySq;
+
+            // Dive when in good position (closer = higher chance)
+            const diveChance = this.y > 100 ? 0.02 + (1 - Math.min(distToPlayerSq / 90000, 1)) * 0.03 : 0;
+
+            if (Math.random() < diveChance * deltaTime) {
                 this.diving = true;
-                this.diveTarget = { x: playerX, y: playerY + 50 };
+                // Predict player movement for smarter targeting
+                const leadTime = this.intelligence >= 2 ? 0.3 : 0;
+                const predictedX = playerX + (playerX - this.lastPlayerX) * leadTime * 30;
+                this.diveTarget = { x: predictedX, y: playerY + 50 };
             }
         } else {
-            // DIVE!
-            const angle = Math.atan2(this.diveTarget.y - this.y, this.diveTarget.x - this.x);
-            this.x += Math.cos(angle) * this.diveSpeed * deltaTime;
-            this.y += Math.sin(angle) * this.diveSpeed * deltaTime;
+            // DIVE! Use pre-computed angle
+            const dx = this.diveTarget.x - this.x;
+            const dy = this.diveTarget.y - this.y;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq > 4) {  // Still moving toward target
+                const dist = Math.sqrt(distSq);
+                this.x += (dx / dist) * this.diveSpeed * deltaTime;
+                this.y += (dy / dist) * this.diveSpeed * deltaTime;
+            }
         }
     }
 
@@ -557,14 +689,22 @@ export class Enemy {
     }
 
     fleeBehavior(playerX, playerY, canvas, deltaTime) {
-        // Run away from player (fever mode)
+        // Run away from player (fever mode or high threat)
         const dx = this.x - playerX;
         const dy = this.y - playerY;
-        const dist = Math.hypot(dx, dy);
+        const distSq = dx * dx + dy * dy;
 
-        if (dist > 0) {
-            this.x += (dx / dist) * this.speed * 2 * deltaTime;
-            this.y += (dy / dist) * this.speed * 0.5 * deltaTime;
+        if (distSq > 1) {  // Avoid division by zero
+            const dist = Math.sqrt(distSq);  // Only sqrt when needed
+            // Flee faster and more erratically when threatened
+            const fleeMultiplier = this.threatResponse === 'flee' ? 2.5 : 2.0;
+            this.x += (dx / dist) * this.speed * fleeMultiplier * deltaTime;
+            this.y += (dy / dist) * this.speed * 0.7 * deltaTime;
+
+            // Add some randomness to movement to be harder to predict
+            if (Math.random() < 0.1 * deltaTime) {
+                this.x += (Math.random() - 0.5) * 30;
+            }
         }
 
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
@@ -589,8 +729,9 @@ export class Enemy {
         if (!this.isPhased) {
             const dx = playerX - this.x;
             const dy = playerY - this.y;
-            const dist = Math.hypot(dx, dy);
-            if (dist > 0) {
+            const distSq = dx * dx + dy * dy;
+            if (distSq > 1) {
+                const dist = Math.sqrt(distSq);  // Only sqrt when needed
                 this.x += (dx / dist) * this.speed * deltaTime;
                 this.y += (dy / dist) * this.speed * 0.5 * deltaTime;
             }
@@ -640,22 +781,31 @@ export class Enemy {
         this.glitchTimer += deltaTime;
         this.distortionAmount = Math.sin(this.moveTimer * 0.2) * 5;
 
-        // Track toward player
+        // Track toward player using squared distance
         const dx = playerX - this.x;
         const dy = playerY - this.y;
-        const dist = Math.hypot(dx, dy);
+        const distSq = dx * dx + dy * dy;
 
-        if (dist > 0) {
+        if (distSq > 1) {
+            const dist = Math.sqrt(distSq);  // Only sqrt when needed
             this.x += (dx / dist) * this.speed * deltaTime;
             this.y += (dy / dist) * this.speed * 0.3 * deltaTime;
         }
 
-        // Glitch teleport
+        // Glitch teleport - smarter teleport toward player's flanks
         if (this.glitchTimer >= this.glitchInterval) {
             this.glitchTimer -= this.glitchInterval;
-            // Teleport randomly nearby
-            this.x += (Math.random() - 0.5) * 100;
-            this.y += (Math.random() - 0.5) * 50;
+            // Teleport to a flanking position instead of random
+            if (this.intelligence >= 2 && Math.random() < 0.5) {
+                // Teleport to player's side
+                const teleportAngle = Math.random() > 0.5 ? Math.PI / 2 : -Math.PI / 2;
+                this.x = playerX + Math.cos(teleportAngle) * 80;
+                this.y = Math.max(50, playerY - 50);
+            } else {
+                // Random teleport
+                this.x += (Math.random() - 0.5) * 100;
+                this.y += (Math.random() - 0.5) * 50;
+            }
         }
 
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
@@ -748,6 +898,187 @@ export class Enemy {
                 }
             }
         }
+    }
+
+    // ============================================
+    // FLOCKING / COORDINATION METHODS
+    // Enables group behavior for more tactical AI
+    // ============================================
+
+    /**
+     * Calculate flocking forces based on nearby enemies.
+     * Returns { fx, fy } steering force to apply to movement.
+     * Uses squared distance for performance optimization.
+     */
+    calculateFlockingForce() {
+        if (!this.flockingEnabled || activeEnemies.length < 2) {
+            return { fx: 0, fy: 0 };
+        }
+
+        let separationX = 0, separationY = 0, separationCount = 0;
+        let alignmentVx = 0, alignmentVy = 0, alignmentCount = 0;
+        let cohesionX = 0, cohesionY = 0, cohesionCount = 0;
+
+        const sepRadiusSq = FLOCKING_CONFIG.separationRadius * FLOCKING_CONFIG.separationRadius;
+        const alignRadiusSq = FLOCKING_CONFIG.alignmentRadius * FLOCKING_CONFIG.alignmentRadius;
+        const cohesionRadiusSq = FLOCKING_CONFIG.cohesionRadius * FLOCKING_CONFIG.cohesionRadius;
+
+        for (let i = 0; i < activeEnemies.length; i++) {
+            const other = activeEnemies[i];
+            if (other === this || !other.active) continue;
+
+            const dx = this.x - other.x;
+            const dy = this.y - other.y;
+            const distSq = dx * dx + dy * dy;
+
+            // Separation - avoid getting too close
+            if (distSq < sepRadiusSq && distSq > 0) {
+                const dist = Math.sqrt(distSq);  // Only sqrt when needed
+                separationX += (dx / dist) * (FLOCKING_CONFIG.separationRadius - dist);
+                separationY += (dy / dist) * (FLOCKING_CONFIG.separationRadius - dist);
+                separationCount++;
+            }
+
+            // Alignment - match velocity direction (if enemy has velocity)
+            if (distSq < alignRadiusSq && other.vx !== undefined) {
+                alignmentVx += other.vx || 0;
+                alignmentVy += other.vy || 0;
+                alignmentCount++;
+            }
+
+            // Cohesion - move toward center of nearby group
+            if (distSq < cohesionRadiusSq) {
+                cohesionX += other.x;
+                cohesionY += other.y;
+                cohesionCount++;
+            }
+        }
+
+        this.nearbyEnemyCount = cohesionCount;
+
+        let fx = 0, fy = 0;
+
+        // Apply separation
+        if (separationCount > 0) {
+            fx += (separationX / separationCount) * FLOCKING_CONFIG.separationWeight;
+            fy += (separationY / separationCount) * FLOCKING_CONFIG.separationWeight;
+        }
+
+        // Apply alignment
+        if (alignmentCount > 0) {
+            const avgVx = alignmentVx / alignmentCount;
+            const avgVy = alignmentVy / alignmentCount;
+            fx += avgVx * FLOCKING_CONFIG.alignmentWeight * 0.1;
+            fy += avgVy * FLOCKING_CONFIG.alignmentWeight * 0.1;
+        }
+
+        // Apply cohesion
+        if (cohesionCount > 0) {
+            const centerX = cohesionX / cohesionCount;
+            const centerY = cohesionY / cohesionCount;
+            const toCenterX = centerX - this.x;
+            const toCenterY = centerY - this.y;
+            fx += toCenterX * FLOCKING_CONFIG.cohesionWeight * 0.01;
+            fy += toCenterY * FLOCKING_CONFIG.cohesionWeight * 0.01;
+        }
+
+        // Clamp max force
+        const forceMag = Math.sqrt(fx * fx + fy * fy);
+        if (forceMag > FLOCKING_CONFIG.maxFlockingForce) {
+            fx = (fx / forceMag) * FLOCKING_CONFIG.maxFlockingForce;
+            fy = (fy / forceMag) * FLOCKING_CONFIG.maxFlockingForce;
+        }
+
+        return { fx, fy };
+    }
+
+    /**
+     * Calculate flanking vector to attack player from the sides.
+     * Returns { fx, fy } steering force toward flanking position.
+     */
+    calculateFlankingForce(playerX, playerY) {
+        // Update flanking angle slowly for variety
+        this.flankingAngle += 0.005;
+
+        // Calculate flanking position - offset from player
+        const flankDistance = 120 + (this.nearbyEnemyCount * 20);  // Spread out when more enemies
+        const targetX = playerX + Math.cos(this.flankingAngle) * flankDistance;
+        const targetY = playerY + Math.sin(this.flankingAngle) * flankDistance * 0.5;  // Less vertical spread
+
+        const dx = targetX - this.x;
+        const dy = targetY - this.y;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq < 100) {  // Close enough to flanking position
+            return { fx: 0, fy: 0 };
+        }
+
+        const dist = Math.sqrt(distSq);
+        return {
+            fx: (dx / dist) * FLOCKING_CONFIG.flankingWeight,
+            fy: (dy / dist) * FLOCKING_CONFIG.flankingWeight
+        };
+    }
+
+    /**
+     * Assess threat level from player and adjust behavior.
+     * Called periodically (not every frame) for performance.
+     */
+    assessThreat(gameState) {
+        if (!gameState || !gameState.player) return;
+
+        const player = gameState.player;
+        let threatLevel = 0;
+
+        // Weapon level contribution
+        if (player.weaponLevel) {
+            threatLevel += player.weaponLevel;
+        }
+
+        // Power-up contributions
+        if (player.feverMode) threatLevel += 5;
+        if (player.godMode) threatLevel += 10;
+        if (player.infinityMode) threatLevel += 3;
+        if (player.omegaMode) threatLevel += 3;
+        if (player.shield > 0) threatLevel += 2;
+
+        // Determine response
+        if (threatLevel >= THREAT_THRESHOLDS.extreme) {
+            this.threatResponse = 'flee';
+            this.speed = this.originalSpeed * 1.3;  // Run faster
+        } else if (threatLevel >= THREAT_THRESHOLDS.high) {
+            this.threatResponse = 'cautious';
+            this.dodgeChance = Math.min(0.5, (this.dodgeChance || 0) + 0.1);
+        } else if (threatLevel >= THREAT_THRESHOLDS.medium) {
+            this.threatResponse = 'aggressive';
+            this.fireRate = Math.max(30, this.fireRate * 0.9);  // Shoot faster
+        } else {
+            this.threatResponse = 'normal';
+        }
+    }
+
+    /**
+     * Apply flocking and coordination forces to movement.
+     * Call this in behavior methods that support group movement.
+     * @returns {{ x: number, y: number }} Position adjustment
+     */
+    applyFlockingMovement(playerX, playerY, deltaTime) {
+        const flocking = this.calculateFlockingForce();
+
+        // Only apply flanking for aggressive types
+        let flanking = { fx: 0, fy: 0 };
+        if (this.behavior === 'aggressive' && this.intelligence >= 2) {
+            flanking = this.calculateFlankingForce(playerX, playerY);
+        }
+
+        // Combine forces
+        const totalFx = flocking.fx + flanking.fx * 0.5;
+        const totalFy = flocking.fy + flanking.fy * 0.5;
+
+        return {
+            x: totalFx * deltaTime,
+            y: totalFy * deltaTime
+        };
     }
 
     shoot(playerX, playerY, enemyBulletPool) {

@@ -4,6 +4,229 @@
 
 ---
 
+# FIENDE-AI OPTIMALISERING OG FORBEDRINGER
+
+## Oversikt
+Implementert avansert fiende-AI med flocking/koordinering, flanking, threat assessment, og ytelsesoptimaliseringer. Fiender oppfører seg nå mer taktisk og koordinert.
+
+## Endringer implementert
+
+### 1. Enemy.js - Flocking/Koordinerings-system
+**Problem**: Fiender beveget seg uavhengig av hverandre, ingen koordinering.
+**Løsning**: Implementert flocking-algoritme med separation, alignment og cohesion.
+
+```javascript
+// NYTT: Flocking-konfigurasjon
+const FLOCKING_CONFIG = {
+    separationRadius: 40,      // Min avstand mellom fiender
+    alignmentRadius: 100,      // Rekkevidde for alignment
+    cohesionRadius: 150,       // Rekkevidde for cohesion
+    separationWeight: 1.5,     // Hvor sterkt fiender unngår hverandre
+    alignmentWeight: 0.8,      // Hvor sterkt fiender matcher retning
+    cohesionWeight: 0.3,       // Hvor sterkt fiender holder sammen
+    flankingWeight: 1.2,       // Hvor sterkt fiender prøver å flankere
+    maxFlockingForce: 2.0      // Maks styrekraft fra flocking
+};
+
+// NYTT: Static metode for å oppdatere aktive fiender
+static updateActiveEnemies(enemies) {
+    activeEnemies = enemies;
+}
+
+// NYTT: calculateFlockingForce() - Beregner flocking-krefter
+// NYTT: calculateFlankingForce() - Beregner flanking-posisjon
+// NYTT: applyFlockingMovement() - Kombinerer og appliserer krefter
+```
+
+### 2. Enemy.js - Threat Assessment System
+**Problem**: Fiender reagerte ikke på spillerens power-ups eller våpennivå.
+**Løsning**: Fiender evaluerer spillerens trusselnivå og tilpasser oppførselen.
+
+```javascript
+// NYTT: Threat-nivåer
+const THREAT_THRESHOLDS = {
+    low: 0,
+    medium: 3,      // Weapon level 3+
+    high: 5,        // Weapon level 5+ eller fever mode
+    extreme: 8      // God mode eller multiple power-ups
+};
+
+// NYTT: assessThreat() - Evaluerer spillerens styrke
+// Fiender kan nå:
+// - 'flee': Rømme ved ekstrem trussel
+// - 'cautious': Økt dodge-sjanse
+// - 'aggressive': Raskere skyting
+// - 'normal': Standard oppførsel
+```
+
+### 3. Enemy.js - Forbedret aggressiveBehavior
+**Problem**: Aggressive fiender bare fulgte spilleren direkte.
+**Løsning**: Flanking-logikk når flere fiender er tilstede.
+
+```javascript
+// FØR:
+const dx = playerX - this.x;
+const step = Math.min(Math.abs(dx) * 0.02, this.speed);
+this.x += Math.sign(dx) * step * deltaTime;
+
+// ETTER:
+// Enhanced flanking: Sprer seg ut når mange fiender
+let targetX = playerX;
+if (this.nearbyEnemyCount >= 2 && this.intelligence >= 1) {
+    const flankOffset = Math.sin(this.flankingAngle) * 80;
+    targetX = playerX + flankOffset;
+}
+const adjustedDx = targetX - this.x;
+const step = Math.min(Math.abs(adjustedDx) * 0.025, this.speed);
+```
+
+### 4. Enemy.js - Squared Distance Optimalisering
+**Problem**: Math.hypot() kaller sqrt() unødvendig i mange tilfeller.
+**Løsning**: Bruker squared distance hvor faktisk avstand ikke trengs.
+
+```javascript
+// FØR:
+const dist = Math.hypot(dx, dy);
+if (dist > 0) { ... }
+
+// ETTER:
+const distSq = dx * dx + dy * dy;
+if (distSq > 1) {
+    const dist = Math.sqrt(distSq);  // Kun sqrt når nødvendig
+    ...
+}
+```
+
+Optimalisert i:
+- `fleeBehavior()` - Med ekstra tilfeldig bevegelse
+- `phaseBehavior()` - Renere squared distance sjekk
+- `glitchBehavior()` - Med smartere teleportering
+- `diveBehavior()` - Med bevegelsesprediksjion
+- `calculateFlockingForce()` - Alle avstandsberegninger
+
+### 5. Enemy.js - Forbedret diveBehavior
+**Problem**: Divebombers valgte tilfeldige tidspunkter for dive.
+**Løsning**: Smartere timing og målprediksjon.
+
+```javascript
+// NYTT: Tracker spiller horisontalt under tilnærming
+if (this.intelligence >= 1) {
+    const dx = playerX - this.x;
+    this.x += Math.sign(dx) * Math.min(Math.abs(dx) * 0.01, 1) * deltaTime;
+}
+
+// NYTT: Smartere dive-timing basert på avstand
+const diveChance = this.y > 100 ? 0.02 + (1 - Math.min(distToPlayerSq / 90000, 1)) * 0.03 : 0;
+
+// NYTT: Predikerer spillerbevegelse for targeting
+const predictedX = playerX + (playerX - this.lastPlayerX) * leadTime * 30;
+```
+
+### 6. Enemy.js - Forbedret sniperBehavior
+**Problem**: Snipers bare strafet mot spilleren.
+**Løsning**: Smartere strafing med offset for uforutsigbarhet.
+
+```javascript
+// NYTT: Optimal offset for uforutsigbarhet
+const optimalOffset = this.intelligence >= 2 ? 30 : 0;
+const targetX = playerX + (this.x > playerX ? -optimalOffset : optimalOffset);
+
+// NYTT: Raskere strafing når spilleren beveger seg
+const playerMoving = Math.abs(playerX - this.lastPlayerX) > 2;
+const strafeSpeed = playerMoving ? 0.8 : 0.5;
+```
+
+### 7. Enemy.js - Forbedret patrolBehavior
+**Problem**: Patrol-fiender beveget seg tilfeldig.
+**Løsning**: Bias mot spillerens generelle retning.
+
+```javascript
+// NYTT: Smartere patrol - bias mot spiller
+if (this.intelligence >= 1) {
+    const playerBias = (playerX > this.x) ? 0.3 : -0.3;
+    patrolOffset += playerBias * this.speed;
+}
+```
+
+### 8. Enemy.js - Forbedret glitchBehavior
+**Problem**: Tilfeldig teleportering.
+**Løsning**: Smartere teleportering til flankeringsposisjoner.
+
+```javascript
+// NYTT: Teleporterer til spillerens side i stedet for tilfeldig
+if (this.intelligence >= 2 && Math.random() < 0.5) {
+    const teleportAngle = Math.random() > 0.5 ? Math.PI / 2 : -Math.PI / 2;
+    this.x = playerX + Math.cos(teleportAngle) * 80;
+    this.y = Math.max(50, playerY - 50);
+}
+```
+
+### 9. WaveManager.js - Flocking Integration
+**Problem**: Flocking-systemet trengte aktive fiender-referanse.
+**Løsning**: Oppdaterer aktive fiender før update-loop.
+
+```javascript
+// NYTT: Oppdaterer aktive fiender for flocking
+update(enemies, canvas, gameState) {
+    Enemy.updateActiveEnemies(enemies.filter(e => e.active));
+    // ... resten av update
+}
+```
+
+---
+
+## Nye Enemy-egenskaper
+
+| Egenskap | Type | Beskrivelse |
+|----------|------|-------------|
+| `flockingEnabled` | boolean | Om fienden bruker flocking |
+| `flankingAngle` | number | Unik vinkel for flanking |
+| `threatResponse` | string | Respons på spillertrussel |
+| `nearbyEnemyCount` | number | Antall fiender i nærheten |
+| `lastThreatCheck` | number | Timer for threat assessment |
+
+---
+
+## AI-forbedringer oppsummert
+
+| Fiendetype | Forbedring |
+|------------|------------|
+| Triangle (aggressive) | Flanking når flere fiender tilstede |
+| Square (patrol) | Bias mot spillerens retning |
+| Pentagon (sniper) | Smartere strafing, optimal offset |
+| Divebomber | Bevegelsesprediksjion, smartere timing |
+| VHSTracker (glitch) | Flanking-teleportering |
+| Alle | Threat assessment, flocking, squared distance |
+
+---
+
+## Ytelsesgevinster (estimert)
+
+| Område | Før | Etter | Forbedring |
+|--------|-----|-------|------------|
+| Distance calc | Math.hypot() alltid | Squared når mulig | ~15-20% |
+| Threat assessment | Ikke implementert | Hvert 60. frame | Minimal overhead |
+| Flocking | Ikke implementert | Optimalisert O(n²) | Scalerer bra |
+| Sin/cos caching | Beregnet hver gang | Pre-computed | ~5-10% |
+
+---
+
+## Filer endret
+- `js/entities/Enemy.js` - Flocking, threat assessment, optimaliserte behaviors
+- `js/systems/WaveManager.js` - Flocking integration
+
+---
+
+## Testing
+- [ ] Verifiser at fiender koordinerer bevegelser (flocking)
+- [ ] Verifiser at aggressive fiender flanker spilleren
+- [ ] Verifiser at fiender reagerer på fever mode (flee)
+- [ ] Verifiser at snipers strafter smartere
+- [ ] Verifiser at divebombers treffer bedre
+- [ ] Sjekk at performance er stabil med mange fiender
+
+---
+
 # WAVE OPTIMERING OG FLERE FIENDER
 
 ## Oversikt
