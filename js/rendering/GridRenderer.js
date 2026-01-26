@@ -77,13 +77,7 @@ function initGrid(canvas) {
  * @param {number} radius - How far the distortion spreads (default 150)
  */
 export function addGridImpact(x, y, force = 50, radius = 150) {
-    // Limit number of concurrent impacts for performance
-    if (gridState.impacts.length >= perfSettings.maxImpacts) {
-        gridState.impacts.shift(); // Remove oldest
-    }
-
-    // Enhanced impact with stronger wave propagation
-    gridState.impacts.push({
+    const newImpact = {
         x,
         y,
         force: force * 1.5, // Boost force for more visible effect
@@ -91,7 +85,23 @@ export function addGridImpact(x, y, force = 50, radius = 150) {
         radiusSq: radius * radius, // Pre-compute for faster distance checks
         time: 0,
         maxTime: Math.min(80, 60 + force / 10) // Longer duration for bigger impacts
-    });
+    };
+
+    // Limit number of concurrent impacts for performance
+    if (gridState.impacts.length >= perfSettings.maxImpacts) {
+        // Replace oldest impact (highest time value) instead of using shift() which is O(n)
+        let oldestIdx = 0;
+        let oldestTime = 0;
+        for (let i = 0; i < gridState.impacts.length; i++) {
+            if (gridState.impacts[i].time > oldestTime) {
+                oldestTime = gridState.impacts[i].time;
+                oldestIdx = i;
+            }
+        }
+        gridState.impacts[oldestIdx] = newImpact;
+    } else {
+        gridState.impacts.push(newImpact);
+    }
 }
 
 /**
@@ -111,14 +121,16 @@ function updateGrid(canvas) {
 
     gridState.time += 0.02 * perfSettings.updateFrequency;
 
-    // Update impacts - remove expired ones
-    let i = gridState.impacts.length;
-    while (i--) {
-        gridState.impacts[i].time++;
-        if (gridState.impacts[i].time >= gridState.impacts[i].maxTime) {
-            gridState.impacts.splice(i, 1);
+    // Update impacts - remove expired ones using swap-and-pop for O(1) removal
+    let writeIndex = 0;
+    for (let i = 0; i < gridState.impacts.length; i++) {
+        const impact = gridState.impacts[i];
+        impact.time++;
+        if (impact.time < impact.maxTime) {
+            gridState.impacts[writeIndex++] = impact;
         }
     }
+    gridState.impacts.length = writeIndex;
 
     // Skip heavy physics if no impacts and grid is settled
     const hasImpacts = gridState.impacts.length > 0;

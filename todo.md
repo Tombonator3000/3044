@@ -4,9 +4,9 @@
 *Ingen pågående oppgaver*
 
 ## Neste
+- [ ] Teste FPS-forbedringer med mange fiender og kuler
 - [ ] Teste at fiende-AI forbedringer fungerer som forventet
 - [ ] Balansere vanskelighetsgrad etter feedback
-- [ ] Vurdere flere optimaliseringer i ParticleSystem
 
 ## Bugs
 *Ingen kjente bugs for øyeblikket*
@@ -23,6 +23,16 @@
 ---
 
 ## Fullførte oppgaver
+
+### 2026-01-26 (FPS/Performance)
+- [x] Cachet bullet angles i update() for å unngå Math.atan2 i draw()
+- [x] Squared distance i BulletPool targeting (findNearestTarget, findChainTarget)
+- [x] Squared distance i explosive bullet damage calculation
+- [x] Deterministisk animasjon erstatter Math.random() i render-loop
+- [x] O(1) impact removal i GridRenderer (swap-and-pop)
+- [x] Replace-oldest strategi for impact overflow
+- [x] Gjenbrukbare arrays i ParticleSystem._drawBatched()
+- [x] Statisk glowTypes Set i ParticleSystem
 
 ### 2026-01-26 (Fiende-AI)
 - [x] Implementert flocking/koordinerings-system for fiender
