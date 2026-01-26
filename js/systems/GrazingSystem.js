@@ -159,19 +159,31 @@ export class GrazingSystem {
 
     /**
      * Add a graze visual effect
+     * OPTIMIZED: Uses circular buffer approach - just overwrite oldest if full
      */
     addGrazeEffect(playerX, playerY, bulletX, bulletY, multiplier) {
-        if (this.grazeEffects.length >= this.maxEffects) {
-            this.grazeEffects.shift();
-        }
-
-        this.grazeEffects.push({
+        const effect = {
             playerX, playerY,
             bulletX, bulletY,
             multiplier,
             life: 20,
             maxLife: 20
-        });
+        };
+
+        if (this.grazeEffects.length < this.maxEffects) {
+            this.grazeEffects.push(effect);
+        } else {
+            // Find and replace the effect with lowest life (oldest)
+            let minLifeIdx = 0;
+            let minLife = this.grazeEffects[0].life;
+            for (let i = 1; i < this.grazeEffects.length; i++) {
+                if (this.grazeEffects[i].life < minLife) {
+                    minLife = this.grazeEffects[i].life;
+                    minLifeIdx = i;
+                }
+            }
+            this.grazeEffects[minLifeIdx] = effect;
+        }
     }
 
     /**
@@ -189,12 +201,18 @@ export class GrazingSystem {
 
     /**
      * Update visual effects
+     * OPTIMIZED: In-place removal instead of filter() to avoid allocation
      */
     updateEffects() {
-        this.grazeEffects = this.grazeEffects.filter(effect => {
+        let writeIdx = 0;
+        for (let i = 0; i < this.grazeEffects.length; i++) {
+            const effect = this.grazeEffects[i];
             effect.life--;
-            return effect.life > 0;
-        });
+            if (effect.life > 0) {
+                this.grazeEffects[writeIdx++] = effect;
+            }
+        }
+        this.grazeEffects.length = writeIdx;
     }
 
     /**

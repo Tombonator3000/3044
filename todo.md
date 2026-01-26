@@ -1,20 +1,20 @@
 # Geometry 3044 - Todo
 
 ## Pågående
-- [x] Lage agents.md dokumentasjon
-- [x] Lage todo.md struktur
+*Ingen pågående oppgaver*
 
 ## Neste
-- [ ] Gjennomgå kodebasen for potensielle forbedringer
-- [ ] Teste at alle systemer fungerer sammen
+- [ ] Teste at wave-endringer fungerer som forventet
+- [ ] Balansere vanskelighetsgrad etter feedback
+- [ ] Vurdere flere optimaliseringer i ParticleSystem
 
 ## Bugs
 *Ingen kjente bugs for øyeblikket*
 
 ## Forbedringer
-- [ ] Vurdere flere optimalisering av hot paths
 - [ ] Legge til flere partikkeleffekter
 - [ ] Forbedre mobilkontroller
+- [ ] Vurdere enemy variety per wave
 
 ## Teknisk gjeld
 - [ ] Konsistent feilhåndtering i alle moduler
@@ -25,6 +25,12 @@
 ## Fullførte oppgaver
 
 ### 2026-01-26
+- [x] Økt fiender per wave (base 10→15, perWave 5→7, bonus 8→12)
+- [x] Raskere spawn rate (delay 60→50, min 25→15)
+- [x] Gruppe-spawn fra wave 2 (var 3), triple-spawn fra wave 7 (var 10)
+- [x] Optimalisert UFOManager.js - in-place array cleanup
+- [x] Optimalisert Enemy.js - in-place neonTrails cleanup
+- [x] Optimalisert GrazingSystem.js - in-place effects cleanup
 - [x] Laget agents.md med retningslinjer for logging og arbeidsflyt
 - [x] Laget todo.md struktur
 

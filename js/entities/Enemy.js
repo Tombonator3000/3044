@@ -689,10 +689,16 @@ export class Enemy {
             this.neonTrails.push({ x: this.x, y: this.y, life: 20 });
             this.neonTrailTimer -= 3;
         }
-        this.neonTrails = this.neonTrails.filter(t => {
+        // OPTIMIZED: In-place trail cleanup instead of filter() to avoid allocation
+        let writeIdx = 0;
+        for (let i = 0; i < this.neonTrails.length; i++) {
+            const t = this.neonTrails[i];
             t.life -= deltaTime;
-            return t.life > 0;
-        });
+            if (t.life > 0) {
+                this.neonTrails[writeIdx++] = t;
+            }
+        }
+        this.neonTrails.length = writeIdx;
 
         this.x = Math.max(this.size, Math.min(canvas.logicalWidth - this.size, this.x));
     }
