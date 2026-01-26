@@ -4,6 +4,41 @@
 
 ---
 
+# AGENTS.MD OG TODO.MD DOKUMENTASJON
+
+## Oversikt
+Laget komplett dokumentasjon for AI-agenter som jobber på prosjektet, inkludert retningslinjer for logging og oppgavehåndtering.
+
+## Filer opprettet
+
+### 1. agents.md - Agent Guide
+Komplett guide som beskriver:
+- **Logging til log.md** - Alt arbeid skal logges med dato, oversikt, endringer, filer, testing
+- **Todo.md regler** - Oppgaveliste for pågående og fremtidige oppgaver
+- **Arbeidsflyt** - Ved start, under arbeid, og ved slutten av økten
+- **Prosjektstruktur** - Oversikt over filstruktur
+- **Viktige konvensjoner** - Kode, git, navngiving
+- **Vanlige oppgaver** - Hvordan legge til fiender, effekter, fikse bugs
+- **Huskeliste** - Sjekkliste for agenter
+
+### 2. todo.md - Oppgaveliste
+Struktur for oppgavehåndtering:
+- Pågående oppgaver
+- Neste oppgaver
+- Bugs
+- Forbedringer
+- Teknisk gjeld
+- Fullførte oppgaver (med dato)
+
+## Formål
+Disse filene sikrer at:
+1. All utvikling blir dokumentert i log.md
+2. Oppgaver blir sporet i todo.md
+3. Nye agenter kan raskt sette seg inn i prosjektet
+4. Konsistent arbeidsflyt på tvers av økter
+
+---
+
 # OPTIMALISERING OG REFAKTORERING
 
 ## Oversikt
