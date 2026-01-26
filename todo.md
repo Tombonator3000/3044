@@ -4,7 +4,7 @@
 *Ingen pågående oppgaver*
 
 ## Neste
-- [ ] Teste at wave-endringer fungerer som forventet
+- [ ] Teste at fiende-AI forbedringer fungerer som forventet
 - [ ] Balansere vanskelighetsgrad etter feedback
 - [ ] Vurdere flere optimaliseringer i ParticleSystem
 
@@ -14,7 +14,7 @@
 ## Forbedringer
 - [ ] Legge til flere partikkeleffekter
 - [ ] Forbedre mobilkontroller
-- [ ] Vurdere enemy variety per wave
+- [ ] Legge til flere fiendetyper med unike behaviors
 
 ## Teknisk gjeld
 - [ ] Konsistent feilhåndtering i alle moduler
@@ -24,7 +24,17 @@
 
 ## Fullførte oppgaver
 
-### 2026-01-26
+### 2026-01-26 (Fiende-AI)
+- [x] Implementert flocking/koordinerings-system for fiender
+- [x] Implementert threat assessment (fiender reagerer på power-ups)
+- [x] Forbedret aggressiveBehavior med flanking
+- [x] Forbedret diveBehavior med bevegelsesprediksjion
+- [x] Forbedret sniperBehavior med smartere strafing
+- [x] Forbedret glitchBehavior med flanking-teleportering
+- [x] Optimalisert med squared distance (erstatter Math.hypot)
+- [x] Integrert flocking i WaveManager
+
+### 2026-01-26 (Wave-optimering)
 - [x] Økt fiender per wave (base 10→15, perWave 5→7, bonus 8→12)
 - [x] Raskere spawn rate (delay 60→50, min 25→15)
 - [x] Gruppe-spawn fra wave 2 (var 3), triple-spawn fra wave 7 (var 10)

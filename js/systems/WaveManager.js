@@ -318,6 +318,10 @@ export class WaveManager {
     }
 
     update(enemies, canvas, gameState) {
+        // Update active enemies reference for flocking calculations
+        // This allows enemies to coordinate their movement
+        Enemy.updateActiveEnemies(enemies.filter(e => e.active));
+
         // Show wave text countdown
         if (this.showingWaveText) {
             this.waveTextTimer--;
