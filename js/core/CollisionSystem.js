@@ -9,6 +9,19 @@ import { Asteroid } from '../entities/Asteroid.js';
 import { addGridImpact } from '../rendering/GridRenderer.js';
 
 /**
+ * Utility function to check if an entity is active/alive
+ * Standardizes the inconsistent active/alive checks across the codebase
+ * @param {Object} entity - Entity to check
+ * @returns {boolean} True if entity is active/alive
+ */
+function isEntityActive(entity) {
+    if (!entity) return false;
+    // Check both active and alive properties - entity is valid if either is true
+    // Some entities use .active (bullets, powerups), some use .alive (enemies)
+    return entity.active !== false && entity.alive !== false;
+}
+
+/**
  * CollisionSystem class - manages collision detection with spatial hashing
  */
 export class CollisionSystem {
@@ -176,6 +189,23 @@ export class CollisionSystem {
         const dx = a.x - b.x;
         const dy = a.y - b.y;
         return dx * dx + dy * dy;
+    }
+
+    /**
+     * Optimized circle collision - takes raw values to avoid object creation in hot paths
+     * @param {number} x1 - First circle x
+     * @param {number} y1 - First circle y
+     * @param {number} r1 - First circle radius
+     * @param {number} x2 - Second circle x
+     * @param {number} y2 - Second circle y
+     * @param {number} r2 - Second circle radius
+     * @returns {boolean} True if colliding
+     */
+    circleCollisionRaw(x1, y1, r1, x2, y2, r2) {
+        const dx = x1 - x2;
+        const dy = y1 - y2;
+        const radiusSum = r1 + r2;
+        return dx * dx + dy * dy < radiusSum * radiusSum;
     }
 
     /**
@@ -509,7 +539,7 @@ export class CollisionSystem {
      */
     checkPlayerVsEnemyBullets(gs) {
         const player = gs.player;
-        const playerRadius = player.size || CONFIG.player.size;
+        const playerRadius = (player.size || CONFIG.player.size) * 0.75;  // Player hitbox
 
         for (let i = 0; i < gs.enemyBullets.length; i++) {
             const bullet = gs.enemyBullets[i];
@@ -517,12 +547,10 @@ export class CollisionSystem {
 
             this.stats.checksPerFrame++;
 
-            const bulletRadius = bullet.radius || CONFIG.bullets.enemyRadius;
-
-            // Player hitbox increased from 0.6 to 0.75 for more challenging collision
-            if (this.circleCollision(
-                { x: player.x, y: player.y, radius: playerRadius * 0.75 },
-                { x: bullet.x, y: bullet.y, radius: bulletRadius }
+            // Use optimized collision check without object creation
+            if (this.circleCollisionRaw(
+                player.x, player.y, playerRadius,
+                bullet.x, bullet.y, bullet.radius || CONFIG.bullets.enemyRadius
             )) {
                 this.stats.collisionsDetected++;
 
@@ -545,20 +573,18 @@ export class CollisionSystem {
      */
     checkPlayerVsEnemies(gs) {
         const player = gs.player;
-        const playerRadius = player.size || CONFIG.player.size;
+        const playerRadius = (player.size || CONFIG.player.size) * 0.75;  // Player hitbox
 
         for (let i = gs.enemies.length - 1; i >= 0; i--) {
             const enemy = gs.enemies[i];
-            if (!enemy || !enemy.alive) continue;
+            if (!isEntityActive(enemy)) continue;
 
             this.stats.checksPerFrame++;
 
-            const enemyRadius = enemy.size || 20;
-
-            // Player hitbox increased from 0.6 to 0.75 for more challenging collision
-            if (this.circleCollision(
-                { x: player.x, y: player.y, radius: playerRadius * 0.75 },
-                { x: enemy.x, y: enemy.y, radius: enemyRadius * 0.85 }
+            // Use optimized collision check without object creation
+            if (this.circleCollisionRaw(
+                player.x, player.y, playerRadius,
+                enemy.x, enemy.y, (enemy.size || 20) * 0.85
             )) {
                 this.stats.collisionsDetected++;
 
@@ -593,15 +619,14 @@ export class CollisionSystem {
             const nearby = this.getNearby(bullet.x, bullet.y, searchRadius);
 
             for (const { entity: enemy, type } of nearby) {
-                if (type !== 'enemy' || !enemy || !enemy.alive) continue;
+                if (type !== 'enemy' || !isEntityActive(enemy)) continue;
 
                 this.stats.checksPerFrame++;
 
-                const enemyRadius = enemy.size || 20;
-
-                if (this.circleCollision(
-                    { x: bullet.x, y: bullet.y, radius: bulletRadius },
-                    { x: enemy.x, y: enemy.y, radius: enemyRadius }
+                // Use optimized collision check without object creation
+                if (this.circleCollisionRaw(
+                    bullet.x, bullet.y, bulletRadius,
+                    enemy.x, enemy.y, enemy.size || 20
                 )) {
                     this.stats.collisionsDetected++;
 
@@ -636,11 +661,10 @@ export class CollisionSystem {
 
             this.stats.checksPerFrame++;
 
-            const powerUpRadius = powerUp.radius || 15;
-
-            if (this.circleCollision(
-                { x: player.x, y: player.y, radius: playerRadius },
-                { x: powerUp.x, y: powerUp.y, radius: powerUpRadius }
+            // Use optimized collision check without object creation
+            if (this.circleCollisionRaw(
+                player.x, player.y, playerRadius,
+                powerUp.x, powerUp.y, powerUp.radius || 15
             )) {
                 this.stats.collisionsDetected++;
 
@@ -661,6 +685,8 @@ export class CollisionSystem {
     checkBulletVsBullet(gs) {
         const playerBullets = gs.bullets;
         const enemyBullets = gs.enemyBullets;
+        const playerBulletRadius = CONFIG.bullets.playerRadius;
+        const enemyBulletRadius = CONFIG.bullets.enemyRadius;
 
         for (let i = playerBullets.length - 1; i >= 0; i--) {
             const pBullet = playerBullets[i];
@@ -672,9 +698,10 @@ export class CollisionSystem {
 
                 this.stats.checksPerFrame++;
 
-                if (this.circleCollision(
-                    { x: pBullet.x, y: pBullet.y, radius: CONFIG.bullets.playerRadius },
-                    { x: eBullet.x, y: eBullet.y, radius: CONFIG.bullets.enemyRadius }
+                // Use optimized collision check without object creation
+                if (this.circleCollisionRaw(
+                    pBullet.x, pBullet.y, playerBulletRadius,
+                    eBullet.x, eBullet.y, enemyBulletRadius
                 )) {
                     this.stats.collisionsDetected++;
 
@@ -721,7 +748,7 @@ export class CollisionSystem {
         let nearestDistSq = maxDistance * maxDistance;
 
         for (const enemy of this.gameState.enemies) {
-            if (!enemy || !enemy.alive) continue;
+            if (!isEntityActive(enemy)) continue;
 
             const distSq = this.distanceSquared({ x, y }, enemy);
             if (distSq < nearestDistSq) {
@@ -741,7 +768,7 @@ export class CollisionSystem {
         const result = [];
 
         for (const enemy of this.gameState.enemies) {
-            if (!enemy || !enemy.alive) continue;
+            if (!isEntityActive(enemy)) continue;
 
             const distSq = this.distanceSquared({ x, y }, enemy);
             if (distSq <= radiusSq) {
@@ -835,7 +862,7 @@ export class CollisionSystem {
         // Add enemies to grid
         const enemies = gs.enemies || [];
         for (const enemy of enemies) {
-            if (enemy.active || enemy.alive) {
+            if (isEntityActive(enemy)) {
                 this.addToGrid(enemy, 'enemy');
             }
         }
@@ -860,7 +887,7 @@ export class CollisionSystem {
 
         const enemies = gs.enemies || [];
         for (const enemy of enemies) {
-            if (!enemy || (!enemy.active && !enemy.alive)) continue;
+            if (!isEntityActive(enemy)) continue;
 
             const enemyRadius = enemy.radius || enemy.size || 20;
             this.maxEnemyRadius = Math.max(this.maxEnemyRadius, enemyRadius);

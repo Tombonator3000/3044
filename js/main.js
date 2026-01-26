@@ -2091,9 +2091,10 @@ function update(deltaTime) {
                 if (bullet.active && bullet.isPlayerBullet) {
                     const dx = bullet.x - ufo.x;
                     const dy = bullet.y - ufo.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    // Use squared distance to avoid sqrt - optimization
+                    const distanceSq = dx * dx + dy * dy;
 
-                    if (distance < ufo.size) {
+                    if (distanceSq < ufo.size * ufo.size) {
                         bullet.active = false;
                         ufo.takeDamage(bullet.damage || 1);
 

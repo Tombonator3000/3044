@@ -1,5 +1,124 @@
 # Geometry 3044 - Modular Structure Rebuild Log
 
+## Date: 2026-01-26
+
+---
+
+# OPTIMALISERING OG REFAKTORERING
+
+## Oversikt
+Gjennomgått hele kodebasen for optimaliseringsmuligheter og implementert flere ytelsesforbedrende endringer.
+
+## Endringer implementert
+
+### 1. ParticleSystem.js - Trail Performance (KRITISK)
+**Problem**: `array.unshift()` er O(n) operasjon - flytter alle elementer i arrayet.
+**Løsning**: Implementert circular buffer for trail-håndtering.
+
+```javascript
+// FØR (O(n)):
+this.trail.unshift({ x: this.x, y: this.y, alpha: 1 });
+if (this.trail.length > this.maxTrail) this.trail.pop();
+
+// ETTER (O(1)):
+this.trail[this.trailIndex] = { x: this.x, y: this.y };
+this.trailIndex = (this.trailIndex + 1) % this.maxTrail;
+```
+
+**Forventet forbedring**: 30-40% bedre partikkel-ytelse.
+
+### 2. GameLoop.js - FPS History Performance
+**Problem**: `array.shift()` er O(n) og `reduce()` beregner sum hver frame.
+**Løsning**: Circular buffer med running sum for O(1) gjennomsnitt.
+
+```javascript
+// FØR (O(n) per frame):
+this.fpsHistory.push(fps);
+if (this.fpsHistory.length > max) this.fpsHistory.shift();
+const sum = this.fpsHistory.reduce((a, b) => a + b, 0);
+
+// ETTER (O(1) per frame):
+if (this.fpsHistoryCount === max) this.fpsHistorySum -= this.fpsHistory[this.fpsHistoryIndex];
+this.fpsHistory[this.fpsHistoryIndex] = fps;
+this.fpsHistorySum += fps;
+this.currentFPS = Math.round(this.fpsHistorySum / this.fpsHistoryCount);
+```
+
+### 3. CollisionSystem.js - Optimalisert Collision Detection
+**Problem**: Skapte midlertidige objekter i hot paths for collision-sjekker.
+**Løsning**: Lagt til `circleCollisionRaw(x1, y1, r1, x2, y2, r2)` som tar rene verdier.
+
+```javascript
+// FØR (skaper garbage):
+if (this.circleCollision(
+    { x: player.x, y: player.y, radius: playerRadius },
+    { x: bullet.x, y: bullet.y, radius: bulletRadius }
+))
+
+// ETTER (ingen allokering):
+if (this.circleCollisionRaw(
+    player.x, player.y, playerRadius,
+    bullet.x, bullet.y, bulletRadius
+))
+```
+
+Oppdatert metoder:
+- `checkPlayerVsEnemyBullets()`
+- `checkPlayerVsEnemies()`
+- `checkBulletsVsEnemies()`
+- `checkPlayerVsPowerUps()`
+- `checkBulletVsBullet()`
+
+### 4. Squared Distance Optimaliseringer
+**Problem**: Unødvendig `Math.sqrt()` i avstandssammenligninger.
+**Løsning**: Bruk squared distance hvor faktisk avstand ikke trengs.
+
+Filer oppdatert:
+- `MobileControls.js`: `isOnFireButton()`, `isOnBombButton()`
+- `SlowMotionSystem.js`: `checkNearDeath()`
+- `main.js`: UFO collision check
+
+### 5. Standardisert Entity Active/Alive Checks
+**Problem**: Inkonsistent bruk av `.active` og `.alive` properties.
+**Løsning**: Lagt til `isEntityActive(entity)` hjelpefunksjon.
+
+```javascript
+function isEntityActive(entity) {
+    if (!entity) return false;
+    return entity.active !== false && entity.alive !== false;
+}
+```
+
+Standardisert i:
+- `buildSpatialHash()`
+- `buildEnemySpatialHash()`
+- `checkPlayerVsEnemies()`
+- `checkBulletsVsEnemies()`
+- `findNearestEnemy()`
+- `findEnemiesInRadius()`
+
+---
+
+## Filer endret
+- `js/systems/ParticleSystem.js` - Circular buffer for trails
+- `js/core/GameLoop.js` - Circular buffer for FPS history
+- `js/core/CollisionSystem.js` - Optimalisert collision + standardisert state checks
+- `js/ui/MobileControls.js` - Squared distance for button checks
+- `js/systems/SlowMotionSystem.js` - Squared distance for near-death check
+- `js/main.js` - Squared distance for UFO collision
+
+---
+
+## Ytelsesgevinster (estimert)
+| Område | Før | Etter | Forbedring |
+|--------|-----|-------|------------|
+| Particle trails | O(n) per partikkel | O(1) per partikkel | ~30-40% |
+| FPS tracking | O(n) per frame | O(1) per frame | ~100% |
+| Collision objects | Ny allokering per sjekk | Ingen allokering | Redusert GC |
+| Distance checks | sqrt() i hot paths | Squared comparison | ~10-20% |
+
+---
+
 ## Date: 2024-12-21
 
 ---

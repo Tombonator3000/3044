@@ -213,22 +213,26 @@ export class MobileControls {
 
     /**
      * Check if position is on fire button
+     * Optimized: uses squared distance to avoid sqrt
      */
     isOnFireButton(x, y) {
         const dx = x - this.fireButton.x;
         const dy = y - this.fireButton.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        return dist <= this.fireButtonRadius * 1.5; // Larger touch area
+        const distSq = dx * dx + dy * dy;
+        const radiusSq = (this.fireButtonRadius * 1.5) ** 2; // Larger touch area
+        return distSq <= radiusSq;
     }
 
     /**
      * Check if position is on bomb button
+     * Optimized: uses squared distance to avoid sqrt
      */
     isOnBombButton(x, y) {
         const dx = x - this.bombButton.x;
         const dy = y - this.bombButton.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        return dist <= this.bombButtonRadius * 1.5; // Larger touch area
+        const distSq = dx * dx + dy * dy;
+        const radiusSq = (this.bombButtonRadius * 1.5) ** 2; // Larger touch area
+        return distSq <= radiusSq;
     }
 
     /**
