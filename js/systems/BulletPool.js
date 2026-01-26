@@ -49,7 +49,10 @@ export class BulletPool {
             trailIndex: 0,
             trailCount: 0,
             lifetime: 0,
-            maxLifetime: 300  // 5 seconds
+            maxLifetime: 300,  // 5 seconds
+            // Performance: cached angle to avoid recalculating in draw()
+            _cachedAngle: 0,
+            _cachedSpeed: 0
         };
         bullet.trail = this.createTrail(bullet.maxTrailLength);
         return bullet;
@@ -175,6 +178,10 @@ export class BulletPool {
             bullet.y += bullet.vy * scaledDeltaTime;
             bullet.lifetime += scaledDeltaTime;
 
+            // Cache angle and speed for draw() - avoids Math.atan2/hypot in render loop
+            bullet._cachedAngle = Math.atan2(bullet.vy, bullet.vx);
+            bullet._cachedSpeed = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy);
+
             // Bounce off walls
             if (bullet.bounce && bullet.bounceHits < bullet.bounceCount) {
                 if (bullet.x < 0 || bullet.x > canvas.logicalWidth) {
@@ -200,14 +207,17 @@ export class BulletPool {
 
     findNearestTarget(bullet, enemies) {
         let nearest = null;
-        let nearestDist = Infinity;
+        let nearestDistSq = 90000; // 300^2 - max range squared
 
         for (const enemy of enemies) {
             if (!enemy.active) continue;
 
-            const dist = Math.hypot(enemy.x - bullet.x, enemy.y - bullet.y);
-            if (dist < nearestDist && dist < 300) {
-                nearestDist = dist;
+            // Use squared distance to avoid expensive Math.sqrt
+            const dx = enemy.x - bullet.x;
+            const dy = enemy.y - bullet.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < nearestDistSq) {
+                nearestDistSq = distSq;
                 nearest = enemy;
             }
         }
@@ -223,8 +233,8 @@ export class BulletPool {
 
             ctx.save();
 
-            // Calculate bullet angle from velocity
-            const angle = Math.atan2(bullet.vy, bullet.vx);
+            // Use cached angle from update() - avoids expensive Math.atan2 per frame
+            const angle = bullet._cachedAngle;
 
             // Draw specialized bullet based on type
             if (bullet.quantum) {
@@ -447,8 +457,8 @@ export class BulletPool {
         ctx.arc(0, -size * 0.8, size * 0.25, 0, Math.PI * 2);
         ctx.fill();
 
-        // Thruster flame
-        const flicker = 0.8 + Math.random() * 0.4;
+        // Thruster flame - use time-based flicker instead of Math.random()
+        const flicker = 0.8 + Math.sin(time * 30 + bullet.x * 0.1) * 0.2 + 0.2;
         ctx.fillStyle = `rgba(255, 255, 200, ${flicker})`;
         ctx.shadowColor = '#ffff00';
         ctx.beginPath();
@@ -631,9 +641,10 @@ export class BulletPool {
 
                 ctx.globalAlpha = alpha;
                 ctx.beginPath();
-                // Zigzag between points
-                const midX = (point.x + prevPoint.x) / 2 + (Math.random() - 0.5) * 10;
-                const midY = (point.y + prevPoint.y) / 2 + (Math.random() - 0.5) * 10;
+                // Zigzag between points - use deterministic offset based on position and index
+                const offsetSeed = i * 7 + bullet.x * 0.1;
+                const midX = (point.x + prevPoint.x) / 2 + Math.sin(time * 15 + offsetSeed) * 5;
+                const midY = (point.y + prevPoint.y) / 2 + Math.cos(time * 15 + offsetSeed) * 5;
                 ctx.moveTo(prevPoint.x, prevPoint.y);
                 ctx.lineTo(midX, midY);
                 ctx.lineTo(point.x, point.y);
@@ -660,8 +671,10 @@ export class BulletPool {
             let x = 0, y = 0;
             const segments = 3;
             for (let j = 0; j < segments; j++) {
-                const segAngle = baseAngle + (Math.random() - 0.5) * 1.5;
-                const segLen = size * (0.8 + Math.random() * 0.6);
+                // Deterministic variation using time and indices instead of Math.random()
+                const seed = i * 17 + j * 7 + bullet.x * 0.05;
+                const segAngle = baseAngle + Math.sin(time * 8 + seed) * 0.75;
+                const segLen = size * (0.8 + Math.sin(time * 12 + seed * 2) * 0.3 + 0.3);
                 x += Math.cos(segAngle) * segLen;
                 y += Math.sin(segAngle) * segLen;
                 ctx.lineTo(x, y);
@@ -760,8 +773,8 @@ export class BulletPool {
         ctx.arc(0, 0, size * pulse, 0, Math.PI * 2);
         ctx.fill();
 
-        // Fuse spark
-        const sparkSize = size * 0.4 + Math.random() * size * 0.3;
+        // Fuse spark - use time-based variation instead of Math.random()
+        const sparkSize = size * 0.4 + Math.sin(time * 25 + bullet.y * 0.1) * size * 0.15 + size * 0.15;
         ctx.fillStyle = '#ffff00';
         ctx.shadowColor = '#ffff00';
         ctx.shadowBlur = 15;
@@ -928,11 +941,16 @@ export class BulletPool {
 
         // Explosive bullets
         if (bullet.explosive && gameState?.enemies) {
+            const explosionRadiusSq = bullet.explosionRadius * bullet.explosionRadius;
             for (const enemy of gameState.enemies) {
                 if (!enemy.active || enemy === target) continue;
 
-                const dist = Math.hypot(enemy.x - bullet.x, enemy.y - bullet.y);
-                if (dist < bullet.explosionRadius) {
+                // Use squared distance first, only calculate sqrt when needed for damage
+                const dx = enemy.x - bullet.x;
+                const dy = enemy.y - bullet.y;
+                const distSq = dx * dx + dy * dy;
+                if (distSq < explosionRadiusSq) {
+                    const dist = Math.sqrt(distSq);
                     const explosionDamage = Math.ceil(bullet.damage * (1 - dist / bullet.explosionRadius));
                     enemy.takeDamage?.(explosionDamage);
                 }
@@ -949,14 +967,18 @@ export class BulletPool {
 
     findChainTarget(bullet, excludeTarget, enemies) {
         let nearest = null;
-        let nearestDist = Infinity;
+        const chainRangeSq = bullet.chainRange * bullet.chainRange;
+        let nearestDistSq = chainRangeSq;
 
         for (const enemy of enemies) {
             if (!enemy.active || enemy === excludeTarget) continue;
 
-            const dist = Math.hypot(enemy.x - bullet.x, enemy.y - bullet.y);
-            if (dist < bullet.chainRange && dist < nearestDist) {
-                nearestDist = dist;
+            // Use squared distance to avoid expensive Math.sqrt
+            const dx = enemy.x - bullet.x;
+            const dy = enemy.y - bullet.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < nearestDistSq) {
+                nearestDistSq = distSq;
                 nearest = enemy;
             }
         }

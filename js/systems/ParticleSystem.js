@@ -1000,6 +1000,10 @@ export class ParticleSystem {
             }
         };
 
+        // Pre-allocated reusable arrays for batched drawing - avoids GC pressure
+        this._normalBatch = [];
+        this._glowBatch = [];
+
         // Pre-allocate particle pool
         for (let i = 0; i < this.maxParticles; i++) {
             const particle = new Particle();
@@ -1370,11 +1374,13 @@ export class ParticleSystem {
      * @private
      */
     _drawBatched(ctx) {
-        // Batch particles by rendering requirements
-        const normalBatch = [];
-        const glowBatch = [];  // Types that use additive blending
+        // Reuse pre-allocated arrays instead of creating new ones each frame
+        const normalBatch = this._normalBatch;
+        const glowBatch = this._glowBatch;
+        normalBatch.length = 0;  // Clear without reallocating
+        glowBatch.length = 0;
 
-        const glowTypes = new Set(['gwline', 'line', 'gwglow', 'gwshockwave', 'plasma', 'ember', 'vortex']);
+        const glowTypes = ParticleSystem._glowTypes;
 
         for (let i = 0; i < this.particles.length; i++) {
             const particle = this.particles[i];
@@ -3287,3 +3293,6 @@ export class ParticleSystem {
         }
     }
 }
+
+// Static glow types set - created once, reused in _drawBatched() to avoid allocation
+ParticleSystem._glowTypes = new Set(['gwline', 'line', 'gwglow', 'gwshockwave', 'plasma', 'ember', 'vortex']);

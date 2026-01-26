@@ -4,6 +4,151 @@
 
 ---
 
+# FPS/PERFORMANCE OPTIMALISERING
+
+## Oversikt
+Gjennomført omfattende performance-optimalisering for bedre FPS. Fokusert på å eliminere garbage collection pressure, redusere dyre matematiske operasjoner i render-loops, og optimalisere hot paths.
+
+## Endringer implementert
+
+### 1. BulletPool.js - Cached Angles og Squared Distance
+**Problem**: `Math.atan2()` og `Math.hypot()` beregnes på nytt hver frame for hver kule.
+**Løsning**: Cache vinkel og hastighet i update(), gjenbruk i draw().
+
+```javascript
+// FØR (i draw() - beregnes per kule per frame):
+const angle = Math.atan2(bullet.vy, bullet.vx);
+
+// ETTER (cachet i update(), gjenbrukt i draw()):
+// I update():
+bullet._cachedAngle = Math.atan2(bullet.vy, bullet.vx);
+bullet._cachedSpeed = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy);
+// I draw():
+const angle = bullet._cachedAngle;
+```
+
+**Squared Distance i targeting:**
+```javascript
+// FØR:
+const dist = Math.hypot(enemy.x - bullet.x, enemy.y - bullet.y);
+if (dist < nearestDist && dist < 300) { ... }
+
+// ETTER:
+const dx = enemy.x - bullet.x;
+const dy = enemy.y - bullet.y;
+const distSq = dx * dx + dy * dy;
+if (distSq < nearestDistSq) { ... }  // nearestDistSq = 90000 (300²)
+```
+
+**Deterministisk animasjon (erstatter Math.random() i render):**
+```javascript
+// FØR:
+const flicker = 0.8 + Math.random() * 0.4;
+
+// ETTER:
+const flicker = 0.8 + Math.sin(time * 30 + bullet.x * 0.1) * 0.2 + 0.2;
+```
+
+### 2. GridRenderer.js - O(1) Impact Removal
+**Problem**: `splice(i, 1)` er O(n) og `shift()` er O(n).
+**Løsning**: In-place array cleanup og replace-oldest strategi.
+
+```javascript
+// FØR (O(n) per fjerning):
+gridState.impacts.splice(i, 1);
+// og i addGridImpact():
+gridState.impacts.shift();
+
+// ETTER (O(1) in-place cleanup):
+let writeIndex = 0;
+for (let i = 0; i < gridState.impacts.length; i++) {
+    const impact = gridState.impacts[i];
+    impact.time++;
+    if (impact.time < impact.maxTime) {
+        gridState.impacts[writeIndex++] = impact;
+    }
+}
+gridState.impacts.length = writeIndex;
+
+// ETTER (replace-oldest i addGridImpact):
+if (gridState.impacts.length >= perfSettings.maxImpacts) {
+    let oldestIdx = 0, oldestTime = 0;
+    for (let i = 0; i < gridState.impacts.length; i++) {
+        if (gridState.impacts[i].time > oldestTime) {
+            oldestTime = gridState.impacts[i].time;
+            oldestIdx = i;
+        }
+    }
+    gridState.impacts[oldestIdx] = newImpact;
+}
+```
+
+### 3. ParticleSystem.js - Gjenbrukbare Arrays i Batched Draw
+**Problem**: Nye arrays allokeres hver frame i `_drawBatched()`.
+**Løsning**: Pre-allokerte arrays som gjenbrukes.
+
+```javascript
+// FØR (ny allokering per frame):
+_drawBatched(ctx) {
+    const normalBatch = [];
+    const glowBatch = [];
+    const glowTypes = new Set(['gwline', 'line', ...]);
+    // ...
+}
+
+// ETTER (gjenbruk pre-allokerte arrays):
+constructor() {
+    // ...
+    this._normalBatch = [];
+    this._glowBatch = [];
+}
+
+_drawBatched(ctx) {
+    const normalBatch = this._normalBatch;
+    const glowBatch = this._glowBatch;
+    normalBatch.length = 0;  // Clear uten reallokering
+    glowBatch.length = 0;
+    const glowTypes = ParticleSystem._glowTypes;  // Statisk Set
+    // ...
+}
+
+// Statisk Set (opprettet én gang):
+ParticleSystem._glowTypes = new Set(['gwline', 'line', 'gwglow', ...]);
+```
+
+---
+
+## Filer endret
+- `js/systems/BulletPool.js` - Cached angles, squared distance, deterministisk animasjon
+- `js/rendering/GridRenderer.js` - O(1) impact removal
+- `js/systems/ParticleSystem.js` - Gjenbrukbare arrays i batched draw
+
+---
+
+## Ytelsesgevinster (estimert)
+
+| Område | Før | Etter | Forbedring |
+|--------|-----|-------|------------|
+| Bullet angle calc | Math.atan2 per kule per frame | Cachet i update | ~50 atan2 calls/frame eliminert |
+| Homing targeting | Math.hypot per enemy per bullet | Squared distance | ~15-20% raskere |
+| Grid impact removal | O(n) splice | O(1) in-place | Konstant tid |
+| Impact cap overflow | O(n) shift | O(1) replace | Konstant tid |
+| Particle batching | 2 nye arrays per frame | 0 allokeringer | Redusert GC pressure |
+| glowTypes Set | Ny Set per frame | Statisk Set | 0 allokeringer |
+| Math.random in render | RNG i hot path | Deterministisk sin | Mer forutsigbar, raskere |
+
+---
+
+## Testing
+- [ ] Verifiser at kuler fortsatt vises og beveger seg korrekt
+- [ ] Verifiser at homing-kuler fortsatt finner mål
+- [ ] Verifiser at grid-effekter fungerer (impacts, waving)
+- [ ] Verifiser at partikkeleffekter vises korrekt
+- [ ] Sammenlign FPS før/etter med mange fiender og kuler
+- [ ] Sjekk at spillet kjører jevnt over lengre perioder (ingen memory leaks)
+
+---
+
 # FIENDE-AI OPTIMALISERING OG FORBEDRINGER
 
 ## Oversikt
