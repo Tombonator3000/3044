@@ -4,6 +4,149 @@
 
 ---
 
+# WAVE OPTIMERING OG FLERE FIENDER
+
+## Oversikt
+Økt antall fiender per wave betydelig og optimalisert ytelseskritiske områder i kodebasen for bedre gameplay intensitet og ytelse.
+
+## Endringer implementert
+
+### 1. WaveManager.js - Flere fiender per wave
+**Problem**: For få fiender per wave, gameplay var for rolig.
+**Løsning**: Økt base, perWave og bonus verdier betydelig.
+
+```javascript
+// FØR:
+const base = 10;
+const perWave = Math.floor(5 * waveScaling);
+const bonus = Math.floor(wave / 5) * Math.floor(8 * waveScaling);
+// Wave 1: 15 enemies, Wave 5: 43 enemies, Wave 10: 78 enemies
+
+// ETTER:
+const base = 15;
+const perWave = Math.floor(7 * waveScaling);
+const bonus = Math.floor(wave / 5) * Math.floor(12 * waveScaling);
+// Wave 1: 22 enemies, Wave 5: 62 enemies, Wave 10: 109 enemies
+```
+
+### 2. WaveManager.js - Raskere spawn rate
+**Problem**: For lang tid mellom enemy spawns.
+**Løsning**: Redusert spawn delay og minimum verdier.
+
+```javascript
+// FØR:
+const baseSpawnDelay = Math.max(25, 60 - (waveNum * 2));
+this.spawnDelay = Math.max(18, Math.floor(baseSpawnDelay * difficulty.spawnDelay));
+
+// ETTER:
+const baseSpawnDelay = Math.max(15, 50 - (waveNum * 2));
+this.spawnDelay = Math.max(12, Math.floor(baseSpawnDelay * difficulty.spawnDelay));
+```
+
+### 3. WaveManager.js - Flere gruppe-spawns
+**Problem**: Fiender kom hovedsakelig én og én.
+**Løsning**: Økt sannsynlighet og tidligere start for gruppe-spawning.
+
+```javascript
+// FØR:
+if (this.wave >= 3 && Math.random() < 0.5) { // pair spawn }
+if (this.wave >= 10 && Math.random() < 0.4) { // triple spawn }
+
+// ETTER:
+if (this.wave >= 2 && Math.random() < 0.6) { // pair spawn (earlier + higher chance) }
+if (this.wave >= 7 && Math.random() < 0.5) { // triple spawn (earlier + higher chance) }
+```
+
+### 4. UFOManager.js - In-place array cleanup
+**Problem**: `filter()` allokerer nytt array hver frame.
+**Løsning**: In-place removal med write-index pattern.
+
+```javascript
+// FØR (ny array-allokering):
+this.ufos = this.ufos.filter(ufo => ufo.active);
+
+// ETTER (ingen allokering):
+let writeIndex = 0;
+for (let i = 0; i < this.ufos.length; i++) {
+    if (this.ufos[i].active) {
+        this.ufos[writeIndex++] = this.ufos[i];
+    }
+}
+this.ufos.length = writeIndex;
+```
+
+### 5. Enemy.js - Optimalisert neonTrails cleanup
+**Problem**: `filter()` for trails allokerer nytt array.
+**Løsning**: In-place removal med write-index pattern.
+
+```javascript
+// FØR:
+this.neonTrails = this.neonTrails.filter(t => {
+    t.life -= deltaTime;
+    return t.life > 0;
+});
+
+// ETTER:
+let writeIdx = 0;
+for (let i = 0; i < this.neonTrails.length; i++) {
+    const t = this.neonTrails[i];
+    t.life -= deltaTime;
+    if (t.life > 0) {
+        this.neonTrails[writeIdx++] = t;
+    }
+}
+this.neonTrails.length = writeIdx;
+```
+
+### 6. GrazingSystem.js - Optimalisert effects cleanup og add
+**Problem**: `filter()` og `shift()` er ineffektive operasjoner.
+**Løsning**: In-place removal og replace-oldest strategi.
+
+```javascript
+// FØR (shift er O(n)):
+if (this.grazeEffects.length >= this.maxEffects) {
+    this.grazeEffects.shift();
+}
+
+// ETTER (replace oldest er O(n) søk men O(1) replace):
+let minLifeIdx = 0;
+for (let i = 1; i < this.grazeEffects.length; i++) {
+    if (this.grazeEffects[i].life < minLife) minLifeIdx = i;
+}
+this.grazeEffects[minLifeIdx] = effect;
+```
+
+---
+
+## Filer endret
+- `js/systems/WaveManager.js` - Flere fiender, raskere spawn, mer gruppe-spawning
+- `js/systems/UFOManager.js` - In-place array cleanup, optimalisert draw
+- `js/entities/Enemy.js` - In-place neonTrails cleanup
+- `js/systems/GrazingSystem.js` - In-place effects cleanup, optimalisert add
+
+---
+
+## Ytelsesgevinster (estimert)
+| Område | Endring | Forbedring |
+|--------|---------|------------|
+| Enemy count | +47% wave 1, +80% wave 10 | Mer intens gameplay |
+| Spawn rate | -17% delay | Raskere action |
+| Array allocations | Eliminert i hot paths | Redusert GC pressure |
+| UFO cleanup | O(1) per UFO | Konsistent ytelse |
+| Trail cleanup | O(1) per trail | Konsistent ytelse |
+
+---
+
+## Testing
+- [ ] Verifiser at wave 1 spawner ~22 fiender
+- [ ] Verifiser at gruppe-spawn starter fra wave 2
+- [ ] Verifiser at triple-spawn starter fra wave 7
+- [ ] Sjekk at UFOs fortsatt fungerer normalt
+- [ ] Sjekk at enemy neon trails vises korrekt
+- [ ] Sjekk at grazing system fungerer
+
+---
+
 # AGENTS.MD OG TODO.MD DOKUMENTASJON
 
 ## Oversikt

@@ -128,6 +128,7 @@ export class UFOManager {
 
     /**
      * Update all UFOs
+     * OPTIMIZED: Uses in-place removal instead of filter() to avoid array allocation
      */
     update() {
         this.spawnTimer++;
@@ -140,15 +141,19 @@ export class UFOManager {
             }
         }
 
-        // Update all UFOs
-        this.ufos.forEach(ufo => {
+        // Update all UFOs and remove inactive ones in-place (O(n) single pass)
+        let writeIndex = 0;
+        for (let i = 0; i < this.ufos.length; i++) {
+            const ufo = this.ufos[i];
             if (ufo.active) {
                 ufo.update();
+                // Keep active UFOs
+                if (ufo.active) {
+                    this.ufos[writeIndex++] = ufo;
+                }
             }
-        });
-
-        // Remove inactive UFOs
-        this.ufos = this.ufos.filter(ufo => ufo.active);
+        }
+        this.ufos.length = writeIndex;
     }
 
     /**
@@ -179,21 +184,22 @@ export class UFOManager {
 
     /**
      * Get all active UFOs for collision detection
+     * OPTIMIZED: Returns direct reference since inactive UFOs are removed in update()
      * @returns {Array} Active UFOs
      */
     getActiveUFOs() {
-        return this.ufos.filter(ufo => ufo.active);
+        // Since we clean up in update(), all UFOs in the array should be active
+        return this.ufos;
     }
 
     /**
      * Draw all UFOs
+     * OPTIMIZED: Uses for loop instead of forEach
      * @param {CanvasRenderingContext2D} ctx - Canvas context
      */
     draw(ctx) {
-        this.ufos.forEach(ufo => {
-            if (ufo.active) {
-                ufo.draw(ctx);
-            }
-        });
+        for (let i = 0; i < this.ufos.length; i++) {
+            this.ufos[i].draw(ctx);
+        }
     }
 }

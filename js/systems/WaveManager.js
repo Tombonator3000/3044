@@ -231,9 +231,9 @@ export class WaveManager {
         this.enemiesPerWave = Math.max(5, Math.floor(baseEnemies * difficulty.enemyCount));
 
         // Adjust spawn rate for higher waves (faster spawning) with difficulty multiplier
-        // Wave 1: 60 frames, Wave 10: 40 frames, Wave 20+: 25 frames minimum (balanced)
-        const baseSpawnDelay = Math.max(25, 60 - (waveNum * 2));  // Slower scaling, higher minimum
-        this.spawnDelay = Math.max(18, Math.floor(baseSpawnDelay * difficulty.spawnDelay));  // Higher floor
+        // Wave 1: 50 frames, Wave 10: 30 frames, Wave 20+: 15 frames minimum (more intense)
+        const baseSpawnDelay = Math.max(15, 50 - (waveNum * 2));  // Faster scaling, lower minimum
+        this.spawnDelay = Math.max(12, Math.floor(baseSpawnDelay * difficulty.spawnDelay));  // Lower floor for more intensity
 
         // Setup asteroid spawning for asteroid waves
         this.asteroidsSpawned = 0;
@@ -250,15 +250,17 @@ export class WaveManager {
     }
 
     calculateEnemiesPerWave(wave, waveScaling = 1.0) {
-        // Base enemies + scaling (increased for more intense gameplay)
+        // Base enemies + scaling (INCREASED for more intense gameplay)
         // waveScaling affects how fast difficulty ramps up per wave
-        const base = 10;
-        const perWave = Math.floor(5 * waveScaling);
-        const bonus = Math.floor(wave / 5) * Math.floor(8 * waveScaling);
+        const base = 15;  // Increased from 10
+        const perWave = Math.floor(7 * waveScaling);  // Increased from 5
+        const bonus = Math.floor(wave / 5) * Math.floor(12 * waveScaling);  // Increased from 8
 
-        // Normal difficulty - Wave 1: 10 + 5 + 0 = 15 enemies
-        // Easy difficulty (0.5x scaling) - Wave 1: 10 + 2 + 0 = 12 enemies
-        // Extreme difficulty (1.8x scaling) - Wave 1: 10 + 9 + 0 = 19 enemies
+        // Normal difficulty - Wave 1: 15 + 7 + 0 = 22 enemies
+        // Wave 5: 15 + 35 + 12 = 62 enemies
+        // Wave 10: 15 + 70 + 24 = 109 enemies
+        // Easy difficulty (0.5x scaling) - Wave 1: 15 + 3 + 0 = 18 enemies
+        // Extreme difficulty (1.8x scaling) - Wave 1: 15 + 12 + 0 = 27 enemies
         return base + (wave * perWave) + bonus;
     }
 
@@ -363,8 +365,8 @@ export class WaveManager {
             this.enemiesSpawned++;
             this.spawnTimer = this.spawnDelay;
 
-            // Spawn in pairs/groups for later waves (increased chance and earlier start)
-            if (this.wave >= 3 && Math.random() < 0.5 && this.enemiesSpawned < this.enemiesPerWave) {
+            // Spawn in pairs/groups for later waves (higher chance and earlier start)
+            if (this.wave >= 2 && Math.random() < 0.6 && this.enemiesSpawned < this.enemiesPerWave) {
                 const extraType = this.getEnemyTypeForWave(this.wave);
                 const extraPos = this.getSpawnPosition(canvas, extraType, sidescrollerMode);
                 const extraEnemy = new Enemy(extraPos.x, extraPos.y, extraType, gameState);
@@ -378,8 +380,8 @@ export class WaveManager {
 
                 this.enemiesSpawned++;
 
-                // Triple spawn chance for wave 10+
-                if (this.wave >= 10 && Math.random() < 0.4 && this.enemiesSpawned < this.enemiesPerWave) {
+                // Triple spawn chance for wave 7+
+                if (this.wave >= 7 && Math.random() < 0.5 && this.enemiesSpawned < this.enemiesPerWave) {
                     const thirdType = this.getEnemyTypeForWave(this.wave);
                     const thirdPos = this.getSpawnPosition(canvas, thirdType, sidescrollerMode);
                     const thirdEnemy = new Enemy(thirdPos.x, thirdPos.y, thirdType, gameState);
