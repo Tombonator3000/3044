@@ -69,18 +69,19 @@ export class SlowMotionSystem {
         if (this.cooldown > 0 || this.isActive) return false;
 
         const bullets = enemyBullets?.getActiveBullets?.() || enemyBullets?.bullets || enemyBullets || [];
-        const dangerRadius = 25; // Very close range
-        const playerHitbox = 10;
+        // Use squared distances to avoid sqrt - optimization
+        const dangerRadiusSq = 25 * 25; // 625
+        const playerHitboxSq = 10 * 10; // 100
 
         for (const bullet of bullets) {
             if (!bullet.active) continue;
 
             const dx = bullet.x - player.x;
             const dy = bullet.y - player.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const distSq = dx * dx + dy * dy;
 
-            // Check if bullet is extremely close and heading toward player
-            if (dist < dangerRadius && dist > playerHitbox) {
+            // Check if bullet is extremely close and heading toward player (using squared distances)
+            if (distSq < dangerRadiusSq && distSq > playerHitboxSq) {
                 // Check bullet direction
                 const bulletAngle = Math.atan2(bullet.vy || 0, bullet.vx || 0);
                 const toPlayerAngle = Math.atan2(dy, dx);

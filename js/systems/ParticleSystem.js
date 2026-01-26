@@ -172,9 +172,11 @@ particlePerfSettings.intensityMultiplier = resolveIntensityMultiplier(GameSettin
 class Particle {
     constructor() {
         this.reset();
-        // Motion blur trail for line particles
+        // Motion blur trail for line particles - using circular buffer for O(1) performance
         this.trail = [];
         this.maxTrail = 5;
+        this.trailIndex = 0;  // Circular buffer write index
+        this.trailCount = 0;  // Actual number of trail points
     }
 
     reset(x = 0, y = 0, options = {}) {
@@ -195,8 +197,11 @@ class Particle {
 
         // Line particle specific properties
         this.length = options.length || 8;
-        this.trail = [];
         this.maxTrail = options.maxTrail || 5;
+        // Reset circular buffer for trail
+        this.trail = new Array(this.maxTrail);
+        this.trailIndex = 0;
+        this.trailCount = 0;
 
         // Geometry Wars-style wall bouncing (default enabled for line/gwline particles)
         this.bounce = options.bounce !== undefined ? options.bounce :
@@ -210,13 +215,12 @@ class Particle {
         if (!this.active) return;
 
         // Store trail position for line particles with motion blur
+        // Using circular buffer for O(1) performance instead of unshift() which is O(n)
         if (this.type === 'line' || this.type === 'gwline') {
-            this.trail.unshift({ x: this.x, y: this.y, alpha: 1 });
-            if (this.trail.length > this.maxTrail) this.trail.pop();
-            // Update trail alpha
-            for (let i = 0; i < this.trail.length; i++) {
-                this.trail[i].alpha = 1 - (i / this.maxTrail);
-            }
+            // Write to current index in circular buffer
+            this.trail[this.trailIndex] = { x: this.x, y: this.y };
+            this.trailIndex = (this.trailIndex + 1) % this.maxTrail;
+            if (this.trailCount < this.maxTrail) this.trailCount++;
             // Line rotation follows velocity direction
             this.rotation = Math.atan2(this.vy, this.vx);
         }
@@ -756,21 +760,30 @@ class Particle {
         const x2 = this.x + cos * halfLen;
         const y2 = this.y + sin * halfLen;
 
-        // Draw motion blur trail using direct coordinates
-        if (this.trail && this.trail.length > 0) {
+        // Draw motion blur trail using circular buffer
+        // Iterate from oldest to newest for correct alpha ordering
+        if (this.trail && this.trailCount > 0) {
             ctx.save();
             ctx.globalCompositeOperation = 'source-over';
-            for (let i = 0; i < this.trail.length; i++) {
-                const t = this.trail[i];
-                const trailHalfLen = halfLen * 0.6;
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 3;
+            const trailHalfLen = halfLen * 0.6;
+
+            for (let i = 0; i < this.trailCount; i++) {
+                // Read from circular buffer: oldest first
+                const bufferIdx = (this.trailIndex - this.trailCount + i + this.maxTrail) % this.maxTrail;
+                const t = this.trail[bufferIdx];
+                if (!t) continue;
+
+                // Alpha: older = lower, newer = higher
+                const trailAlpha = (i + 1) / this.trailCount;
+
                 const tx1 = t.x - cos * trailHalfLen;
                 const ty1 = t.y - sin * trailHalfLen;
                 const tx2 = t.x + cos * trailHalfLen;
                 const ty2 = t.y + sin * trailHalfLen;
 
-                ctx.globalAlpha = visibleAlpha * t.alpha * 0.5;
-                ctx.strokeStyle = this.color;
-                ctx.lineWidth = 3;
+                ctx.globalAlpha = visibleAlpha * trailAlpha * 0.5;
                 ctx.beginPath();
                 ctx.moveTo(tx1, ty1);
                 ctx.lineTo(tx2, ty2);

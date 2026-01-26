@@ -47,9 +47,12 @@ export class GameLoop {
         this.deltaTime = 0;
         this.frameCount = 0;
 
-        // Performance monitoring
-        this.fpsHistory = [];
+        // Performance monitoring - using circular buffer for O(1) operations
+        this.fpsHistory = new Array(60);
         this.fpsHistoryMaxLength = 60;
+        this.fpsHistoryIndex = 0;
+        this.fpsHistoryCount = 0;
+        this.fpsHistorySum = 0;  // Running sum for O(1) average calculation
         this.currentFPS = 60;
         this.showFPS = false;
 
@@ -632,19 +635,25 @@ export class GameLoop {
     }
 
     /**
-     * Update FPS tracking
+     * Update FPS tracking - using circular buffer with running sum for O(1) operations
      */
     updateFPS(deltaTime) {
         const fps = 1000 / deltaTime;
-        this.fpsHistory.push(fps);
 
-        if (this.fpsHistory.length > this.fpsHistoryMaxLength) {
-            this.fpsHistory.shift();
+        // Subtract old value from running sum if buffer is full
+        if (this.fpsHistoryCount === this.fpsHistoryMaxLength) {
+            this.fpsHistorySum -= this.fpsHistory[this.fpsHistoryIndex] || 0;
+        } else {
+            this.fpsHistoryCount++;
         }
 
-        // Calculate average FPS
-        const sum = this.fpsHistory.reduce((a, b) => a + b, 0);
-        this.currentFPS = Math.round(sum / this.fpsHistory.length);
+        // Add new value to circular buffer and running sum
+        this.fpsHistory[this.fpsHistoryIndex] = fps;
+        this.fpsHistorySum += fps;
+        this.fpsHistoryIndex = (this.fpsHistoryIndex + 1) % this.fpsHistoryMaxLength;
+
+        // Calculate average FPS using running sum (O(1) instead of O(n))
+        this.currentFPS = Math.round(this.fpsHistorySum / this.fpsHistoryCount);
     }
 
     /**
