@@ -1,5 +1,96 @@
 # Geometry 3044 - Modular Structure Rebuild Log
 
+## Date: 2026-02-03
+
+---
+
+# MASSIVT ØKT ANTALL FIENDER
+
+## Oversikt
+Brukeren rapporterte at det var for få fiender i spillet. Implementerte betydelige økninger i fiendespawning for mer intens gameplay.
+
+## Endringer implementert
+
+### 1. WaveManager.js - Økt base fiender per wave
+**Problem**: For få fiender per wave, gameplay var for rolig.
+**Løsning**: Økt base, perWave og bonus verdier betydelig.
+
+```javascript
+// FØR:
+const base = 15;
+const perWave = Math.floor(7 * waveScaling);
+const bonus = Math.floor(wave / 5) * Math.floor(12 * waveScaling);
+// Wave 1: 22 enemies, Wave 5: 62 enemies, Wave 10: 109 enemies
+
+// ETTER:
+const base = 25;
+const perWave = Math.floor(12 * waveScaling);
+const bonus = Math.floor(wave / 5) * Math.floor(18 * waveScaling);
+// Wave 1: 37 enemies, Wave 5: 103 enemies, Wave 10: 181 enemies
+```
+
+### 2. WaveManager.js - Raskere spawn rate
+**Problem**: For lang tid mellom enemy spawns.
+**Løsning**: Redusert spawn delay og minimum verdier ytterligere.
+
+```javascript
+// FØR:
+const baseSpawnDelay = Math.max(15, 50 - (waveNum * 2));
+this.spawnDelay = Math.max(12, Math.floor(baseSpawnDelay * difficulty.spawnDelay));
+
+// ETTER:
+const baseSpawnDelay = Math.max(8, 40 - (waveNum * 2.5));
+this.spawnDelay = Math.max(6, Math.floor(baseSpawnDelay * difficulty.spawnDelay));
+```
+
+### 3. WaveManager.js - Forbedret gruppe-spawning
+**Problem**: Fiender kom hovedsakelig én og én.
+**Løsning**: Høyere sannsynlighet, tidligere start, og flere samtidige spawns.
+
+```javascript
+// FØR:
+if (this.wave >= 2 && Math.random() < 0.6) { // pair spawn }
+if (this.wave >= 7 && Math.random() < 0.5) { // triple spawn }
+
+// ETTER:
+if (Math.random() < 0.75) { // pair spawn fra wave 1 (75% sjanse) }
+if (this.wave >= 3 && Math.random() < 0.65) { // triple spawn (65% sjanse) }
+if (this.wave >= 6 && Math.random() < 0.5) { // quad spawn (50% sjanse) }
+if (this.wave >= 10 && Math.random() < 0.4) { // quint spawn (40% sjanse) }
+```
+
+---
+
+## Filer endret
+- `js/systems/WaveManager.js` - Flere fiender, raskere spawn, utvidet gruppe-spawning
+
+---
+
+## Ytelsesgevinster (estimert fiender)
+| Wave | Før | Etter | Økning |
+|------|-----|-------|--------|
+| 1 | 22 | 37 | +68% |
+| 5 | 62 | 103 | +66% |
+| 10 | 109 | 181 | +66% |
+
+Med gruppe-spawning (gjennomsnitt):
+- Wave 1: ~55 effektive fiender (1.5x multiplier fra par-spawn)
+- Wave 5: ~180 effektive fiender (1.75x fra triple-spawn)
+- Wave 10: ~320 effektive fiender (2x fra quint-spawn)
+
+---
+
+## Testing
+- [ ] Verifiser at wave 1 spawner ~37+ fiender
+- [ ] Verifiser at gruppe-spawn starter fra wave 1
+- [ ] Verifiser at triple-spawn starter fra wave 3
+- [ ] Verifiser at quad-spawn starter fra wave 6
+- [ ] Verifiser at quint-spawn starter fra wave 10
+- [ ] Sjekk at FPS holder seg stabilt med mange fiender
+- [ ] Balansere hvis det blir for overveldende
+
+---
+
 ## Date: 2026-01-26
 
 ---

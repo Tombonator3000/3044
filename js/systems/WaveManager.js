@@ -231,9 +231,9 @@ export class WaveManager {
         this.enemiesPerWave = Math.max(5, Math.floor(baseEnemies * difficulty.enemyCount));
 
         // Adjust spawn rate for higher waves (faster spawning) with difficulty multiplier
-        // Wave 1: 50 frames, Wave 10: 30 frames, Wave 20+: 15 frames minimum (more intense)
-        const baseSpawnDelay = Math.max(15, 50 - (waveNum * 2));  // Faster scaling, lower minimum
-        this.spawnDelay = Math.max(12, Math.floor(baseSpawnDelay * difficulty.spawnDelay));  // Lower floor for more intensity
+        // Wave 1: 40 frames, Wave 10: 15 frames, Wave 20+: 8 frames minimum (very intense)
+        const baseSpawnDelay = Math.max(8, 40 - (waveNum * 2.5));  // Even faster scaling, much lower minimum
+        this.spawnDelay = Math.max(6, Math.floor(baseSpawnDelay * difficulty.spawnDelay));  // Very low floor for maximum intensity
 
         // Setup asteroid spawning for asteroid waves
         this.asteroidsSpawned = 0;
@@ -250,17 +250,17 @@ export class WaveManager {
     }
 
     calculateEnemiesPerWave(wave, waveScaling = 1.0) {
-        // Base enemies + scaling (INCREASED for more intense gameplay)
+        // Base enemies + scaling (SIGNIFICANTLY INCREASED for intense action)
         // waveScaling affects how fast difficulty ramps up per wave
-        const base = 15;  // Increased from 10
-        const perWave = Math.floor(7 * waveScaling);  // Increased from 5
-        const bonus = Math.floor(wave / 5) * Math.floor(12 * waveScaling);  // Increased from 8
+        const base = 25;  // Increased from 15
+        const perWave = Math.floor(12 * waveScaling);  // Increased from 7
+        const bonus = Math.floor(wave / 5) * Math.floor(18 * waveScaling);  // Increased from 12
 
-        // Normal difficulty - Wave 1: 15 + 7 + 0 = 22 enemies
-        // Wave 5: 15 + 35 + 12 = 62 enemies
-        // Wave 10: 15 + 70 + 24 = 109 enemies
-        // Easy difficulty (0.5x scaling) - Wave 1: 15 + 3 + 0 = 18 enemies
-        // Extreme difficulty (1.8x scaling) - Wave 1: 15 + 12 + 0 = 27 enemies
+        // Normal difficulty - Wave 1: 25 + 12 + 0 = 37 enemies
+        // Wave 5: 25 + 60 + 18 = 103 enemies
+        // Wave 10: 25 + 120 + 36 = 181 enemies
+        // Easy difficulty (0.5x scaling) - Wave 1: 25 + 6 + 0 = 31 enemies
+        // Extreme difficulty (1.8x scaling) - Wave 1: 25 + 21 + 0 = 46 enemies
         return base + (wave * perWave) + bonus;
     }
 
@@ -369,8 +369,8 @@ export class WaveManager {
             this.enemiesSpawned++;
             this.spawnTimer = this.spawnDelay;
 
-            // Spawn in pairs/groups for later waves (higher chance and earlier start)
-            if (this.wave >= 2 && Math.random() < 0.6 && this.enemiesSpawned < this.enemiesPerWave) {
+            // Spawn in pairs/groups - starts from wave 1 with high chance
+            if (Math.random() < 0.75 && this.enemiesSpawned < this.enemiesPerWave) {
                 const extraType = this.getEnemyTypeForWave(this.wave);
                 const extraPos = this.getSpawnPosition(canvas, extraType, sidescrollerMode);
                 const extraEnemy = new Enemy(extraPos.x, extraPos.y, extraType, gameState);
@@ -384,8 +384,8 @@ export class WaveManager {
 
                 this.enemiesSpawned++;
 
-                // Triple spawn chance for wave 7+
-                if (this.wave >= 7 && Math.random() < 0.5 && this.enemiesSpawned < this.enemiesPerWave) {
+                // Triple spawn chance for wave 3+ (earlier start, higher chance)
+                if (this.wave >= 3 && Math.random() < 0.65 && this.enemiesSpawned < this.enemiesPerWave) {
                     const thirdType = this.getEnemyTypeForWave(this.wave);
                     const thirdPos = this.getSpawnPosition(canvas, thirdType, sidescrollerMode);
                     const thirdEnemy = new Enemy(thirdPos.x, thirdPos.y, thirdType, gameState);
@@ -398,6 +398,36 @@ export class WaveManager {
                     }
 
                     this.enemiesSpawned++;
+
+                    // Quad spawn for wave 6+ (new!)
+                    if (this.wave >= 6 && Math.random() < 0.5 && this.enemiesSpawned < this.enemiesPerWave) {
+                        const fourthType = this.getEnemyTypeForWave(this.wave);
+                        const fourthPos = this.getSpawnPosition(canvas, fourthType, sidescrollerMode);
+                        const fourthEnemy = new Enemy(fourthPos.x, fourthPos.y, fourthType, gameState);
+                        fourthEnemy.sidescrollerMode = sidescrollerMode;
+                        enemies.push(fourthEnemy);
+
+                        if (gameState?.bestiary) {
+                            gameState.bestiary.recordEncounter(fourthType, this.wave);
+                        }
+
+                        this.enemiesSpawned++;
+
+                        // Quint spawn for wave 10+ (swarm mode!)
+                        if (this.wave >= 10 && Math.random() < 0.4 && this.enemiesSpawned < this.enemiesPerWave) {
+                            const fifthType = this.getEnemyTypeForWave(this.wave);
+                            const fifthPos = this.getSpawnPosition(canvas, fifthType, sidescrollerMode);
+                            const fifthEnemy = new Enemy(fifthPos.x, fifthPos.y, fifthType, gameState);
+                            fifthEnemy.sidescrollerMode = sidescrollerMode;
+                            enemies.push(fifthEnemy);
+
+                            if (gameState?.bestiary) {
+                                gameState.bestiary.recordEncounter(fifthType, this.wave);
+                            }
+
+                            this.enemiesSpawned++;
+                        }
+                    }
                 }
             }
         }
