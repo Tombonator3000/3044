@@ -4,9 +4,10 @@
 *Ingen pågående oppgaver*
 
 ## Neste
-- [ ] Teste FPS-forbedringer med mange fiender og kuler
-- [ ] Teste at fiende-AI forbedringer fungerer som forventet
+- [ ] Teste nye fiende-mengder (wave 1: 37+, wave 5: 103+, wave 10: 181+)
+- [ ] Teste at gruppe-spawning fungerer (pair, triple, quad, quint)
 - [ ] Balansere vanskelighetsgrad etter feedback
+- [ ] Sjekke FPS med mange fiender på skjermen
 
 ## Bugs
 *Ingen kjente bugs for øyeblikket*
@@ -23,6 +24,16 @@
 ---
 
 ## Fullførte oppgaver
+
+### 2026-02-03 (Flere fiender)
+- [x] Økt base fiender per wave (15→25)
+- [x] Økt perWave scaling (7→12)
+- [x] Økt bonus fiender (12→18)
+- [x] Raskere spawn delay (min 12→6 frames)
+- [x] Pair-spawn fra wave 1 (75% sjanse)
+- [x] Triple-spawn fra wave 3 (65% sjanse)
+- [x] Quad-spawn fra wave 6 (50% sjanse)
+- [x] Quint-spawn fra wave 10 (40% sjanse)
 
 ### 2026-01-26 (FPS/Performance)
 - [x] Cachet bullet angles i update() for å unngå Math.atan2 i draw()
