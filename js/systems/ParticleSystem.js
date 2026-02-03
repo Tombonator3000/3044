@@ -114,11 +114,11 @@ function lerpColor(color1, color2, t) {
     return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
-// Performance settings for particles
+// Performance settings for particles - REDUCED for better FPS
 const particlePerfSettings = {
     enableShadows: true,
-    reducedParticles: false,
-    intensityMultiplier: 1
+    reducedParticles: true,   // CHANGED: Always reduce particles for better performance
+    intensityMultiplier: 0.5  // CHANGED: Halved from 1 for better FPS
 };
 
 const particleIntensityMap = {
@@ -2131,8 +2131,8 @@ export class ParticleSystem {
      * @param {number} intensity - Explosion intensity multiplier (default 1)
      */
     addGeometryWarsExplosion(x, y, color = '#ff6600', intensity = 1) {
-        // ENHANCED: Increased base count from 80 to 120
-        const baseCount = Math.floor(120 * intensity);
+        // REDUCED: Lowered base count from 120 to 50 for better performance
+        const baseCount = Math.floor(50 * intensity);
         const adjustedCount = getAdjustedCount(baseCount);
 
         // === CENTRAL GLOW EFFECT ===

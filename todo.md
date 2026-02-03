@@ -13,7 +13,6 @@
 *Ingen kjente bugs for øyeblikket*
 
 ## Forbedringer
-- [ ] Legge til flere partikkeleffekter
 - [ ] Forbedre mobilkontroller
 - [ ] Legge til flere fiendetyper med unike behaviors
 
@@ -24,6 +23,12 @@
 ---
 
 ## Fullførte oppgaver
+
+### 2026-02-03 (Partikkelfikser)
+- [x] Fjernet emitExhaustParticles()-kallet fra Player.js (partikler foran skip)
+- [x] Redusert maxCount i config.js fra 1000 til 500
+- [x] Aktivert reducedParticles og satt intensityMultiplier til 0.5
+- [x] Redusert eksplosjon baseCount fra 120 til 50
 
 ### 2026-02-03 (Fjernet slowdown-hendelser)
 - [x] Fjernet nearDeath slow motion check fra update()
