@@ -25,6 +25,11 @@
 
 ## Fullførte oppgaver
 
+### 2026-02-03 (Fjernet slowdown-hendelser)
+- [x] Fjernet nearDeath slow motion check fra update()
+- [x] Fjernet waveComplete slow motion trigger
+- [x] Fjernet bossKill/bossSpawn slow motion trigger
+
 ### 2026-02-03 (Flere fiender)
 - [x] Økt base fiender per wave (15→25)
 - [x] Økt perWave scaling (7→12)

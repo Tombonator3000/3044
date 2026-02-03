@@ -1891,11 +1891,6 @@ function update(deltaTime) {
     if (slowMotionSystem) {
         const timeFactor = slowMotionSystem.update();
         adjustedDeltaTime = slowMotionSystem.adjustDeltaTime(deltaTime);
-
-        // Check for near-death slow motion
-        if (player?.isAlive && !player.invulnerable) {
-            slowMotionSystem.checkNearDeath(player, enemyBulletPool);
-        }
     }
 
     // Daily Challenge: Apply global speed multiplier
@@ -2000,9 +1995,6 @@ function update(deltaTime) {
             if (starfield) starfield.updateTheme(gameState.wave);
 
             // Trigger wave complete effects
-            if (slowMotionSystem) {
-                slowMotionSystem.trigger('waveComplete');
-            }
             if (reactiveMusicSystem) {
                 reactiveMusicSystem.triggerWaveComplete();
             }
@@ -2545,11 +2537,6 @@ function spawnBoss() {
     // Trigger reactive music boss effect
     if (reactiveMusicSystem) {
         reactiveMusicSystem.triggerBossMusic();
-    }
-
-    // Trigger slow motion for boss appearance
-    if (slowMotionSystem) {
-        slowMotionSystem.trigger('bossKill');
     }
 
     // Screen shake
