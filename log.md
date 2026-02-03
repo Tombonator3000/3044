@@ -4,6 +4,109 @@
 
 ---
 
+# FJERNET PARTIKLER FORAN SKIP OG REDUSERT PARTIKKELMENGDE
+
+## Oversikt
+Fikset to problemer rapportert av bruker:
+1. Partikler som spawnet foran skipet ved bevegelse - fjernet helt
+2. For mange partikler som forårsaket slowdown - redusert betydelig
+
+## Endringer implementert
+
+### 1. Player.js - Fjernet exhaust partikler (linje 271)
+**Problem**: `emitExhaustParticles()` skapte partikler som spawnet ved skipets posisjon og spredte seg i alle retninger, inkludert foran skipet.
+**Løsning**: Fjernet kallet til `emitExhaustParticles()` helt.
+
+```javascript
+// FØR:
+this.updateMirrorShip(canvas, scaledDeltaTime);
+this.updateTrail(movement, scaledDeltaTime);
+this.emitExhaustParticles(movement, particleSystem, scaledDeltaTime);
+this.handleShooting(keys, touchButtons, bulletPool, gameState, soundSystem, scaledDeltaTime);
+
+// ETTER:
+this.updateMirrorShip(canvas, scaledDeltaTime);
+this.updateTrail(movement, scaledDeltaTime);
+// REMOVED: emitExhaustParticles - caused particles to spawn in front of ship and slowed gameplay
+this.handleShooting(keys, touchButtons, bulletPool, gameState, soundSystem, scaledDeltaTime);
+```
+
+### 2. config.js - Redusert maks partikler (linje 84-86)
+**Problem**: 1000 partikler var for mange og forårsaket FPS-drop.
+**Løsning**: Redusert til 500.
+
+```javascript
+// FØR:
+particles: {
+    maxCount: 1000
+},
+
+// ETTER:
+particles: {
+    maxCount: 500  // Reduced from 1000 - better FPS with less visual clutter
+},
+```
+
+### 3. ParticleSystem.js - Aktivert partikkelreduksjon (linje 117-122)
+**Problem**: Partikkelreduksjon var ikke aktiv som standard.
+**Løsning**: Satt `reducedParticles: true` og `intensityMultiplier: 0.5` som standard.
+
+```javascript
+// FØR:
+const particlePerfSettings = {
+    enableShadows: true,
+    reducedParticles: false,
+    intensityMultiplier: 1
+};
+
+// ETTER:
+const particlePerfSettings = {
+    enableShadows: true,
+    reducedParticles: true,   // CHANGED: Always reduce particles for better performance
+    intensityMultiplier: 0.5  // CHANGED: Halved from 1 for better FPS
+};
+```
+
+### 4. ParticleSystem.js - Redusert eksplosjonspartikler (linje 2133-2136)
+**Problem**: Geometry Wars-eksplosjoner brukte 120 partikler som base.
+**Løsning**: Redusert til 50 partikler.
+
+```javascript
+// FØR:
+const baseCount = Math.floor(120 * intensity);
+
+// ETTER:
+const baseCount = Math.floor(50 * intensity);
+```
+
+---
+
+## Filer endret
+- `js/entities/Player.js` - Fjernet emitExhaustParticles()-kallet
+- `js/config.js` - Redusert maxCount fra 1000 til 500
+- `js/systems/ParticleSystem.js` - Aktivert reducedParticles, redusert intensityMultiplier, redusert eksplosjon baseCount
+
+---
+
+## Ytelsesgevinster (estimert)
+| Område | Før | Etter | Forbedring |
+|--------|-----|-------|------------|
+| Skip exhaust | 4-10 partikler/frame | 0 partikler/frame | 100% reduksjon |
+| Maks partikler | 1000 | 500 | 50% reduksjon |
+| Partikkelmultiplier | 1.0 | 0.25 (0.5*0.5) | 75% reduksjon |
+| Eksplosjon base | 120 | 50 | 58% reduksjon |
+| Total eksplosjon | ~192 partikler | ~12 partikler | ~94% reduksjon |
+
+---
+
+## Testing
+- [ ] Verifiser at ingen partikler spawner foran skipet
+- [ ] Verifiser at FPS er stabil under intens gameplay
+- [ ] Verifiser at eksplosjoner fortsatt er synlige men mindre intense
+- [ ] Sjekk at spillet føles responsivt
+
+---
+
 # FJERNET INNEBYGDE SLOWDOWN-HENDELSER
 
 ## Oversikt

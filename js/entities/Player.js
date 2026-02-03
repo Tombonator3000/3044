@@ -268,7 +268,7 @@ export class Player {
         this.applyMovement(movement, canvas);
         this.updateMirrorShip(canvas, scaledDeltaTime);
         this.updateTrail(movement, scaledDeltaTime);
-        this.emitExhaustParticles(movement, particleSystem, scaledDeltaTime);
+        // REMOVED: emitExhaustParticles - caused particles to spawn in front of ship and slowed gameplay
         this.handleShooting(keys, touchButtons, bulletPool, gameState, soundSystem, scaledDeltaTime);
         this.updateInvulnerability(scaledDeltaTime);
         this.updatePowerUpTimers(gameState, particleSystem, soundSystem, scaledDeltaTime);
