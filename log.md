@@ -4,6 +4,87 @@
 
 ---
 
+# FJERNET INNEBYGDE SLOWDOWN-HENDELSER
+
+## Oversikt
+Fjernet alle innebygde automatiske slowdown-hendelser fra spillet. SlowMotionSystem eksisterer fortsatt, men trigges ikke lenger automatisk ved near-death, wave complete, eller boss spawn.
+
+## Endringer implementert
+
+### 1. main.js - Fjernet nearDeath slow motion check
+**Problem**: Spillet gikk automatisk i slow motion når kuler var nær spilleren.
+**Løsning**: Fjernet `checkNearDeath()`-kallet fra update-loopen.
+
+```javascript
+// FØR (linje 1891-1898):
+if (slowMotionSystem) {
+    const timeFactor = slowMotionSystem.update();
+    adjustedDeltaTime = slowMotionSystem.adjustDeltaTime(deltaTime);
+
+    // Check for near-death slow motion
+    if (player?.isAlive && !player.invulnerable) {
+        slowMotionSystem.checkNearDeath(player, enemyBulletPool);
+    }
+}
+
+// ETTER:
+if (slowMotionSystem) {
+    const timeFactor = slowMotionSystem.update();
+    adjustedDeltaTime = slowMotionSystem.adjustDeltaTime(deltaTime);
+}
+```
+
+### 2. main.js - Fjernet waveComplete slow motion trigger
+**Problem**: Spillet gikk automatisk i slow motion når en wave ble fullført.
+**Løsning**: Fjernet `slowMotionSystem.trigger('waveComplete')`.
+
+```javascript
+// FØR (linje 2003-2005):
+if (slowMotionSystem) {
+    slowMotionSystem.trigger('waveComplete');
+}
+
+// ETTER:
+// (fjernet)
+```
+
+### 3. main.js - Fjernet bossKill/bossSpawn slow motion trigger
+**Problem**: Spillet gikk automatisk i slow motion når boss ble spawnet.
+**Løsning**: Fjernet `slowMotionSystem.trigger('bossKill')` fra `spawnBoss()`.
+
+```javascript
+// FØR (linje 2550-2553):
+// Trigger slow motion for boss appearance
+if (slowMotionSystem) {
+    slowMotionSystem.trigger('bossKill');
+}
+
+// ETTER:
+// (fjernet)
+```
+
+---
+
+## Filer endret
+- `js/main.js` - Fjernet 3 automatiske slowdown-triggers
+
+---
+
+## Hva er beholdt
+- `SlowMotionSystem` klassen eksisterer fortsatt
+- Systemet kan fortsatt trigges manuelt hvis ønsket
+- `slowMotionSystem.update()` og `adjustDeltaTime()` kjører fortsatt for å støtte eventuell fremtidig bruk
+
+---
+
+## Testing
+- [ ] Verifiser at spillet ikke går i slow motion ved near-death
+- [ ] Verifiser at spillet ikke går i slow motion ved wave complete
+- [ ] Verifiser at spillet ikke går i slow motion ved boss spawn
+- [ ] Verifiser at gameplay føles mer responsivt
+
+---
+
 # MASSIVT ØKT ANTALL FIENDER
 
 ## Oversikt
