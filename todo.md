@@ -3,6 +3,13 @@
 ## Pågående
 *Ingen pågående oppgaver*
 
+## Fullført nylig
+
+### 2026-02-10 (Fiender skyter bakover)
+- [x] Fikset at fiender som passerte spilleren skjøt bakover i det uendelige
+- [x] Lagt til posisjonssjekk (`canShootFromPosition`) i Enemy.js update()
+- [x] Støtter både normal modus og sidescroller modus
+
 ## Neste
 - [ ] Playteste med nye optimaliseringer - verifiser 60fps ved wave 5-10
 - [ ] Teste at LOD-rendering ikke er visuelt forstyrrende

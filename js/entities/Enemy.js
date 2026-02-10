@@ -525,8 +525,13 @@ export class Enemy {
         }
 
         // Fire at player (faster when aggressive threat response)
+        // IMPORTANT: Only shoot if enemy is above (or near) the player.
+        // Prevents enemies that have passed below the player from shooting backwards.
         const fireRateMultiplier = this.threatResponse === 'aggressive' ? 0.8 : 1.0;
-        if (this.fireTimer >= this.fireRate * fireRateMultiplier && effectiveBehavior !== 'dive') {
+        const canShootFromPosition = this.sidescrollerMode
+            ? (this.x > playerX - 50)   // Sidescroller: only if to the right of player
+            : (this.y < playerY + 50);   // Normal: only if above player (50px margin)
+        if (canShootFromPosition && this.fireTimer >= this.fireRate * fireRateMultiplier && effectiveBehavior !== 'dive') {
             this.shoot(playerX, playerY, enemyBulletPool);
             this.fireTimer = 0;
         }
