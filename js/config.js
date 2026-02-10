@@ -80,9 +80,9 @@ export const config = {
         particleQuality: 1.0            // 0.5 = half particles, 1.0 = full
     },
 
-    // Particle settings (reduced for better performance)
+    // Particle settings - increased after performance optimizations
     particles: {
-        maxCount: 500  // Reduced from 1000 - better FPS with less visual clutter
+        maxCount: 800  // Increased from 500 after optimization pass (trail pre-alloc, off-screen culling, reduced save/restore)
     },
 
     // Screen shake presets

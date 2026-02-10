@@ -319,8 +319,9 @@ export class WaveManager {
 
     update(enemies, canvas, gameState) {
         // Update active enemies reference for flocking calculations
-        // This allows enemies to coordinate their movement
-        Enemy.updateActiveEnemies(enemies.filter(e => e.active));
+        // OPTIMIZED: Pass full array, flocking already skips inactive enemies
+        // Avoids creating a new filtered array (100-300 elements) every frame
+        Enemy.updateActiveEnemies(enemies);
 
         // Show wave text countdown
         if (this.showingWaveText) {

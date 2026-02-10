@@ -1,5 +1,241 @@
 # Geometry 3044 - Modular Structure Rebuild Log
 
+## Date: 2026-02-10
+
+---
+
+# DEEP PERFORMANCE AUDIT & OPTIMIZATION - ENEMIES + PARTICLES
+
+## Oversikt
+Gjennomfort dyp performance audit av hele kodebasen med 4 parallelle analyse-agenter. Implementert 14 optimaliseringer pa tvers av 8 filer for a stotte flere fiender og partikler pa skjermen uten FPS-tap. Fokus pa a fjerne de storste flaskehalsene forst.
+
+## Audit-resultater (estimert tidsbruk per frame FOR optimalisering)
+
+| Komponent | Estimert kostnad | Storste flaskehals |
+|-----------|-----------------|-------------------|
+| VHSEffect getImageData | 15-40ms | GPU pipeline stall |
+| Starfield nebulaer | 8-15ms | Gradient-opprettelse per frame |
+| Enemy flocking O(n2) | 4-12ms ved 200+ fiender | Kvadratisk kompleksitet |
+| ParticleSystem draw | 10-15ms | save/restore per partikkel, trail GC |
+| BulletPool draw | 5-10ms | Gradient per kule, shadows |
+| main.js enemy splice | 2-10ms spike | O(n) array operasjon |
+| CollisionSystem | 1-3ms | Spread operator, nye arrays |
+| SlowMotionSystem | 1-2ms | Kjorer nar inaktiv |
+
+**Total estimert besparelse: 40-80ms per frame** (fra ~80ms ned til ~20-30ms)
+
+## Endringer implementert
+
+### 1. VHSEffect.js - Erstattet getImageData med drawImage
+**Problem**: `getImageData()` staller GPU-pipeline (15-40ms per kall), kalles 3-8 ganger per frame under glitch.
+**Losning**: Bruker `ctx.drawImage(sourceCanvas, ...)` som holder alt pa GPU-en.
+
+```javascript
+// FOR (GPU stall):
+const imageData = ctx.getImageData(0, y, width, sliceHeight);
+ctx.putImageData(imageData, offsetX, y);
+
+// ETTER (GPU-side):
+ctx.drawImage(sourceCanvas, 0, y, width, sliceHeight, offsetX, y, width, sliceHeight);
+```
+
+### 2. VHSEffect.js - Cachet noise pattern
+**Problem**: `ctx.createPattern()` opprettet nytt pattern-objekt hver frame.
+**Losning**: Cache pattern, invalider kun nar noise regenereres.
+
+```javascript
+// FOR:
+const pattern = ctx.createPattern(this.noiseCanvas, 'repeat');
+
+// ETTER:
+if (!this._cachedNoisePattern) {
+    this._cachedNoisePattern = ctx.createPattern(this.noiseCanvas, 'repeat');
+}
+ctx.fillStyle = this._cachedNoisePattern;
+```
+
+### 3. Starfield.js - Cachet nebula-gradienter
+**Problem**: 10 `createRadialGradient()` + 40 `addColorStop()` kall per frame.
+**Losning**: Cache gradient per nebula, oppdater kun ved signifikant posisjon/farge-endring.
+
+```javascript
+// FOR: Ny gradient HVER frame
+const gradient = ctx.createRadialGradient(...);
+
+// ETTER: Gjenbruk cachet gradient
+if (!nebula._cachedGradient || positionChanged || colorChanged) {
+    nebula._cachedGradient = ctx.createRadialGradient(...);
+}
+ctx.fillStyle = nebula._cachedGradient;
+```
+
+### 4. Starfield.js - Optimalisert stjerne-rendering
+**Problem**: 195 save/restore par per frame (ett per stjerne).
+**Losning**: Kun save/restore for store stjerner med shadow, sma stjerner setter properties direkte.
+
+### 5. Enemy.js - Flocking-throttling ved hoyt antall
+**Problem**: Flocking er O(n2) - ved 200 fiender = 40,000 avstandsberegninger per frame.
+**Losning**: Deaktiver flocking ved 120+ fiender, kjor kun hvert 3. frame ellers.
+
+```javascript
+// FOR: Alltid aktiv
+if (this.flockingEnabled && (this.behavior === 'aggressive' || ...))
+
+// ETTER: Throttlet
+if (this.flockingEnabled && activeEnemies.length < 120
+    && ... && (++this._flockFrame % 3 === 0))
+```
+
+### 6. Enemy.js - LOD-rendering (Level of Detail)
+**Problem**: Alle fiender rendret med full kvalitet (shadows, HP-tekst, shield) uansett antall.
+**Losning**: 3 LOD-nivaer basert pa antall fiender:
+- LOD 0 (< 100 fiender): Full kvalitet med shadows og glow
+- LOD 1 (100-200): Ingen shadows, ellers full
+- LOD 2 (200+): Ingen shadows, skip shield/HP-tekst/dive-indikator
+
+### 7. Enemy.js - Path2D caching for polygon-former
+**Problem**: Polygon beregnes med Math.cos/sin i draw() hver frame per fiende.
+**Losning**: Cacher Path2D objekt per fiende, gjenbruk med `ctx.fill(path)`.
+
+```javascript
+// FOR: Beregn polygon hvert frame
+for (let i = 0; i < this.sides; i++) {
+    const angle = (Math.PI * 2 * i / this.sides) - Math.PI / 2;
+    const x = Math.cos(angle) * this.size;
+    const y = Math.sin(angle) * this.size;
+}
+
+// ETTER: Bruk cachet Path2D
+if (!this._cachedPath) {
+    this._cachedPath = new Path2D();
+    // ... bygg en gang
+}
+ctx.fill(this._cachedPath);
+```
+
+### 8. WaveManager.js - Fjernet filter-allokering
+**Problem**: `enemies.filter(e => e.active)` opprettet ny array (100-300 elementer) hver frame.
+**Losning**: Send full array, flocking skipper inaktive in-loop.
+
+### 9. ParticleSystem.js - Pre-allokert trail-objekter
+**Problem**: `{ x: this.x, y: this.y }` opprettet nytt objekt HVER frame per linje-partikkel.
+**Losning**: Pre-alloker trail-objekter ved reset, oppdater properties in-place.
+
+```javascript
+// FOR (ny allokering):
+this.trail[this.trailIndex] = { x: this.x, y: this.y };
+
+// ETTER (gjenbruk):
+const trailPos = this.trail[this.trailIndex];
+trailPos.x = this.x;
+trailPos.y = this.y;
+```
+
+### 10. ParticleSystem.js - Off-screen culling
+**Problem**: Partikler utenfor viewport ble tegnet unodig.
+**Losning**: Skip partikler mer enn 60px utenfor canvas i bade _drawDirect og _drawBatched.
+
+### 11. ParticleSystem.js - Konsolidert drawLine save/restore
+**Problem**: drawLine() hadde 3 separate save/restore par (6 kall per linje-partikkel).
+**Losning**: Konsolidert til 1 save/restore par. Bytter state inline.
+
+### 12. ParticleSystem.js - Forenklet context resets
+**Problem**: 13 context-resets for draw, mange ubrukte (filter, imageSmoothingEnabled, etc).
+**Losning**: Kun reset properties faktisk brukt av partikkel-rendering (9 resets).
+
+### 13. main.js - In-place enemy/asteroid removal
+**Problem**: `array.splice(i, 1)` er O(n) og kan forarake frame-spikes ved mange fiender.
+**Losning**: Write-index pattern for O(1) per-element fjerning.
+
+```javascript
+// FOR (O(n) per fjerning):
+gameState.enemies.splice(i, 1);
+
+// ETTER (O(1) in-place):
+let writeIdx = 0;
+for (let i = 0; i < enemies.length; i++) {
+    if (enemy.active) enemies[writeIdx++] = enemy;
+}
+enemies.length = writeIdx;
+```
+
+### 14. main.js - SlowMotionSystem gating
+**Problem**: SlowMotionSystem.update() og draw() kjorte hver frame selv nar inaktiv.
+**Losning**: Gate bak `slowMotionSystem.isActive` sjekk.
+
+### 15. main.js - Off-screen enemy culling i render
+**Problem**: Alle fiender rendret uansett posisjon.
+**Losning**: Skip fiender utenfor canvas + 50px margin.
+
+### 16. BulletPool.js - Off-screen bullet culling
+**Problem**: Kuler utenfor skjermen ble fortsatt tegnet.
+**Losning**: Skip kuler utenfor canvas + 50px margin for draw.
+
+### 17. CollisionSystem.js - Storre spatial hash celler
+**Problem**: cellSize=50 ga 192 celler, for mange oppslag med 200+ fiender.
+**Losning**: Okt cellSize til 80 for bedre balanse mellom celleantall og bucket-storrelse.
+
+### 18. CollisionSystem.js - Gjenbrukbar getNearby buffer
+**Problem**: Ny array + spread operator per getNearby()-kall (50-100 kall/frame).
+**Losning**: Gjenbruk pre-allokert buffer array, push individuelt i stedet for spread.
+
+### 19. config.js - Okt particle cap
+**Problem**: maxCount=500 var for lavt etter optimaliseringer.
+**Losning**: Okt til 800 partikler. Okt intensityMultiplier fra 0.5 til 0.7.
+
+### 20. ParticleSystem.js - Okt eksplosjon baseCount
+**Problem**: 50 partikler per eksplosjon var for sparsomt visuelt.
+**Losning**: Okt til 70 partikler per eksplosjon.
+
+---
+
+## Filer endret
+- `js/effects/VHSEffect.js` - drawImage i stedet for getImageData, cachet noise pattern
+- `js/effects/Starfield.js` - Cachet nebula-gradienter, optimalisert stjerne save/restore
+- `js/entities/Enemy.js` - Flocking throttle, LOD rendering, Path2D cache
+- `js/systems/WaveManager.js` - Fjernet filter-allokering
+- `js/systems/ParticleSystem.js` - Trail pre-alloc, culling, konsolidert drawLine, context resets, okt eksplosjon
+- `js/systems/BulletPool.js` - Off-screen culling
+- `js/main.js` - In-place removal, SlowMo gate, off-screen culling
+- `js/core/CollisionSystem.js` - Storre celler, buffer gjenbruk
+- `js/config.js` - Okt particle maxCount til 800
+
+---
+
+## Ytelsesgevinster (estimert)
+
+| Optimalisering | Estimert besparelse | Type |
+|----------------|-------------------|------|
+| VHSEffect drawImage | 15-40ms | GPU stall eliminert |
+| Nebula gradient cache | 8-15ms | Gradient-allokering |
+| Enemy flocking throttle | 4-8ms | CPU (O(n2) eliminert) |
+| Enemy LOD rendering | 3-5ms | GPU (shadows, complexity) |
+| Enemy Path2D cache | 2-4ms | CPU (Math.sin/cos) |
+| ParticleSystem culling | 3-5ms | CPU+GPU |
+| ParticleSystem trail pre-alloc | 2-3ms | GC pressure |
+| ParticleSystem drawLine consolidation | 1-2ms | save/restore |
+| main.js in-place removal | 2-10ms (spikes) | CPU |
+| BulletPool culling | 1-3ms | GPU |
+| CollisionSystem tuning | 1-2ms | CPU + GC |
+| SlowMotion gating | 1-2ms | CPU |
+| **TOTALT** | **~43-99ms** | |
+
+---
+
+## Testing
+- [ ] Verifiser at spillet starter uten feil
+- [ ] Verifiser at fiender rendres korrekt med Path2D
+- [ ] Verifiser at LOD fungerer (fiender forenkles ved 100+/200+)
+- [ ] Verifiser at flocking fortsatt fungerer under 120 fiender
+- [ ] Verifiser at partikkeleksplosjoner er synlige og pene
+- [ ] Verifiser at VHS-effekter fortsatt fungerer (glitch, noise, scanlines)
+- [ ] Verifiser at starfield nebulaer vises korrekt
+- [ ] Verifiser at off-screen culling ikke foraraker "pop-in" artefakter
+- [ ] Sjekk FPS med mange fiender (wave 5+) - mal: 60fps stabilt
+- [ ] Sjekk at ingen memory leaks over tid
+
+---
+
 ## Date: 2026-02-03
 
 ---

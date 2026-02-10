@@ -27,7 +27,8 @@ function isEntityActive(entity) {
 export class CollisionSystem {
     constructor(options = {}) {
         // Spatial hashing for performance
-        this.cellSize = 50;
+        // OPTIMIZED: Increased from 50 to 80 for fewer cells with 200+ enemies
+        this.cellSize = 80;
         this.grid = new Map();
         this.maxEnemyRadius = 0;
         // Support both old style (gameState directly) and new style (options object)
@@ -832,7 +833,11 @@ export class CollisionSystem {
      * Get nearby entities from spatial hash
      */
     getNearby(x, y, radius = 1) {
-        const entities = [];
+        // OPTIMIZED: Reuse buffer array to avoid allocating new array per call
+        // Note: Caller must use results before next getNearby call
+        if (!this._nearbyBuffer) this._nearbyBuffer = [];
+        const entities = this._nearbyBuffer;
+        entities.length = 0;
         const cellRadius = Math.ceil(radius);
 
         const centerCellX = Math.floor(x / this.cellSize);
@@ -841,8 +846,12 @@ export class CollisionSystem {
         for (let dx = -cellRadius; dx <= cellRadius; dx++) {
             for (let dy = -cellRadius; dy <= cellRadius; dy++) {
                 const key = `${centerCellX + dx},${centerCellY + dy}`;
-                if (this.grid.has(key)) {
-                    entities.push(...this.grid.get(key));
+                const cell = this.grid.get(key);
+                if (cell) {
+                    // OPTIMIZED: Push items individually instead of spread operator
+                    for (let i = 0; i < cell.length; i++) {
+                        entities.push(cell[i]);
+                    }
                 }
             }
         }

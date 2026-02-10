@@ -117,8 +117,8 @@ function lerpColor(color1, color2, t) {
 // Performance settings for particles - REDUCED for better FPS
 const particlePerfSettings = {
     enableShadows: true,
-    reducedParticles: true,   // CHANGED: Always reduce particles for better performance
-    intensityMultiplier: 0.5  // CHANGED: Halved from 1 for better FPS
+    reducedParticles: true,   // Keep reduced for stability
+    intensityMultiplier: 0.7  // Increased from 0.5 after optimization pass (was too sparse)
 };
 
 const particleIntensityMap = {
@@ -199,7 +199,13 @@ class Particle {
         this.length = options.length || 8;
         this.maxTrail = options.maxTrail || 5;
         // Reset circular buffer for trail
-        this.trail = new Array(this.maxTrail);
+        // OPTIMIZED: Pre-allocate trail objects to avoid creating new ones every frame
+        if (!this.trail || this.trail.length !== this.maxTrail) {
+            this.trail = new Array(this.maxTrail);
+            for (let i = 0; i < this.maxTrail; i++) {
+                this.trail[i] = { x: 0, y: 0 };
+            }
+        }
         this.trailIndex = 0;
         this.trailCount = 0;
 
@@ -217,8 +223,10 @@ class Particle {
         // Store trail position for line particles with motion blur
         // Using circular buffer for O(1) performance instead of unshift() which is O(n)
         if (this.type === 'line' || this.type === 'gwline') {
-            // Write to current index in circular buffer
-            this.trail[this.trailIndex] = { x: this.x, y: this.y };
+            // OPTIMIZED: Reuse pre-allocated trail objects instead of creating new ones
+            const trailPos = this.trail[this.trailIndex];
+            trailPos.x = this.x;
+            trailPos.y = this.y;
             this.trailIndex = (this.trailIndex + 1) % this.maxTrail;
             if (this.trailCount < this.maxTrail) this.trailCount++;
             // Line rotation follows velocity direction
@@ -744,75 +752,60 @@ class Particle {
      */
     drawLine(ctx, alpha) {
         const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        // Minimum length even when slow, so particles remain visible
         const dynamicLength = Math.max(12, this.length * (0.5 + speed * 0.25));
-        // Ensure minimum alpha for visibility - higher minimum
         const visibleAlpha = Math.max(0.5, alpha);
 
-        // Draw at particle's actual position (no translate needed for simple drawing)
         const cos = Math.cos(this.rotation);
         const sin = Math.sin(this.rotation);
         const halfLen = dynamicLength / 2;
 
-        // Calculate line endpoints
         const x1 = this.x - cos * halfLen;
         const y1 = this.y - sin * halfLen;
         const x2 = this.x + cos * halfLen;
         const y2 = this.y + sin * halfLen;
 
+        // OPTIMIZED: Consolidated from 3 save/restore pairs to 1
+        ctx.save();
+
         // Draw motion blur trail using circular buffer
-        // Iterate from oldest to newest for correct alpha ordering
         if (this.trail && this.trailCount > 0) {
-            ctx.save();
             ctx.globalCompositeOperation = 'source-over';
             ctx.strokeStyle = this.color;
             ctx.lineWidth = 3;
             const trailHalfLen = halfLen * 0.6;
 
             for (let i = 0; i < this.trailCount; i++) {
-                // Read from circular buffer: oldest first
                 const bufferIdx = (this.trailIndex - this.trailCount + i + this.maxTrail) % this.maxTrail;
                 const t = this.trail[bufferIdx];
-                if (!t) continue;
+                if (!t || (t.x === 0 && t.y === 0)) continue;
 
-                // Alpha: older = lower, newer = higher
                 const trailAlpha = (i + 1) / this.trailCount;
-
-                const tx1 = t.x - cos * trailHalfLen;
-                const ty1 = t.y - sin * trailHalfLen;
-                const tx2 = t.x + cos * trailHalfLen;
-                const ty2 = t.y + sin * trailHalfLen;
-
                 ctx.globalAlpha = visibleAlpha * trailAlpha * 0.5;
                 ctx.beginPath();
-                ctx.moveTo(tx1, ty1);
-                ctx.lineTo(tx2, ty2);
+                ctx.moveTo(t.x - cos * trailHalfLen, t.y - sin * trailHalfLen);
+                ctx.lineTo(t.x + cos * trailHalfLen, t.y + sin * trailHalfLen);
                 ctx.stroke();
             }
-            ctx.restore();
         }
 
-        // Main line particle - Draw with source-over first for solid visibility
-        ctx.save();
+        // Main line particle
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = visibleAlpha;
         ctx.strokeStyle = this.color;
         ctx.lineWidth = 5;
         ctx.lineCap = 'round';
 
-        // Shadow/glow effect
         if (particlePerfSettings.enableShadows) {
             ctx.shadowBlur = 15;
             ctx.shadowColor = this.color;
         }
 
-        // Draw the main colored line
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
 
-        // White/bright core for extra brightness
+        // White core
         ctx.globalAlpha = visibleAlpha * 0.95;
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
@@ -822,19 +815,16 @@ class Particle {
         ctx.lineTo(x2, y2);
         ctx.stroke();
 
-        ctx.restore();
-
-        // ADDITIVE GLOW LAYER on top
-        ctx.save();
+        // Additive glow layer
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = visibleAlpha * 0.6;
         ctx.strokeStyle = this.color;
         ctx.lineWidth = 8;
-        ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
+
         ctx.restore();
     }
 
@@ -1327,20 +1317,17 @@ export class ParticleSystem {
 
         ctx.save();
 
-        // CRITICAL: Reset ALL context state to ensure particles are visible
+        // OPTIMIZED: Only reset properties actually used by particle rendering
+        // Removed unnecessary resets (lineDashOffset, miterLimit, filter, imageSmoothingEnabled)
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
         ctx.setLineDash([]);
-        ctx.lineDashOffset = 0;
         ctx.lineJoin = 'miter';
         ctx.lineCap = 'butt';
-        ctx.miterLimit = 10;
         ctx.shadowBlur = 0;
         ctx.shadowColor = 'transparent';
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
-        ctx.filter = 'none';
-        ctx.imageSmoothingEnabled = true;
 
         // Use batched rendering for better performance
         if (this._activeCount > 50) {
@@ -1358,9 +1345,13 @@ export class ParticleSystem {
      * @private
      */
     _drawDirect(ctx) {
+        const w = CONFIG.canvas?.width || 800;
+        const h = CONFIG.canvas?.height || 600;
         for (let i = 0; i < this.particles.length; i++) {
             const particle = this.particles[i];
             if (particle.active) {
+                // OPTIMIZED: Off-screen culling - skip particles outside viewport
+                if (particle.x < -60 || particle.x > w + 60 || particle.y < -60 || particle.y > h + 60) continue;
                 ctx.globalAlpha = 1;
                 ctx.globalCompositeOperation = 'source-over';
                 particle.draw(ctx);
@@ -1381,10 +1372,15 @@ export class ParticleSystem {
         glowBatch.length = 0;
 
         const glowTypes = ParticleSystem._glowTypes;
+        // OPTIMIZED: Off-screen culling during batch collection
+        const w = CONFIG.canvas?.width || 800;
+        const h = CONFIG.canvas?.height || 600;
 
         for (let i = 0; i < this.particles.length; i++) {
             const particle = this.particles[i];
             if (particle.active) {
+                // Skip off-screen particles
+                if (particle.x < -60 || particle.x > w + 60 || particle.y < -60 || particle.y > h + 60) continue;
                 if (glowTypes.has(particle.type)) {
                     glowBatch.push(particle);
                 } else {
@@ -2131,8 +2127,8 @@ export class ParticleSystem {
      * @param {number} intensity - Explosion intensity multiplier (default 1)
      */
     addGeometryWarsExplosion(x, y, color = '#ff6600', intensity = 1) {
-        // REDUCED: Lowered base count from 120 to 50 for better performance
-        const baseCount = Math.floor(50 * intensity);
+        // Increased from 50 to 70 after optimization pass (culling + trail pre-alloc)
+        const baseCount = Math.floor(70 * intensity);
         const adjustedCount = getAdjustedCount(baseCount);
 
         // === CENTRAL GLOW EFFECT ===

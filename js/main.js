@@ -1887,8 +1887,9 @@ function gameLoop(currentTime) {
 
 function update(deltaTime) {
     // Apply slow motion if active
+    // OPTIMIZED: Only run SlowMotionSystem math when actually active
     let adjustedDeltaTime = deltaTime;
-    if (slowMotionSystem) {
+    if (slowMotionSystem && slowMotionSystem.isActive) {
         const timeFactor = slowMotionSystem.update();
         adjustedDeltaTime = slowMotionSystem.adjustDeltaTime(deltaTime);
     }
@@ -1916,27 +1917,36 @@ function update(deltaTime) {
     if (bulletPool) bulletPool.update(canvas, gameState, adjustedDeltaTime);
     if (enemyBulletPool) enemyBulletPool.update(canvas, gameState, adjustedDeltaTime);
 
-    // Update enemies
-    for (let i = gameState.enemies.length - 1; i >= 0; i--) {
-        const enemy = gameState.enemies[i];
-        if (!enemy.active) {
-            gameState.enemies.splice(i, 1);
-            continue;
+    // Update enemies - OPTIMIZED: swap-and-pop removal (O(1) vs O(n) splice)
+    {
+        const enemies = gameState.enemies;
+        const px = player?.x || canvas.logicalWidth / 2;
+        const py = player?.y || canvas.logicalHeight - 100;
+        let writeIdx = 0;
+        for (let i = 0; i < enemies.length; i++) {
+            const enemy = enemies[i];
+            if (!enemy.active) continue;
+            enemy.update(px, py, canvas, enemyBulletPool, gameState, particleSystem, adjustedDeltaTime);
+            if (enemy.active) {
+                enemies[writeIdx++] = enemy;
+            }
         }
-        enemy.update(player?.x || canvas.logicalWidth / 2, player?.y || canvas.logicalHeight - 100,
-                    canvas, enemyBulletPool, gameState, particleSystem, adjustedDeltaTime);
+        enemies.length = writeIdx;
     }
 
-    // Update asteroids
+    // Update asteroids - OPTIMIZED: in-place removal
     if (gameState.asteroids) {
-        for (let i = gameState.asteroids.length - 1; i >= 0; i--) {
-            const asteroid = gameState.asteroids[i];
-            if (!asteroid.active) {
-                gameState.asteroids.splice(i, 1);
-                continue;
-            }
+        const asteroids = gameState.asteroids;
+        let writeIdx = 0;
+        for (let i = 0; i < asteroids.length; i++) {
+            const asteroid = asteroids[i];
+            if (!asteroid.active) continue;
             asteroid.update(canvas, adjustedDeltaTime);
+            if (asteroid.active) {
+                asteroids[writeIdx++] = asteroid;
+            }
         }
+        asteroids.length = writeIdx;
     }
 
     // Update boss
@@ -2264,9 +2274,15 @@ function render() {
     // Enemy bullets
     if (enemyBulletPool) enemyBulletPool.draw(ctx);
 
-    // Enemies
-    for (const enemy of gameState.enemies) {
-        if (enemy.draw) enemy.draw(ctx);
+    // Enemies - OPTIMIZED: Off-screen culling
+    {
+        const cw = canvas.logicalWidth || canvas.width;
+        const ch = canvas.logicalHeight || canvas.height;
+        for (const enemy of gameState.enemies) {
+            if (enemy.draw && enemy.x > -50 && enemy.x < cw + 50 && enemy.y > -50 && enemy.y < ch + 50) {
+                enemy.draw(ctx);
+            }
+        }
     }
 
     // Asteroids
@@ -2329,8 +2345,8 @@ function render() {
     // Power-up manager UI
     if (powerUpManager) powerUpManager.drawUI(ctx);
 
-    // Slow motion overlay
-    if (slowMotionSystem) {
+    // Slow motion overlay - OPTIMIZED: Only draw when active
+    if (slowMotionSystem && slowMotionSystem.isActive) {
         slowMotionSystem.draw(ctx, canvas);
     }
 
