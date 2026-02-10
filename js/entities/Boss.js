@@ -27,6 +27,13 @@ export class Boss {
         this.phaseTimer = 0;
         this.currentPhase = 1;
 
+        // Pending attack queue (replaces setTimeout to respect pause state)
+        this.pendingAttacks = [];
+
+        // Slam return state
+        this.slamReturnTimer = 0;
+        this.slamOriginalY = 0;
+
         // Visual effects
         this.rotation = 0;
         this.pulsePhase = 0;
@@ -181,6 +188,32 @@ export class Boss {
             this.attackPattern = (this.attackPattern + 1) % this.attackPatterns.length;
         }
 
+        // Process pending attack queue (frame-based, pauses when game pauses)
+        if (this.pendingAttacks.length > 0) {
+            let writeIdx = 0;
+            for (let i = 0; i < this.pendingAttacks.length; i++) {
+                const atk = this.pendingAttacks[i];
+                atk.delay -= scaledDeltaTime;
+                if (atk.delay <= 0) {
+                    if (this.active && !this.defeated) {
+                        atk.fn();
+                    }
+                } else {
+                    this.pendingAttacks[writeIdx++] = atk;
+                }
+            }
+            this.pendingAttacks.length = writeIdx;
+        }
+
+        // Process slam return timer
+        if (this.slamReturnTimer > 0) {
+            this.slamReturnTimer -= scaledDeltaTime;
+            if (this.slamReturnTimer <= 0) {
+                this.y = this.slamOriginalY;
+                this.slamReturnTimer = 0;
+            }
+        }
+
         // Visual updates
         this.rotation += 0.01 * scaledDeltaTime;
         this.pulsePhase += 0.05 * scaledDeltaTime;
@@ -188,6 +221,14 @@ export class Boss {
         if (this.damageFlash > 0) {
             this.damageFlash = Math.max(0, this.damageFlash - scaledDeltaTime);
         }
+    }
+
+    /**
+     * Schedule an attack callback after a delay (in frames).
+     * Replaces setTimeout to properly respect pause state.
+     */
+    scheduleAttack(fn, delayFrames) {
+        this.pendingAttacks.push({ fn, delay: delayFrames });
     }
 
     updatePhase(deltaTime) {
@@ -331,13 +372,12 @@ export class Boss {
         const bulletCount = 8;
 
         for (let i = 0; i < bulletCount; i++) {
-            setTimeout(() => {
-                if (this.active && !this.defeated) {
-                    bulletPool.spawn(this.x, this.y + this.size / 2,
-                        Math.cos(angle) * 10, Math.sin(angle) * 10, false,
-                        { color: '#ff0000', size: 6, damage: 1 });
-                }
-            }, i * 50);
+            const idx = i;
+            this.scheduleAttack(() => {
+                bulletPool.spawn(this.x, this.y + this.size / 2,
+                    Math.cos(angle) * 10, Math.sin(angle) * 10, false,
+                    { color: '#ff0000', size: 6, damage: 1 });
+            }, idx * 3); // ~50ms per bullet at 60fps
         }
     }
 
@@ -345,14 +385,13 @@ export class Boss {
         const bulletCount = 12 * this.currentPhase;
 
         for (let i = 0; i < bulletCount; i++) {
-            setTimeout(() => {
-                if (this.active && !this.defeated) {
-                    const angle = (Date.now() * 0.005) + (Math.PI * 2 * i / 12);
-                    bulletPool.spawn(this.x, this.y,
-                        Math.cos(angle) * 5, Math.sin(angle) * 5, false,
-                        { color: this.secondaryColor, size: 7, damage: 1 });
-                }
-            }, i * 30);
+            const idx = i;
+            this.scheduleAttack(() => {
+                const angle = (this.rotation * 100) + (Math.PI * 2 * idx / 12);
+                bulletPool.spawn(this.x, this.y,
+                    Math.cos(angle) * 5, Math.sin(angle) * 5, false,
+                    { color: this.secondaryColor, size: 7, damage: 1 });
+            }, idx * 2); // ~30ms per bullet at 60fps
         }
     }
 
@@ -405,10 +444,9 @@ export class Boss {
             gameState.screenShake.duration = 30;
         }
 
-        // Return after delay
-        setTimeout(() => {
-            this.y = originalY;
-        }, 500);
+        // Return after delay (30 frames ~ 500ms at 60fps)
+        this.slamOriginalY = originalY;
+        this.slamReturnTimer = 30;
     }
 
     attackBlink(playerX, playerY, bulletPool) {
@@ -450,17 +488,16 @@ export class Boss {
         const rings = 2 + this.currentPhase;
 
         for (let ring = 0; ring < rings; ring++) {
-            setTimeout(() => {
-                if (this.active && !this.defeated) {
-                    const bulletCount = 16;
-                    for (let i = 0; i < bulletCount; i++) {
-                        const angle = (Math.PI * 2 * i) / bulletCount;
-                        bulletPool.spawn(this.x, this.y,
-                            Math.cos(angle) * (3 + ring), Math.sin(angle) * (3 + ring), false,
-                            { color: this.color, size: 5, damage: 1 });
-                    }
+            const r = ring;
+            this.scheduleAttack(() => {
+                const bulletCount = 16;
+                for (let i = 0; i < bulletCount; i++) {
+                    const angle = (Math.PI * 2 * i) / bulletCount;
+                    bulletPool.spawn(this.x, this.y,
+                        Math.cos(angle) * (3 + r), Math.sin(angle) * (3 + r), false,
+                        { color: this.color, size: 5, damage: 1 });
                 }
-            }, ring * 200);
+            }, r * 12); // ~200ms per ring at 60fps
         }
     }
 
@@ -488,13 +525,12 @@ export class Boss {
         const beamX = playerX;
 
         for (let i = 0; i < 20; i++) {
-            setTimeout(() => {
-                if (this.active && !this.defeated) {
-                    bulletPool.spawn(beamX + (Math.random() - 0.5) * 30, -10,
-                        0, 12, false,
-                        { color: '#ffff00', size: 8, damage: 1 });
-                }
-            }, i * 30);
+            const offsetX = (Math.random() - 0.5) * 30;
+            this.scheduleAttack(() => {
+                bulletPool.spawn(beamX + offsetX, -10,
+                    0, 12, false,
+                    { color: '#ffff00', size: 8, damage: 1 });
+            }, i * 2); // ~30ms per bullet at 60fps
         }
 
         // Warning line
@@ -518,16 +554,15 @@ export class Boss {
         const bulletCount = 32;
 
         for (let wave = 0; wave < 3; wave++) {
-            setTimeout(() => {
-                if (this.active && !this.defeated) {
-                    for (let i = 0; i < bulletCount; i++) {
-                        const angle = (Math.PI * 2 * i) / bulletCount + (wave * 0.1);
-                        bulletPool.spawn(this.x, this.y,
-                            Math.cos(angle) * 4, Math.sin(angle) * 4, false,
-                            { color: wave === 1 ? '#ffffff' : this.color, size: 6, damage: 1 });
-                    }
+            const w = wave;
+            this.scheduleAttack(() => {
+                for (let i = 0; i < bulletCount; i++) {
+                    const angle = (Math.PI * 2 * i) / bulletCount + (w * 0.1);
+                    bulletPool.spawn(this.x, this.y,
+                        Math.cos(angle) * 4, Math.sin(angle) * 4, false,
+                        { color: w === 1 ? '#ffffff' : this.color, size: 6, damage: 1 });
                 }
-            }, wave * 300);
+            }, w * 18); // ~300ms per wave at 60fps
         }
     }
 
@@ -549,6 +584,7 @@ export class Boss {
 
         if (this.hp <= 0) {
             this.defeated = true;
+            this.pendingAttacks.length = 0; // Clear queued attacks on defeat
             return true;
         }
 

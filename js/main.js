@@ -232,6 +232,10 @@ function init() {
     }
 
     ctx = canvas.getContext('2d');
+    if (!ctx) {
+        console.error('Failed to get 2D canvas context');
+        return;
+    }
     canvas.logicalWidth = LOGICAL_CANVAS_SIZE;
     canvas.logicalHeight = LOGICAL_CANVAS_SIZE;
 
@@ -2170,9 +2174,10 @@ function update(deltaTime) {
     // Update screen shake
     if (gameState.screenShake.enabled && gameState.screenShake.duration > 0) {
         gameState.screenShake.duration--;
-        gameState.screenShake.x = (Math.random() - 0.5) * gameState.screenShake.intensity;
-        gameState.screenShake.y = (Math.random() - 0.5) * gameState.screenShake.intensity;
-        gameState.screenShake.intensity *= 0.95;
+        const intensity = Number.isFinite(gameState.screenShake.intensity) ? gameState.screenShake.intensity : 0;
+        gameState.screenShake.x = (Math.random() - 0.5) * intensity;
+        gameState.screenShake.y = (Math.random() - 0.5) * intensity;
+        gameState.screenShake.intensity = intensity * 0.95;
     } else {
         gameState.screenShake.x = 0;
         gameState.screenShake.y = 0;
@@ -2444,7 +2449,7 @@ function updatePcHud() {
     if (bossSection && bossHealthFill) {
         if (gameState.boss && gameState.boss.active) {
             bossSection.classList.add('visible');
-            const healthPercent = (gameState.boss.health / gameState.boss.maxHealth) * 100;
+            const healthPercent = (gameState.boss.hp / gameState.boss.maxHp) * 100;
             bossHealthFill.style.width = `${healthPercent}%`;
         } else {
             bossSection.classList.remove('visible');

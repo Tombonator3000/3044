@@ -5,16 +5,27 @@
 
 ## Fullført nylig
 
+### 2026-02-10 (Bugfix-sesjon: 8 bugs fikset)
+- [x] Boss health bar fikset (hp/maxHp property mismatch)
+- [x] Boss attack setTimeout → frame-basert scheduleAttack() kø-system
+- [x] Boss slam setTimeout → frame-basert timer
+- [x] Player.firePulseCannon setTimeout → direkte spawning
+- [x] PowerUp timers setTimeout → frame-basert schedulePowerUpTimer() system (9 powerups)
+- [x] BestiaryScreen bounds checking for selectedIndex
+- [x] Canvas context null check
+- [x] Screen shake NaN beskyttelse
+
 ### 2026-02-10 (Fiender skyter bakover)
 - [x] Fikset at fiender som passerte spilleren skjøt bakover i det uendelige
 - [x] Lagt til posisjonssjekk (`canShootFromPosition`) i Enemy.js update()
 - [x] Støtter både normal modus og sidescroller modus
 
 ## Neste
+- [ ] Playteste bugfixes - verifiser boss health bar, pause-korrekthet, powerup timere
 - [ ] Playteste med nye optimaliseringer - verifiser 60fps ved wave 5-10
 - [ ] Teste at LOD-rendering ikke er visuelt forstyrrende
 - [ ] Teste at off-screen culling ikke forårsaker pop-in
-- [ ] Vurdere WebGL-migrering for grid/starfield (fremtidig)
+- [ ] Integrere WeaponManager (10 spesialvåpen er definert men aldri brukt)
 - [ ] BulletPool batch-rendering (gruppere etter type for færre state changes)
 - [ ] GridRenderer offscreen canvas pre-rendering
 - [ ] Balansere vanskelighetsgrad etter feedback
@@ -26,14 +37,19 @@
 ## Forbedringer
 - [ ] Forbedre mobilkontroller
 - [ ] Legge til flere fiendetyper med unike behaviors
+- [ ] Fullføre sidescroller-modus integrasjon
 
 ## Teknisk gjeld
 - [ ] Konsistent feilhåndtering i alle moduler
 - [ ] Fullstendig dokumentasjon av alle public metoder
+- [ ] Vurdere WebGL-migrering for grid/starfield (fremtidig)
 
 ---
 
 ## Fullførte oppgaver
+
+### 2026-02-10 (Bugfix-sesjon) — Flyttet til fullførte
+- [x] Se "Fullført nylig" ovenfor
 
 ### 2026-02-10 (Deep Performance Audit & Optimization)
 - [x] VHSEffect: Erstattet getImageData med drawImage (15-40ms besparelse)
