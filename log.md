@@ -4,6 +4,80 @@
 
 ---
 
+# FIX: FIENDER SKYTER BAKOVER MOT SPILLER
+
+## Oversikt
+Fiender som hadde passert forbi spilleren (under spillerens y-posisjon) fortsatte å skyte oppover mot spilleren i det uendelige. Dette gjorde spillet ekstremt vanskelig da man ble beskutt fra alle retninger, spesielt bakfra. Fikset ved å legge til en posisjonssjekk slik at fiender kun skyter når de er over (eller på samme nivå som) spilleren.
+
+## Rotårsak-analyse
+
+### Problemet
+I `Enemy.js` update()-metoden (linje 528-532) var skytebetingelsen:
+```javascript
+if (this.fireTimer >= this.fireRate * fireRateMultiplier && effectiveBehavior !== 'dive') {
+    this.shoot(playerX, playerY, enemyBulletPool);
+}
+```
+- **Ingen posisjonssjekk** - fiender skjøt uansett posisjon relativt til spilleren
+- `shoot()` beregner vinkel med `Math.atan2(playerY - this.y, playerX - this.x)` - fiender under spilleren skyter oppover
+- Fiender deaktiveres først ved `canvas.logicalHeight + 50` - langt under spilleren
+- Resultat: fiender som passerte spilleren skjøt bakover i 100+ piksler før deaktivering
+
+### Berørte fiendetyper
+- **Aggressive (triangle)**: Beveger seg nedover, passerer spilleren, skyter oppover
+- **Patrol (square)**: Zig-zag nedover, passerer spilleren
+- **Sinewave (hexagon)**: Sinusbevegelse nedover, passerer spilleren
+- **Pulse (synthwave)**: Pulserende bevegelse nedover
+- **Invader**: Langsom nedstigning, passerer spilleren
+- **Ghost**: Flyter nedover, passerer spilleren
+- **Orbit (laserdisc)**: Orbiterer nedover
+- **Phase (pixelskull)**: Tracker spilleren, kunne ende under
+- **Glitch (vhstracker)**: Tracker spilleren, kunne ende under
+
+## Endringer implementert
+
+### Enemy.js - Posisjonssjekk for skyting (linje 528-537)
+**Problem**: Fiender skjøt mot spilleren uansett posisjon
+**Løsning**: Lagt til `canShootFromPosition`-sjekk som kun tillater skyting når fienden er over spilleren (med 50px margin)
+
+```javascript
+// FØR:
+const fireRateMultiplier = this.threatResponse === 'aggressive' ? 0.8 : 1.0;
+if (this.fireTimer >= this.fireRate * fireRateMultiplier && effectiveBehavior !== 'dive') {
+    this.shoot(playerX, playerY, enemyBulletPool);
+    this.fireTimer = 0;
+}
+
+// ETTER:
+const fireRateMultiplier = this.threatResponse === 'aggressive' ? 0.8 : 1.0;
+const canShootFromPosition = this.sidescrollerMode
+    ? (this.x > playerX - 50)   // Sidescroller: only if to the right of player
+    : (this.y < playerY + 50);   // Normal: only if above player (50px margin)
+if (canShootFromPosition && this.fireTimer >= this.fireRate * fireRateMultiplier && effectiveBehavior !== 'dive') {
+    this.shoot(playerX, playerY, enemyBulletPool);
+    this.fireTimer = 0;
+}
+```
+
+### Detaljer om løsningen
+- **Normal modus**: `this.y < playerY + 50` - fiender kan skyte fra ovenfor og inntil 50px under spilleren
+- **Sidescroller modus**: `this.x > playerX - 50` - fiender kan skyte fra høyre side og inntil 50px til venstre for spilleren
+- **50px margin**: Tillater fiender som akkurat passerer spilleren å avfyre siste skudd, men forhindrer vedvarende bakover-skyting
+- **Null påvirkning på dive-fiender**: Dive-fiender var allerede unntatt fra skyting
+
+## Filer endret
+- `js/entities/Enemy.js` - Lagt til posisjonssjekk for skyting (linje 528-537)
+
+## Testing
+- [ ] Verifiser at fiender over spilleren fortsatt skyter normalt
+- [ ] Verifiser at fiender som passerer spilleren slutter å skyte
+- [ ] Verifiser at snipers (som holder seg øverst) fortsatt fungerer
+- [ ] Verifiser at sidescroller-modus fungerer korrekt
+- [ ] Verifiser at gameplay er merkbart enklere (ikke bombardert bakfra)
+- [ ] Verifiser at ingen fiendetyper er ødelagt av endringen
+
+---
+
 # DEEP PERFORMANCE AUDIT & OPTIMIZATION - ENEMIES + PARTICLES
 
 ## Oversikt
