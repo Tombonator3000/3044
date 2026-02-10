@@ -168,8 +168,8 @@ export class HUD {
         if (gameState.bossActive && gameState.boss) {
             this.bossHealthBar.show(
                 gameState.boss.name || 'BOSS',
-                gameState.boss.health || 0,
-                gameState.boss.maxHealth || 100
+                gameState.boss.hp || 0,
+                gameState.boss.maxHp || 100
             );
         } else {
             this.bossHealthBar.hide();

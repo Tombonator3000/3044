@@ -70,6 +70,13 @@ export class BestiaryScreen {
         const discovered = this.bestiary.getDiscoveredCount();
         const total = this.bestiary.getTotalCount();
 
+        // Clamp selectedIndex to valid range
+        if (enemies.length > 0) {
+            this.selectedIndex = Math.max(0, Math.min(this.selectedIndex, enemies.length - 1));
+        } else {
+            this.selectedIndex = 0;
+        }
+
         screen.innerHTML = `
             <div class="menu-container bestiary-container">
                 <h2 class="screen-title">ENEMY BESTIARY</h2>
@@ -80,7 +87,7 @@ export class BestiaryScreen {
                 </div>
 
                 <div class="bestiary-details" id="bestiaryDetails">
-                    ${this.renderEnemyDetails(enemies[this.selectedIndex])}
+                    ${enemies.length > 0 ? this.renderEnemyDetails(enemies[this.selectedIndex]) : ''}
                 </div>
 
                 <div class="menu-nav-buttons">
@@ -285,7 +292,9 @@ export class BestiaryScreen {
         const detailsPanel = document.getElementById('bestiaryDetails');
         if (detailsPanel) {
             const enemies = this.bestiary.getAllEnemies();
-            detailsPanel.innerHTML = this.renderEnemyDetails(enemies[index]);
+            if (index >= 0 && index < enemies.length) {
+                detailsPanel.innerHTML = this.renderEnemyDetails(enemies[index]);
+            }
         }
     }
 

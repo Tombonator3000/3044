@@ -197,49 +197,43 @@ export class PowerUp {
                 break;
             case 'speed':
                 player.speed = Math.min((player.speed || 5.5) + 0.5, 8);
-                clearTimeout(player._speedTimeout);
-                player._speedTimeout = setTimeout(() => { player.speed = Math.max(player.speed - 0.5, 5.5); }, 10000);
+                player.schedulePowerUpTimer?.('speed', 600, () => { player.speed = Math.max(player.speed - 0.5, 5.5); });
                 break;
 
             // Uncommon (now with 45 second duration)
             case 'laser':
                 player.hasLaser = true;
                 player.laserPower = Math.min((player.laserPower || 0) + 1, 5);
-                clearTimeout(player._laserTimeout);
-                player._laserTimeout = setTimeout(() => {
+                player.schedulePowerUpTimer?.('laser', 2700, () => {
                     player.laserPower = Math.max(1, player.laserPower - 1);
                     if (player.laserPower <= 1) player.hasLaser = false;
-                }, 45000);
+                });
                 break;
             case 'spread':
                 player.hasSpread = true;
                 player.spreadCount = Math.min((player.spreadCount || 3) + 2, 9);
-                clearTimeout(player._spreadTimeout);
-                player._spreadTimeout = setTimeout(() => {
+                player.schedulePowerUpTimer?.('spread', 2700, () => {
                     player.spreadCount = Math.max(3, player.spreadCount - 2);
                     if (player.spreadCount <= 3) player.hasSpread = false;
-                }, 45000);
+                });
                 break;
             case 'homing':
                 player.hasHoming = true;
                 player.homingStrength = Math.min((player.homingStrength || 0) + 0.02, 0.15);
-                clearTimeout(player._homingTimeout);
-                player._homingTimeout = setTimeout(() => {
+                player.schedulePowerUpTimer?.('homing', 2700, () => {
                     player.homingStrength = Math.max(0, player.homingStrength - 0.02);
                     if (player.homingStrength <= 0) player.hasHoming = false;
-                }, 45000);
+                });
                 break;
             case 'magnet':
                 player.magnetRange = Math.min((player.magnetRange || 0) + 100, 400);
-                clearTimeout(player._magnetTimeout);
-                player._magnetTimeout = setTimeout(() => {
+                player.schedulePowerUpTimer?.('magnet', 2700, () => {
                     player.magnetRange = Math.max(0, player.magnetRange - 100);
-                }, 45000);
+                });
                 break;
             case 'autofire':
                 player.autoFire = true;
-                clearTimeout(player._autofireTimeout);
-                player._autofireTimeout = setTimeout(() => { player.autoFire = false; }, 15000);
+                player.schedulePowerUpTimer?.('autofire', 900, () => { player.autoFire = false; });
                 break;
             case 'life':
                 if (gameState) gameState.lives = Math.min((gameState.lives || 0) + 1, 9);
@@ -249,29 +243,26 @@ export class PowerUp {
             case 'pierce':
                 player.hasPierce = true;
                 player.pierceCount = Math.min((player.pierceCount || 0) + 1, 5);
-                clearTimeout(player._pierceTimeout);
-                player._pierceTimeout = setTimeout(() => {
+                player.schedulePowerUpTimer?.('pierce', 2700, () => {
                     player.pierceCount = Math.max(0, player.pierceCount - 1);
                     if (player.pierceCount <= 0) player.hasPierce = false;
-                }, 45000);
+                });
                 break;
             case 'bounce':
                 player.hasBounce = true;
                 player.bounceCount = Math.min((player.bounceCount || 0) + 1, 5);
-                clearTimeout(player._bounceTimeout);
-                player._bounceTimeout = setTimeout(() => {
+                player.schedulePowerUpTimer?.('bounce', 2700, () => {
                     player.bounceCount = Math.max(0, player.bounceCount - 1);
                     if (player.bounceCount <= 0) player.hasBounce = false;
-                }, 45000);
+                });
                 break;
             case 'chain':
                 player.hasChain = true;
                 player.chainRange = Math.min((player.chainRange || 0) + 30, 200);
-                clearTimeout(player._chainTimeout);
-                player._chainTimeout = setTimeout(() => {
+                player.schedulePowerUpTimer?.('chain', 2700, () => {
                     player.chainRange = Math.max(0, player.chainRange - 30);
                     if (player.chainRange <= 0) player.hasChain = false;
-                }, 45000);
+                });
                 break;
             case 'freeze':
                 player.freezePower = 300;  // 5 seconds

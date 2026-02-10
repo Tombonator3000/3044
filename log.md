@@ -4,6 +4,141 @@
 
 ---
 
+# BUGFIX SESSION: 8 BUGS FIKSET, GAME LOOP INTEGRITET
+
+## Oversikt
+Gjennomført dyp kodeaudit med fokus på reelle bugs som påvirker gameplay. Funnet og fikset 8 bugs fordelt på 6 filer. De mest kritiske funnene var: boss health bar som aldri fungerte (feil property-navn), setTimeout-baserte timere som ignorerte pause-state, og manglende bounds-checking i UI.
+
+## Endringer implementert
+
+### 1. Boss Health Bar - Property Mismatch (KRITISK)
+**Problem**: Boss bruker `hp`/`maxHp`, men main.js og HUD.js refererte til `health`/`maxHealth`. Resultatet var at boss health bar aldri viste korrekt verdi (NaN%).
+**Løsning**: Endret til korrekte property-navn.
+
+```javascript
+// FØR (main.js:2447):
+const healthPercent = (gameState.boss.health / gameState.boss.maxHealth) * 100;
+
+// ETTER:
+const healthPercent = (gameState.boss.hp / gameState.boss.maxHp) * 100;
+
+// FØR (HUD.js:171-172):
+gameState.boss.health || 0,
+gameState.boss.maxHealth || 100
+
+// ETTER:
+gameState.boss.hp || 0,
+gameState.boss.maxHp || 100
+```
+
+### 2. Boss Attack setTimeout -> Frame-basert kø (KRITISK)
+**Problem**: 6 boss-angrep (laser, spiral, vortex, beam, nova, slam) brukte `setTimeout()` som kjørte uavhengig av game loop. Kuler ble avfyrt selv under pause, og slam-return skjedde etter boss var beseiret.
+**Løsning**: Implementert `pendingAttacks`-køsystem og `scheduleAttack()` metode i Boss. Timere prosesseres i `update()` og pauser automatisk når spillet er pauset.
+
+```javascript
+// FØR (Boss.js - attackLaser):
+setTimeout(() => {
+    if (this.active && !this.defeated) {
+        bulletPool.spawn(...);
+    }
+}, i * 50);
+
+// ETTER:
+this.scheduleAttack(() => {
+    bulletPool.spawn(...);
+}, idx * 3); // ~50ms i frames ved 60fps
+```
+
+Også lagt til:
+- `this.pendingAttacks = []` i constructor
+- `scheduleAttack(fn, delayFrames)` metode
+- Frame-basert prosessering i `update()`
+- `this.pendingAttacks.length = 0` ved boss defeat (rydder køen)
+- `slamReturnTimer`/`slamOriginalY` for slam-retur (erstatter setTimeout)
+
+### 3. Player.firePulseCannon setTimeout (MEDIUM)
+**Problem**: setTimeout med 15ms intervaller - kjørte under pause.
+**Løsning**: Erstattet med direkte spawning (15ms < 1 frame, ingen visuell forskjell).
+
+```javascript
+// FØR:
+for (let i = 0; i < 5; i++) {
+    setTimeout(() => {
+        if (bulletPool) {
+            bulletPool.spawn?.(this.x, this.y - 20 - i * 5, 0, -18, true);
+        }
+    }, i * 15);
+}
+
+// ETTER:
+if (!bulletPool) return;
+for (let i = 0; i < 5; i++) {
+    bulletPool.spawn?.(this.x, this.y - 20 - i * 5, 0, -18, true);
+}
+```
+
+### 4. PowerUp Timers setTimeout -> Frame-basert system (KRITISK)
+**Problem**: 9 powerup-typer (speed, laser, spread, homing, magnet, autofire, pierce, bounce, chain) brukte `setTimeout()` for varighet. Powerups utløp selv når spillet var pauset.
+**Løsning**: Implementert generisk `schedulePowerUpTimer(id, frames, callback)` system i Player med `_powerUpFrameTimers` array. Timere prosesseres i `processFrameTimers()` som kalles fra `updatePowerUpTimers()`.
+
+```javascript
+// FØR (PowerUp.js):
+clearTimeout(player._speedTimeout);
+player._speedTimeout = setTimeout(() => { ... }, 10000);
+
+// ETTER:
+player.schedulePowerUpTimer?.('speed', 600, () => { ... });
+```
+
+Konvertering: 10s=600f, 15s=900f, 45s=2700f ved 60fps.
+
+### 5. BestiaryScreen Bounds Checking (MEDIUM)
+**Problem**: `enemies[this.selectedIndex]` og `enemies[index]` uten bounds-validering. Kunne krasje med undefined.
+**Løsning**: Lagt til index clamping i render() og bounds-sjekk i selectEnemy().
+
+```javascript
+// ETTER (render):
+if (enemies.length > 0) {
+    this.selectedIndex = Math.max(0, Math.min(this.selectedIndex, enemies.length - 1));
+}
+
+// ETTER (selectEnemy):
+if (index >= 0 && index < enemies.length) {
+    detailsPanel.innerHTML = this.renderEnemyDetails(enemies[index]);
+}
+```
+
+### 6. Canvas Context Null Check (LAV)
+**Problem**: `canvas.getContext('2d')` ble ikke sjekket for null.
+**Løsning**: Lagt til null-check med early return.
+
+### 7. Screen Shake NaN Beskyttelse (LAV)
+**Problem**: Hvis `screenShake.intensity` ble NaN, ville det propagere til alle påfølgende frames.
+**Løsning**: Lagt til `Number.isFinite()` validering.
+
+## Filer endret
+- `js/main.js` - Boss health bar fix (hp/maxHp), canvas ctx check, screen shake NaN guard
+- `js/ui/HUD.js` - Boss health bar fix (hp/maxHp)
+- `js/entities/Boss.js` - Erstattet alle setTimeout med scheduleAttack() kø-system
+- `js/entities/Player.js` - Erstattet firePulseCannon setTimeout, lagt til schedulePowerUpTimer() system
+- `js/entities/PowerUp.js` - Erstattet 9 setTimeout-kall med frame-baserte timere
+- `js/ui/BestiaryScreen.js` - Bounds checking for selectedIndex
+
+## Testing
+- [ ] Verifiser at boss health bar viser korrekt HP-prosent
+- [ ] Verifiser at boss-angrep pauser når spillet er pauset
+- [ ] Verifiser at boss slam returnerer korrekt (frame-basert)
+- [ ] Verifiser at powerups ikke utløper under pause
+- [ ] Verifiser at bestiary ikke krasjer med tom liste
+- [ ] Verifiser at pulse cannon fungerer som før (5 kuler)
+- [ ] Verifiser at screen shake fungerer normalt
+
+## Funn (ikke fikset - for fremtidig arbeid)
+- **WeaponManager aldri initialisert**: 10 spesialvåpen i js/weapons/ er definert men aldri brukt i main.js. Krever større integreringsarbeid.
+- **Sidescroller-modus delvis implementert**: Config definerer sidescroller waves men full integrasjon mangler.
+
+---
+
 # FIX: FIENDER SKYTER BAKOVER MOT SPILLER
 
 ## Oversikt

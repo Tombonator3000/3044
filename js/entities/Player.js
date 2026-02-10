@@ -228,6 +228,10 @@ export class Player {
 
         // Sidescroller mode (R-Type style)
         this.sidescrollerMode = false;
+
+        // Generic powerup frame timers (replaces setTimeout to respect pause state)
+        // Each entry: { id: string, remaining: number, onExpire: Function }
+        this._powerUpFrameTimers = [];
     }
 
     /**
@@ -477,6 +481,42 @@ export class Player {
         this.updateVortexMode(gameState, particleSystem, deltaTime);
         this.updateOmegaMode(gameState, deltaTime);
         this.updateMagnetMode(gameState, deltaTime);
+        this.processFrameTimers(deltaTime);
+    }
+
+    /**
+     * Schedule a powerup expiration callback (frame-based, pauses when game pauses).
+     * Replaces setTimeout to properly respect pause state.
+     * @param {string} id - Timer ID (used to cancel/replace existing timer)
+     * @param {number} durationFrames - Duration in frames
+     * @param {Function} onExpire - Callback when timer expires
+     */
+    schedulePowerUpTimer(id, durationFrames, onExpire) {
+        // Cancel existing timer with same ID
+        const existing = this._powerUpFrameTimers.findIndex(t => t.id === id);
+        if (existing !== -1) {
+            this._powerUpFrameTimers.splice(existing, 1);
+        }
+        this._powerUpFrameTimers.push({ id, remaining: durationFrames, onExpire });
+    }
+
+    /**
+     * Process all pending powerup frame timers
+     */
+    processFrameTimers(deltaTime) {
+        if (this._powerUpFrameTimers.length === 0) return;
+
+        let writeIdx = 0;
+        for (let i = 0; i < this._powerUpFrameTimers.length; i++) {
+            const timer = this._powerUpFrameTimers[i];
+            timer.remaining -= deltaTime;
+            if (timer.remaining <= 0) {
+                timer.onExpire();
+            } else {
+                this._powerUpFrameTimers[writeIdx++] = timer;
+            }
+        }
+        this._powerUpFrameTimers.length = writeIdx;
     }
 
     /**
@@ -645,12 +685,9 @@ export class Player {
      * Pulse cannon - fires rapid laser beams in quick succession
      */
     firePulseCannon(bulletPool) {
+        if (!bulletPool) return;
         for (let i = 0; i < 5; i++) {
-            setTimeout(() => {
-                if (bulletPool) {
-                    bulletPool.spawn?.(this.x, this.y - 20 - i * 5, 0, -18, true);
-                }
-            }, i * 15);
+            bulletPool.spawn?.(this.x, this.y - 20 - i * 5, 0, -18, true);
         }
     }
 
