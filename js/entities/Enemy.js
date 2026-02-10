@@ -503,7 +503,12 @@ export class Enemy {
         }
 
         // Apply flocking forces for supported behaviors
-        if (this.flockingEnabled && (this.behavior === 'aggressive' || this.behavior === 'patrol')) {
+        // OPTIMIZED: Disable flocking when too many enemies (O(n²) algorithm)
+        // and only run every 3rd frame otherwise for performance
+        if (this.flockingEnabled && activeEnemies.length < 120
+            && (this.behavior === 'aggressive' || this.behavior === 'patrol')
+            && (this._flockFrame === undefined || ++this._flockFrame % 3 === 0)) {
+            this._flockFrame = this._flockFrame || 0;
             const flockMove = this.applyFlockingMovement(playerX, playerY, scaledDeltaTime);
             this.x += flockMove.x;
             this.y += flockMove.y;
@@ -925,6 +930,7 @@ export class Enemy {
 
         for (let i = 0; i < activeEnemies.length; i++) {
             const other = activeEnemies[i];
+            // Skip self and inactive enemies (array may include inactive)
             if (other === this || !other.active) continue;
 
             const dx = this.x - other.x;
@@ -1161,21 +1167,24 @@ export class Enemy {
     draw(ctx) {
         if (!this.active) return;
 
-        const shadowsEnabled = typeof config !== 'undefined' && config.rendering?.shadowsEnabled !== false;
+        // OPTIMIZED: LOD rendering based on total enemy count
+        const enemyCount = activeEnemies.length;
+        const lodLevel = enemyCount > 200 ? 2 : enemyCount > 100 ? 1 : 0;
+        const shadowsEnabled = lodLevel === 0 && typeof config !== 'undefined' && config.rendering?.shadowsEnabled !== false;
 
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.rotation);
 
-        // Glow effect (reduced shadow blur for performance)
+        // Glow effect - OPTIMIZED: Skip at LOD 2, reduce at LOD 1
         if (shadowsEnabled) {
             const glowIntensity = 0.5 + Math.sin(this.glowPulse) * 0.3;
-            ctx.shadowBlur = 10 * glowIntensity; // Reduced from 20
+            ctx.shadowBlur = 10 * glowIntensity;
             ctx.shadowColor = this.color;
         }
 
-        // Shield
-        if (this.shieldActive && this.shieldStrength > 0) {
+        // Shield - skip at LOD 2
+        if (this.shieldActive && this.shieldStrength > 0 && lodLevel < 2) {
             ctx.strokeStyle = '#00ffff';
             ctx.lineWidth = 2;
             ctx.globalAlpha = 0.5;
@@ -1185,43 +1194,47 @@ export class Enemy {
             ctx.globalAlpha = 1;
         }
 
-        // Custom draw for 8-bit enemies
-        if (this.customDraw) {
-            ctx.rotate(-this.rotation); // Reset rotation for pixel-perfect drawing
+        // Custom draw for 8-bit enemies - skip at LOD 2
+        if (this.customDraw && lodLevel < 2) {
+            ctx.rotate(-this.rotation);
             this.drawCustom8Bit(ctx);
         } else {
-            // Draw shape based on sides
+            // OPTIMIZED: Use cached Path2D for polygon shapes
+            // Path2D is built once per enemy type+size combo, reused every frame
+            if (!this._cachedPath || this._cachedPathSize !== this.size || this._cachedPathSides !== this.sides) {
+                this._cachedPath = new Path2D();
+                for (let i = 0; i < this.sides; i++) {
+                    const angle = (Math.PI * 2 * i / this.sides) - Math.PI / 2;
+                    const x = Math.cos(angle) * this.size;
+                    const y = Math.sin(angle) * this.size;
+                    if (i === 0) {
+                        this._cachedPath.moveTo(x, y);
+                    } else {
+                        this._cachedPath.lineTo(x, y);
+                    }
+                }
+                this._cachedPath.closePath();
+                this._cachedPathSize = this.size;
+                this._cachedPathSides = this.sides;
+            }
+
             ctx.strokeStyle = this.color;
             ctx.fillStyle = this.color + '44';
             ctx.lineWidth = 2;
-
-            ctx.beginPath();
-            for (let i = 0; i < this.sides; i++) {
-                const angle = (Math.PI * 2 * i / this.sides) - Math.PI / 2;
-                const x = Math.cos(angle) * this.size;
-                const y = Math.sin(angle) * this.size;
-
-                if (i === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
-                }
-            }
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
+            ctx.fill(this._cachedPath);
+            ctx.stroke(this._cachedPath);
         }
 
-        // HP indicator for enemies with more than 1 HP
-        if (this.hp > 1) {
+        // HP indicator for enemies with more than 1 HP - skip at LOD 2
+        if (this.hp > 1 && lodLevel < 2) {
             ctx.fillStyle = '#ffffff';
             ctx.font = 'bold 10px Courier New';
             ctx.textAlign = 'center';
             ctx.fillText(this.hp.toString(), 0, 4);
         }
 
-        // Dive indicator
-        if (this.diving) {
+        // Dive indicator - skip at LOD 2
+        if (this.diving && lodLevel < 2) {
             ctx.strokeStyle = '#ff0000';
             ctx.lineWidth = 3;
             ctx.beginPath();

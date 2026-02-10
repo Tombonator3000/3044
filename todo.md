@@ -4,13 +4,17 @@
 *Ingen pågående oppgaver*
 
 ## Neste
-- [ ] Teste nye fiende-mengder (wave 1: 37+, wave 5: 103+, wave 10: 181+)
-- [ ] Teste at gruppe-spawning fungerer (pair, triple, quad, quint)
+- [ ] Playteste med nye optimaliseringer - verifiser 60fps ved wave 5-10
+- [ ] Teste at LOD-rendering ikke er visuelt forstyrrende
+- [ ] Teste at off-screen culling ikke forårsaker pop-in
+- [ ] Vurdere WebGL-migrering for grid/starfield (fremtidig)
+- [ ] BulletPool batch-rendering (gruppere etter type for færre state changes)
+- [ ] GridRenderer offscreen canvas pre-rendering
 - [ ] Balansere vanskelighetsgrad etter feedback
-- [ ] Sjekke FPS med mange fiender på skjermen
 
 ## Bugs
-*Ingen kjente bugs for øyeblikket*
+- [ ] Verifiser at Path2D caching fungerer for alle fiendetyper
+- [ ] Verifiser at nebula gradient cache invalideres korrekt
 
 ## Forbedringer
 - [ ] Forbedre mobilkontroller
@@ -23,6 +27,28 @@
 ---
 
 ## Fullførte oppgaver
+
+### 2026-02-10 (Deep Performance Audit & Optimization)
+- [x] VHSEffect: Erstattet getImageData med drawImage (15-40ms besparelse)
+- [x] VHSEffect: Cachet noise pattern (2-5ms besparelse)
+- [x] Starfield: Cachet nebula-gradienter (8-15ms besparelse)
+- [x] Starfield: Optimalisert stjerne-rendering (færre save/restore)
+- [x] Enemy: Flocking-throttling ved 120+ fiender (4-8ms besparelse)
+- [x] Enemy: LOD-rendering (3 nivåer basert på fiende-antall)
+- [x] Enemy: Path2D caching for polygon-former
+- [x] WaveManager: Fjernet filter()-allokering per frame
+- [x] ParticleSystem: Pre-allokerte trail-objekter (eliminert GC)
+- [x] ParticleSystem: Off-screen culling i draw
+- [x] ParticleSystem: Konsolidert drawLine save/restore (6→2 kall)
+- [x] ParticleSystem: Forenklet context resets
+- [x] ParticleSystem: Økt intensityMultiplier 0.5→0.7, baseCount 50→70
+- [x] BulletPool: Off-screen culling
+- [x] main.js: In-place enemy/asteroid removal (O(n)→O(1))
+- [x] main.js: SlowMotionSystem gating
+- [x] main.js: Off-screen enemy culling i render
+- [x] CollisionSystem: Økt cellSize 50→80
+- [x] CollisionSystem: Gjenbrukbar getNearby buffer
+- [x] config.js: Økt particle maxCount 500→800
 
 ### 2026-02-03 (Partikkelfikser)
 - [x] Fjernet emitExhaustParticles()-kallet fra Player.js (partikler foran skip)

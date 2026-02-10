@@ -227,9 +227,15 @@ export class BulletPool {
 
     draw(ctx) {
         const time = Date.now() * 0.001;
+        // OPTIMIZED: Cache canvas dimensions for off-screen culling
+        const canvasW = ctx.canvas?.width || 800;
+        const canvasH = ctx.canvas?.height || 600;
 
         for (const bullet of this.bullets) {
             if (!bullet.active) continue;
+
+            // OPTIMIZED: Skip off-screen bullets
+            if (bullet.x < -50 || bullet.x > canvasW + 50 || bullet.y < -50 || bullet.y > canvasH + 50) continue;
 
             ctx.save();
 

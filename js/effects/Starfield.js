@@ -245,6 +245,10 @@ export class Starfield {
 
         // Draw stars layer by layer (back to front)
         // Performance: On mobile, skip the first layer (most distant, least visible)
+        // OPTIMIZED: Single save/restore wrapping all stars instead of per-star
+        ctx.save();
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
         const startLayer = this.isMobile ? 1 : 0;
         for (let i = startLayer; i < this.layers.length; i++) {
             const layer = this.layers[i];
@@ -254,6 +258,7 @@ export class Starfield {
                 this.drawStar(ctx, star, layerAlpha);
             }
         }
+        ctx.restore();
 
         // Draw main nebulae (foreground glow)
         // Performance: Draw fewer nebulae on mobile
@@ -269,15 +274,18 @@ export class Starfield {
         const twinkle = 0.7 + Math.sin(time) * 0.3;
         const alpha = star.brightness * twinkle * layerAlpha;
 
-        ctx.save();
-        ctx.globalAlpha = Math.min(alpha, 0.9);
-        ctx.fillStyle = star.color;
+        // OPTIMIZED: Only use save/restore for stars that need shadow (large stars)
+        // Small stars just set fillStyle and alpha directly (cheaper)
+        const needsShadow = star.size > 2 && !this.isMobile;
 
-        // Larger stars get glow - skip on mobile for performance
-        if (star.size > 2 && !this.isMobile) {
+        if (needsShadow) {
+            ctx.save();
             ctx.shadowBlur = star.size * 3;
             ctx.shadowColor = star.color;
         }
+
+        ctx.globalAlpha = Math.min(alpha, 0.9);
+        ctx.fillStyle = star.color;
 
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
@@ -298,7 +306,9 @@ export class Starfield {
             ctx.stroke();
         }
 
-        ctx.restore();
+        if (needsShadow) {
+            ctx.restore();
+        }
     }
 
     drawNebula(ctx, nebula) {
@@ -317,20 +327,30 @@ export class Starfield {
             ctx.arc(nebula.x, nebula.y, nebula.radius * pulse * 0.7, 0, Math.PI * 2);
             ctx.fill();
         } else {
-            const gradient = ctx.createRadialGradient(
-                nebula.x, nebula.y, 0,
-                nebula.x, nebula.y, nebula.radius * pulse
-            );
-
-            gradient.addColorStop(0, nebula.color + '40');  // Center more visible
-            gradient.addColorStop(0.3, nebula.color + '20');
-            gradient.addColorStop(0.6, nebula.color + '10');
-            gradient.addColorStop(1, 'transparent');
+            // OPTIMIZED: Cache gradient per nebula, only recreate when color changes
+            // Pulse is applied via radius scaling and alpha, gradient shape stays the same
+            const radius = nebula.radius * pulse;
+            if (!nebula._cachedGradient || nebula._cachedColor !== nebula.color
+                || nebula._cachedX !== nebula.x || nebula._cachedY !== nebula.y
+                || Math.abs(nebula._cachedRadius - radius) > 5) {
+                nebula._cachedGradient = ctx.createRadialGradient(
+                    nebula.x, nebula.y, 0,
+                    nebula.x, nebula.y, radius
+                );
+                nebula._cachedGradient.addColorStop(0, nebula.color + '40');
+                nebula._cachedGradient.addColorStop(0.3, nebula.color + '20');
+                nebula._cachedGradient.addColorStop(0.6, nebula.color + '10');
+                nebula._cachedGradient.addColorStop(1, 'transparent');
+                nebula._cachedColor = nebula.color;
+                nebula._cachedX = nebula.x;
+                nebula._cachedY = nebula.y;
+                nebula._cachedRadius = radius;
+            }
 
             ctx.globalAlpha = nebula.alpha * pulse;
-            ctx.fillStyle = gradient;
+            ctx.fillStyle = nebula._cachedGradient;
             ctx.beginPath();
-            ctx.arc(nebula.x, nebula.y, nebula.radius * pulse, 0, Math.PI * 2);
+            ctx.arc(nebula.x, nebula.y, radius, 0, Math.PI * 2);
             ctx.fill();
         }
 
