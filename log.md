@@ -2,6 +2,18 @@
 
 ## Date: 2026-09-09
 
+### Mobiltilgang via GitHub Pages
+- Brukeren ba om en lenke for å prøve oppgraderingen på mobilen.
+- Publiseringskilden settes fra `main` til `claude/neon-depth-20260909`, rotmappe. Ingen merge til main.
+- `index.html`: Service Worker-registrering endret fra `/sw.js` til `./sw.js`.
+- `manifest.json`: start og snarvei endret fra absolutte til relative adresser, med scope `./`.
+- `sw.js`: cachelistene og offline-fallback løses relativt til Service Worker-adressen, slik at `/3044/` fungerer. Cacheversjon oppdatert.
+- Før: `cache.addAll(CORE_ASSETS)`; etter: `cache.addAll(CORE_ASSETS.map(appUrl))`.
+- Testing: kontroller offentlig side, Turbo-meny og Service Worker under `/3044/`; fysisk mobiltest gjøres av brukeren.
+- Offentlig testadresse: https://tombonator3000.github.io/3044/
+
+## Date: 2026-09-09
+
 ### Neon Depth — ytelse, dybde og Turbo
 
 Utgangspunkt: `b552cff16001cbee07ae8d7d52a76f44e90e9a9e`. Arbeidsgren: `claude/neon-depth-20260909`.

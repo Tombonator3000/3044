@@ -3,8 +3,10 @@
  * Enables offline gameplay and resource caching
  */
 
-const CACHE_NAME = 'geometry-3044-neon-depth-20260909';
-const AUDIO_CACHE_NAME = 'geometry-3044-audio-v1';
+const CACHE_NAME = 'geometry-3044-neon-depth-mobile-20260909';
+const AUDIO_CACHE_NAME = 'geometry-3044-audio-v2';
+const APP_ROOT = new URL('./', self.location.href);
+const appUrl = (path) => new URL(path.replace(/^\//, ''), APP_ROOT).href;
 
 // Core files that must be cached for the app to work
 const CORE_ASSETS = [
@@ -133,12 +135,12 @@ self.addEventListener('install', (event) => {
             // Cache core assets
             caches.open(CACHE_NAME).then((cache) => {
                 console.log('[SW] Caching core assets...');
-                return cache.addAll(CORE_ASSETS);
+                return cache.addAll(CORE_ASSETS.map(appUrl));
             }),
             // Cache audio separately (larger files)
             caches.open(AUDIO_CACHE_NAME).then((cache) => {
                 console.log('[SW] Caching audio assets...');
-                return cache.addAll(AUDIO_ASSETS);
+                return cache.addAll(AUDIO_ASSETS.map(appUrl));
             })
         ]).then(() => {
             console.log('[SW] All assets cached successfully');
@@ -230,7 +232,7 @@ self.addEventListener('fetch', (event) => {
                 // Network failed and not in cache
                 // Return offline page for navigation requests
                 if (event.request.mode === 'navigate') {
-                    return caches.match('/index.html');
+                    return caches.match(appUrl('/index.html'));
                 }
 
                 // For other requests, return a simple error response

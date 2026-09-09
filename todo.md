@@ -6,6 +6,7 @@
 ## Fullført nylig
 
 ### 2026-09-09 — Neon Depth
+- [x] Klargjort offentlig mobiltest via GitHub Pages og relative PWA-adresser
 - [x] Fast simuleringsklokke, grid-/kule-/HUD-optimalisering og gjenbruk i kollisjoner
 - [x] Perspektivgulv, bankende skip med volum og dybdefragmenter
 - [x] Valgfri Turbo med railgun, kjedelyn og målsøkende missiler
