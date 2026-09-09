@@ -4,7 +4,8 @@
  */
 
 import { CONFIG } from '../config.js';
-import { config, gameState, particleSystem, soundSystem } from '../globals.js';
+import { GameSettings } from '../ui/MenuManager.js';
+import { config, gameState as legacyState, particleSystem as legacyParticles, soundSystem as legacySound } from '../globals.js';
 
 const RAILGUN = {
     name: 'RAILGUN',
@@ -19,19 +20,26 @@ const RAILGUN = {
 };
 
 export class Railgun {
-    constructor() {
+    constructor(context = {}) {
+        this.context = context;
         this.charging = false;
         this.chargeProgress = 0;
         this.cooldown = 0;
         this.trails = [];
         this.chargeParticles = [];
         this.flashTimer = 0;
+        this._chargeIndex = 0;
+        this._trailIndex = 0;
+        this._chargePool = Array.from({ length: 64 }, () => ({ active: false, x: 0, y: 0, speed: 0, life: 0, size: 0 }));
+        this._trailPool = Array.from({ length: 4 }, () => ({ active: false, x1: 0, y1: 0, x2: 0, y2: 0, life: 0, maxLife: RAILGUN.trailDuration, width: 20 }));
     }
 
     /**
      * Start charging the railgun
      */
     startCharge() {
+        const soundSystem = this.context.soundSystem || legacySound;
+        const gameState = this.context.gameState || legacyState;
         if (this.cooldown > 0) return false;
         this.charging = true;
         this.chargeProgress = 0;
@@ -52,22 +60,19 @@ export class Railgun {
         if (this.cooldown > 0) this.cooldown--;
         if (this.flashTimer > 0) this.flashTimer--;
 
-        // Update charge particles
-        if (player) {
-            this.chargeParticles = this.chargeParticles.filter(p => {
-                // Move toward player
-                const dx = player.x - p.x;
-                const dy = player.y - p.y;
-                const dist = Math.hypot(dx, dy);
-
-                if (dist < 10) return false;
-
-                p.x += (dx / dist) * p.speed;
-                p.y += (dy / dist) * p.speed;
-                p.life--;
-                return p.life > 0;
-            });
+        // Compact active charge particles without allocating a new array.
+        let count = 0;
+        for (const p of this.chargeParticles) {
+            const dx = player ? player.x - p.x : 0;
+            const dy = player ? player.y - p.y : 0;
+            const dist = Math.hypot(dx, dy);
+            p.active = !!player && dist >= 10 && --p.life > 0;
+            if (!p.active) continue;
+            p.x += dx / dist * p.speed;
+            p.y += dy / dist * p.speed;
+            this.chargeParticles[count++] = p;
         }
+        this.chargeParticles.length = count;
 
         // Charge particles
         if (this.charging && player) {
@@ -81,10 +86,12 @@ export class Railgun {
         }
 
         // Update trails
-        this.trails = this.trails.filter(t => {
-            t.life--;
-            return t.life > 0;
-        });
+        count = 0;
+        for (const trail of this.trails) {
+            trail.active = --trail.life > 0;
+            if (trail.active) this.trails[count++] = trail;
+        }
+        this.trails.length = count;
     }
 
     /**
@@ -94,19 +101,23 @@ export class Railgun {
         const angle = Math.random() * Math.PI * 2;
         const dist = 60 + Math.random() * 40;
 
-        this.chargeParticles.push({
-            x: player.x + Math.cos(angle) * dist,
-            y: player.y + Math.sin(angle) * dist,
-            speed: 3 + (this.chargeProgress / RAILGUN.chargeTime) * 5,
-            life: 30,
-            size: 2 + Math.random() * 2
-        });
+        const p = this._chargePool[this._chargeIndex];
+        this._chargeIndex = (this._chargeIndex + 1) % this._chargePool.length;
+        if (!p.active) this.chargeParticles.push(p);
+        p.active = true;
+        p.x = player.x + Math.cos(angle) * dist;
+        p.y = player.y + Math.sin(angle) * dist;
+        p.speed = 3 + (this.chargeProgress / RAILGUN.chargeTime) * 5;
+        p.life = 30;
+        p.size = 2 + Math.random() * 2;
     }
 
     /**
      * Fire the railgun
      */
     fire(player, enemies) {
+        const soundSystem = this.context.soundSystem || legacySound;
+        const gameState = this.context.gameState || legacyState;
         this.charging = false;
         this.chargeProgress = 0;
         this.cooldown = RAILGUN.cooldown;
@@ -114,25 +125,32 @@ export class Railgun {
         // Calculate beam path (straight up from player)
         const startX = player.x;
         const startY = player.y;
-        const endX = player.x;
-        const endY = -50;  // Off screen top
+        const sideways = !!player.sidescrollerMode;
+        const endX = sideways ? (this.context.canvas?.logicalWidth || config.width) + 50 : player.x;
+        const endY = sideways ? player.y : -50;
 
         // Create trail
-        this.trails.push({
-            x1: startX, y1: startY,
-            x2: endX, y2: endY,
-            life: RAILGUN.trailDuration,
-            maxLife: RAILGUN.trailDuration,
-            width: 20
-        });
+        const trail = this._trailPool[this._trailIndex];
+        this._trailIndex = (this._trailIndex + 1) % this._trailPool.length;
+        if (!trail.active) this.trails.push(trail);
+        trail.active = true;
+        trail.x1 = startX; trail.y1 = startY;
+        trail.x2 = endX; trail.y2 = endY;
+        trail.life = RAILGUN.trailDuration;
 
         // Hit ALL enemies in path
         for (const enemy of enemies) {
             if (!enemy.active) continue;
 
             // Check if enemy is within beam width of the line
-            if (Math.abs(enemy.x - startX) < 30) {
-                if (enemy.takeDamage) {
+            const radius = enemy.size || 20;
+            const inBeam = sideways
+                ? enemy.x >= startX - radius && enemy.x <= endX + radius && Math.abs(enemy.y - startY) < radius + 10
+                : enemy.y <= startY + radius && enemy.y >= endY - radius && Math.abs(enemy.x - startX) < radius + 10;
+            if (inBeam) {
+                if (this.context.damageEnemy) {
+                    this.context.damageEnemy(enemy, RAILGUN.damage);
+                } else if (enemy.takeDamage) {
                     enemy.takeDamage(RAILGUN.damage);
                 } else {
                     enemy.hp -= RAILGUN.damage;
@@ -150,7 +168,7 @@ export class Railgun {
         }
 
         // White flash
-        this.flashTimer = 5;
+        this.flashTimer = this.context.gameState?.reducedFlash ? 0 : 3;
 
         // Play railgun fire sound
         if (soundSystem && soundSystem.playRailgunFireSound) {
@@ -162,6 +180,7 @@ export class Railgun {
      * Create impact effect at enemy position
      */
     createImpactEffect(x, y) {
+        const particleSystem = this.context.particleSystem || legacyParticles;
         if (particleSystem) {
             // Horizontal shockwave
             for (let i = 0; i < 20; i++) {
@@ -194,7 +213,7 @@ export class Railgun {
             // Outer energy field
             ctx.strokeStyle = `rgba(136, 0, 255, ${progress * 0.2})`;
             ctx.lineWidth = 2;
-            ctx.shadowBlur = 30;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 30);
             ctx.shadowColor = '#8800ff';
             ctx.beginPath();
             ctx.arc(player.x, player.y, 40 - progress * 15, 0, Math.PI * 2);
@@ -215,7 +234,7 @@ export class Railgun {
             // Charging ring - main
             ctx.strokeStyle = `rgba(136, 0, 255, ${progress})`;
             ctx.lineWidth = 4;
-            ctx.shadowBlur = 25;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 25);
             ctx.shadowColor = '#8800ff';
 
             ctx.beginPath();
@@ -246,7 +265,7 @@ export class Railgun {
 
                 // Particle core
                 ctx.fillStyle = `rgba(255, 200, 255, ${particleAlpha})`;
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 10);
                 ctx.shadowColor = '#aa66ff';
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.size * 0.6, 0, Math.PI * 2);
@@ -258,7 +277,7 @@ export class Railgun {
                 const lineAlpha = (progress - 0.3) / 0.7;
                 ctx.strokeStyle = `rgba(136, 0, 255, ${lineAlpha * 0.5})`;
                 ctx.lineWidth = 3 + progress * 5;
-                ctx.shadowBlur = 20;
+                ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 20);
                 ctx.shadowColor = '#8800ff';
                 ctx.beginPath();
                 ctx.moveTo(player.x, player.y);
@@ -271,7 +290,7 @@ export class Railgun {
                 const readyPulse = 0.5 + Math.sin(time * 4) * 0.5;
                 ctx.globalAlpha = readyPulse;
                 ctx.fillStyle = '#ffffff';
-                ctx.shadowBlur = 20;
+                ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 20);
                 ctx.shadowColor = '#8800ff';
                 ctx.font = 'bold 16px Courier New';
                 ctx.textAlign = 'center';
@@ -295,7 +314,7 @@ export class Railgun {
             // Background energy field
             ctx.strokeStyle = `rgba(100, 0, 200, ${alpha * 0.1})`;
             ctx.lineWidth = width * 6;
-            ctx.shadowBlur = 60;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 60);
             ctx.shadowColor = '#8800ff';
             ctx.lineCap = 'round';
 
@@ -307,32 +326,32 @@ export class Railgun {
             // Outer plasma glow
             ctx.strokeStyle = `rgba(136, 0, 255, ${alpha * 0.3})`;
             ctx.lineWidth = width * 4;
-            ctx.shadowBlur = 50;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 50);
             ctx.stroke();
 
             // Secondary glow
             ctx.strokeStyle = `rgba(170, 50, 255, ${alpha * 0.5})`;
             ctx.lineWidth = width * 2.5;
-            ctx.shadowBlur = 35;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 35);
             ctx.stroke();
 
             // Main beam
             ctx.strokeStyle = `rgba(136, 0, 255, ${alpha})`;
             ctx.lineWidth = width * 1.5;
-            ctx.shadowBlur = 25;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 25);
             ctx.stroke();
 
             // Inner glow
             ctx.strokeStyle = `rgba(200, 150, 255, ${alpha})`;
             ctx.lineWidth = width;
-            ctx.shadowBlur = 15;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 15);
             ctx.shadowColor = '#cc99ff';
             ctx.stroke();
 
             // White hot core
             ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
             ctx.lineWidth = width * 0.4;
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 10);
             ctx.shadowColor = '#ffffff';
             ctx.stroke();
 

@@ -1,9 +1,17 @@
 # Geometry 3044 - Todo
 
 ## Pågående
-*Ingen pågående oppgaver*
+*Ingen pågående kodeoppgaver*
 
 ## Fullført nylig
+
+### 2026-09-09 — Neon Depth
+- [x] Fast simuleringsklokke, grid-/kule-/HUD-optimalisering og gjenbruk i kollisjoner
+- [x] Perspektivgulv, bankende skip med volum og dybdefragmenter
+- [x] Valgfri Turbo med railgun, kjedelyn og målsøkende missiler
+- [x] Korte bombetrykk på mobil, våpenpoeng og offline-start kontrollert
+- [x] 93 tester passerer; syntetisk rendermåling og begrensninger i log.md
+
 
 ### 2026-02-10 (Bugfix-sesjon: 8 bugs fikset)
 - [x] Boss health bar fikset (hp/maxHp property mismatch)
@@ -21,12 +29,13 @@
 - [x] Støtter både normal modus og sidescroller modus
 
 ## Neste
+- [ ] Spilltest Turbo-balanse og vedvarende ytelse på fysisk PC og telefon
 - [ ] Playteste bugfixes - verifiser boss health bar, pause-korrekthet, powerup timere
 - [ ] Playteste med nye optimaliseringer - verifiser 60fps ved wave 5-10
 - [ ] Teste at LOD-rendering ikke er visuelt forstyrrende
 - [ ] Teste at off-screen culling ikke forårsaker pop-in
-- [ ] Integrere WeaponManager (10 spesialvåpen er definert men aldri brukt)
-- [ ] BulletPool batch-rendering (gruppere etter type for færre state changes)
+- [ ] Gjennomgå og integrere de 7 resterende spesialvåpnene (3 er nå tilgjengelige i Turbo)
+- [x] BulletPool: standardkuler gruppert, glød gjenbrukt (Neon Depth)
 - [ ] GridRenderer offscreen canvas pre-rendering
 - [ ] Balansere vanskelighetsgrad etter feedback
 

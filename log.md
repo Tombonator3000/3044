@@ -1,5 +1,62 @@
 # Geometry 3044 - Modular Structure Rebuild Log
 
+## Date: 2026-09-09
+
+### Neon Depth — ytelse, dybde og Turbo
+
+Utgangspunkt: `b552cff16001cbee07ae8d7d52a76f44e90e9a9e`. Arbeidsgren: `claude/neon-depth-20260909`.
+Plain HTML + Canvas 2D + ES-moduler beholdt. Ingen omskriving av prosjektet eller rammeverksbytte.
+
+#### Endringer og plassering
+- `js/core/FixedStepClock.js` (ny): 60 simuleringssteg per sekund uavhengig av skjermfrekvens; maks fem innhentingssteg og forkasting av lange fanestopp.
+- `js/main.js`: `initGame`, `gameLoop`, `update`, `render`, HUD-funksjonene, touch-handlerne, `togglePause` og attract-typing koblet til samme simuleringsklokke. HUD-elementer og verdier caches. Touch leses før spilleren oppdateres.
+- `js/core/CollisionSystem.js`: `clearGrid`, `getCellKey`, `addToGrid`, `getNearby`, `reset` gjenbruker celle-arrays og oppføringer; numeriske celle-ID-er støtter også negative koordinater.
+- `js/systems/BulletPool.js`: `spawn` bruker Turbo-hastighet kun for spillerkuler. `draw`, nye `drawStandardBullets` og `drawThreatCores` grupperer standardkuler, gjenbruker glød og holder fiendekuler synlige over eksplosjoner. Spesialkuler beholder sine tegnemetoder.
+- `js/rendering/GridRenderer.js`: perspektiv i `initGrid`, eksplisitt `updateGrid`/`resetGrid`, ren `drawWavingGrid`. Lange gridlinjer tegnes uten kostbar shadowBlur.
+- `js/entities/Player.js`: banking i `update`, cached hull-silhuett i ny `drawShipDepth` ved `drawShipByType`, brukt fra `draw`. Kollisjon og skjold flyttes ikke av visuell banking.
+- `js/systems/ParticleSystem.js`: pooled depthShard-fragmenter i eksplosjoner, billigere `drawLine`, mindre blendende `drawGWGlow`, korrekte viewportgrenser i direkte og gruppert tegning.
+- `js/systems/GameModeManager.js` og `js/systems/WaveManager.js`: valgfri Turbo i eksisterende meny; 25 % raskere spillerkuler og 45 % kortere oppstartspause for bølger. Classic er fortsatt standard.
+- `js/weapons/WeaponManager.js`, `Railgun.js`, `ChainLightning.js`, `HomingMissile.js`: avgrenset støttearsenal med eksplisitt spillkontekst. Hold FIRE/Space: railgun på bølge 1, kjedelyn på bølge 2, missiler på bølge 3; syklusen gjentas. Vanlig kill-/score-/drop-logikk brukes. Railgun treffer bare foran spilleren, også i sidemodus. Kjedelyn har ingen setTimeout. Missiler, trails, ladningspartikler og lynbuer gjenbrukes.
+- `js/ui/MobileControls.js`: korte bombetrykk beholdes til `consumeBombPress`, og konsumeres én gang; nullstilles ved ny runde og pause.
+- `index.html`, `sw.js`: ny cacheversjon, ny klokkemodul og manglende aktive moduler lagt til. Ugyldig DrawUtils-cacheoppføring erstattet med eksisterende MathUtils.
+- `tests/NeonDepth.test.js` (ny): 17 regresjonskontroller for tidssteg, signerte romceller/gjenbruk, våpenretning/poeng/opprydding, Turbo, korte touch-trykk og partikler ved skjermkant.
+
+#### Fokuserte før/etter-eksempler
+```js
+// BEFORE — gameLoop
+const deltaTime = Math.min((currentTime - lastTime) / 16.67, 3);
+update(deltaTime);
+// AFTER — samme gameLoop, oppdatering atskilt fra skjermfrekvens
+const elapsed = currentTime - lastTime;
+const ticks = simulationClock.advance(elapsed);
+for (let tick = 0; tick < ticks; tick++) update(1);
+```
+Eksemplet viser kjernen; selve patchen inkluderer pause-, skjult fane- og game-over-vakter.
+```js
+// BEFORE — romrutenett
+this.grid.get(key).push({ entity, type });
+// AFTER — gjenbrukt oppføring
+entry.entity = entity;
+entry.type = type;
+this.grid.get(key).push(entry);
+```
+
+#### Kontroll og måling
+- 93/93 Jest-tester passerer: eksisterende 76 + 17 nye. Kjøres med `npm test -- --runInBand` etter installasjon.
+- Headless Chrome: meny → Turbo → start; vanlig skyting, støttevåpen, pause, bølgeskift, bombe og belastningsscene uten JavaScript-feil.
+- Mobilvisning 390 × 844 med touch: menyvalg og start; FIRE og kort bombetrykk. Bomben går fra 3 til 2. Eksisterende effektive treffbredder for touch er omtrent 88 og 68 CSS-piksler i denne testen.
+- Ny Service Worker installeres; offline reload og spillstart fungerer uten JavaScript-feil.
+- Reproduserbar syntetisk scene: 100 triangle-fiender, 330 standardkuler og 400 linjepartikler; 1280 × 900 nettleservindu, fast tilfeldig seed 3044, 5 oppvarminger + 20 målte bilder. Tegning + synkron 1×1 rasteravlesning i headless Chrome: median **37,8 → 11,6 ms**, p95 **62,9 → 15,7 ms**. Dette er cirka 69 % lavere median tidsbruk i denne scenen, ikke en generell FPS-garanti. Før-versjonen har dessuten gammel, for tidlig partikkel-culling nederst i bildet; etter-versjonen tegner hele feltet.
+- 30/60/120/144 Hz tidsstegsimulering gir 600 spilloppdateringer på 10 sekunder. Rendering følger requestAnimationFrame; posisjoner simuleres fortsatt ved 60 Hz, uten render-interpolering.
+
+#### Sanity checks og gjenværende begrensninger
+- Spill Classic og Turbo med WASD/piler, Space og B; pause/gjenoppta midt i ladning og eksplosjoner.
+- Spilltest bølge 5–10 og boss på faktisk PC og telefon, også med lav effektmengde. Balanse og vedvarende 120 FPS er ikke verifisert på fysisk målmaskinvare.
+- 2.5D er perspektiv/volum i Canvas 2D. WebGL og en helt ny 3D-motor er ikke del av denne pakken.
+- Bare tre av de ti eldre spesialvåpnene er integrert. De øvrige krever egen gjennomgang.
+- Ingen endringer i synkede prosjektkilder; ingen merge til main.
+
+
 ## Date: 2026-02-10
 
 ---

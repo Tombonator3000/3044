@@ -270,6 +270,8 @@ export class Player {
 
         const movement = this.calculateMovement(keys, touchJoystick, gameState, scaledDeltaTime);
         this.applyMovement(movement, canvas);
+        const lateral = this.sidescrollerMode ? movement.dy : movement.dx;
+        this.visualBank = (this.visualBank || 0) + (Math.max(-1, Math.min(1, lateral / this.speed)) - (this.visualBank || 0)) * 0.18;
         this.updateMirrorShip(canvas, scaledDeltaTime);
         this.updateTrail(movement, scaledDeltaTime);
         // REMOVED: emitExhaustParticles - caused particles to spawn in front of ship and slowed gameplay
@@ -1079,8 +1081,13 @@ export class Player {
             ctx.globalAlpha = 0.3;
         }
 
-        // Draw the ship itself
+        // Tilt only the hull; weapons, shields and collision stay centred.
+        ctx.save();
+        const bank = this.visualBank || 0;
+        ctx.transform(1 - Math.abs(bank) * 0.12, bank * 0.08, 0, 1, 0, 0);
+        this.drawShipDepth(ctx, activeColor, bank);
         this.drawShipByType(ctx, activeColor);
+        ctx.restore();
 
         // Draw active effects around the ship
         this.drawVortexEffect(ctx);
@@ -1334,6 +1341,32 @@ export class Player {
      * Draws the ship based on current shipId using the SHIP_PATTERNS configuration.
      * This data-driven approach replaces 8 individual ship drawing methods.
      */
+    drawShipDepth(ctx, color, bank) {
+        const pattern = SHIP_PATTERNS[this.shipId] || SHIP_PATTERNS.neonFalcon;
+        if (this._depthPattern !== pattern) {
+            this._depthPattern = pattern;
+            this._depthPath = new Path2D();
+            const pixels = pattern.pixels;
+            const ox = -pixels[0].length * 1.5;
+            const oy = -pixels.length * 1.5;
+            for (let y = 0; y < pixels.length; y++) {
+                for (let x = 0; x < pixels[y].length; x++) {
+                    if (pixels[y][x]) this._depthPath.rect(ox + x * 3, oy + y * 3, 3, 3);
+                }
+            }
+        }
+        ctx.save();
+        ctx.shadowBlur = 0;
+        ctx.translate(3 + bank * 3, 5);
+        ctx.fillStyle = '#07172b';
+        ctx.fill(this._depthPath);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha *= 0.5;
+        ctx.stroke(this._depthPath);
+        ctx.restore();
+    }
+
     drawShipByType(ctx, color) {
         const shadowsEnabled = config.rendering?.shadowsEnabled !== false;
         const p = 3; // Pixel size for all ships

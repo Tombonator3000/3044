@@ -3,7 +3,7 @@
  * Enables offline gameplay and resource caching
  */
 
-const CACHE_NAME = 'geometry-3044-v1';
+const CACHE_NAME = 'geometry-3044-neon-depth-20260909';
 const AUDIO_CACHE_NAME = 'geometry-3044-audio-v1';
 
 // Core files that must be cached for the app to work
@@ -15,12 +15,14 @@ const CORE_ASSETS = [
 
     // Main JavaScript
     '/js/main.js',
+    '/js/main.js?v=20260909',
     '/js/config.js',
     '/js/globals.js',
 
     // Core modules
     '/js/core/index.js',
     '/js/core/GameLoop.js',
+    '/js/core/FixedStepClock.js',
     '/js/core/GameState.js',
     '/js/core/InputHandler.js',
     '/js/core/CollisionSystem.js',
@@ -101,8 +103,15 @@ const CORE_ASSETS = [
 
     // Utils
     '/js/utils/index.js',
-    '/js/utils/DrawUtils.js',
+    '/js/utils/MathUtils.js',
     '/js/utils/Logger.js',
+
+    // Modules required by the active game entry point
+    '/js/entities/Asteroid.js',
+    '/js/systems/BonusRound.js',
+    '/js/systems/EnemyBestiary.js',
+    '/js/systems/UFOManager.js',
+    '/js/ui/BestiaryScreen.js',
 
     // Icons
     '/icons/icon-192x192.png',

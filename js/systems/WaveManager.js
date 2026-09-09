@@ -222,6 +222,8 @@ export class WaveManager {
         this.waveStartTimer = this.waveStartDelay;
         this.waveActive = false;
 
+        this.waveStartTimer *= gameState?.waveBreakMultiplier || 1;
+
         // Get difficulty settings
         const difficulty = gameState?.difficultySettings || { enemyCount: 1.0, spawnDelay: 1.0, waveScaling: 1.0 };
         this.currentDifficulty = difficulty;

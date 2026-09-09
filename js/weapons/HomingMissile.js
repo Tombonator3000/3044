@@ -4,7 +4,8 @@
  */
 
 import { CONFIG } from '../config.js';
-import { config, particleSystem, soundSystem } from '../globals.js';
+import { GameSettings } from '../ui/MenuManager.js';
+import { config, particleSystem as legacyParticles, soundSystem as legacySound } from '../globals.js';
 
 const HOMING_MISSILE = {
     name: 'HOMING MISSILES',
@@ -19,16 +20,22 @@ const HOMING_MISSILE = {
 };
 
 export class HomingMissileSystem {
-    constructor() {
+    constructor(context = {}) {
+        this.context = context;
         this.missiles = [];
         this.cooldown = 0;
         this.maxMissiles = HOMING_MISSILE.maxMissiles;
+        this._pool = Array.from({ length: this.maxMissiles }, () => ({
+            active: false, x: 0, y: 0, angle: 0, speed: 0, target: null, life: 0,
+            trail: Array.from({ length: 15 }, () => ({ x: 0, y: 0, life: 0 }))
+        }));
     }
 
     /**
      * Fire a homing missile
      */
     fire(player, enemies) {
+        const soundSystem = this.context.soundSystem || legacySound;
         if (!player) return false;
         if (this.cooldown > 0) return false;
         if (this.missiles.length >= this.maxMissiles) return false;
@@ -42,15 +49,16 @@ export class HomingMissileSystem {
         // Launch missile
         const angle = Math.atan2(target.y - player.y, target.x - player.x);
 
-        this.missiles.push({
-            x: player.x,
-            y: player.y,
-            angle: angle,
-            speed: HOMING_MISSILE.missileSpeed,
-            target: target,
-            life: HOMING_MISSILE.lifetime,
-            trail: []
-        });
+        const missile = this._pool.find(m => !m.active);
+        missile.active = true;
+        missile.x = player.x;
+        missile.y = player.y;
+        missile.angle = angle;
+        missile.speed = HOMING_MISSILE.missileSpeed;
+        missile.target = target;
+        missile.life = HOMING_MISSILE.lifetime;
+        for (const point of missile.trail) { point.x = player.x; point.y = player.y; point.life = 0; }
+        this.missiles.push(missile);
 
         if (soundSystem && soundSystem.play) {
             soundSystem.play('playerShoot');
@@ -87,10 +95,22 @@ export class HomingMissileSystem {
     update(enemies) {
         if (this.cooldown > 0) this.cooldown--;
 
-        const screenWidth = config.width || 800;
-        const screenHeight = config.height || 600;
+        const screenWidth = this.context.canvas?.logicalWidth || config.width || 800;
+        const screenHeight = this.context.canvas?.logicalHeight || config.height || 600;
 
-        this.missiles = this.missiles.filter(missile => {
+        let count = 0;
+        for (const missile of this.missiles) {
+            if (this.updateMissile(missile, enemies, screenWidth, screenHeight)) {
+                this.missiles[count++] = missile;
+            } else {
+                missile.active = false;
+                missile.target = null;
+            }
+        }
+        this.missiles.length = count;
+    }
+
+    updateMissile(missile, enemies, screenWidth, screenHeight) {
             missile.life--;
             if (missile.life <= 0) {
                 this.explode(missile.x, missile.y, false);
@@ -128,15 +148,13 @@ export class HomingMissileSystem {
             missile.x += Math.cos(missile.angle) * missile.speed;
             missile.y += Math.sin(missile.angle) * missile.speed;
 
-            // Add trail point
-            missile.trail.push({x: missile.x, y: missile.y, life: 15});
-            if (missile.trail.length > 20) missile.trail.shift();
-
-            // Update trail
-            missile.trail = missile.trail.filter(t => {
-                t.life--;
-                return t.life > 0;
-            });
+            // Move coordinates through the small preallocated trail.
+            for (let i = 0; i < missile.trail.length - 1; i++) {
+                const point = missile.trail[i], next = missile.trail[i + 1];
+                point.x = next.x; point.y = next.y; point.life = Math.max(0, next.life - 1);
+            }
+            const tip = missile.trail[missile.trail.length - 1];
+            tip.x = missile.x; tip.y = missile.y; tip.life = 15;
 
             // Check collision with target
             if (missile.target && missile.target.active) {
@@ -147,7 +165,9 @@ export class HomingMissileSystem {
                 );
 
                 if (dist < targetSize + 10) {
-                    if (missile.target.takeDamage) {
+                    if (this.context.damageEnemy) {
+                        this.context.damageEnemy(missile.target, HOMING_MISSILE.damage);
+                    } else if (missile.target.takeDamage) {
                         missile.target.takeDamage(HOMING_MISSILE.damage);
                     } else {
                         missile.target.hp -= HOMING_MISSILE.damage;
@@ -165,7 +185,7 @@ export class HomingMissileSystem {
             }
 
             return true;
-        });
+
     }
 
     /**
@@ -193,6 +213,8 @@ export class HomingMissileSystem {
      * Create explosion effect
      */
     explode(x, y, hit) {
+        const particleSystem = this.context.particleSystem || legacyParticles;
+        const soundSystem = this.context.soundSystem || legacySound;
         if (particleSystem) {
             const count = hit ? 20 : 10;
             particleSystem.explosion(x, y, hit ? '#ff4400' : '#888888', count, 1);
@@ -241,7 +263,7 @@ export class HomingMissileSystem {
                     ctx.strokeStyle = trailGrad;
                     ctx.lineWidth = 4 * alpha;
                     ctx.lineCap = 'round';
-                    ctx.shadowBlur = 10;
+                    ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 10);
                     ctx.shadowColor = '#ff6600';
 
                     ctx.beginPath();
@@ -253,7 +275,7 @@ export class HomingMissileSystem {
                 // Inner bright trail
                 ctx.strokeStyle = HOMING_MISSILE.trailColor;
                 ctx.lineWidth = 2;
-                ctx.shadowBlur = 8;
+                ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 8);
                 ctx.shadowColor = '#ffaa00';
 
                 ctx.beginPath();
@@ -295,7 +317,7 @@ export class HomingMissileSystem {
 
             // Missile main body
             ctx.fillStyle = HOMING_MISSILE.color;
-            ctx.shadowBlur = 20;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 20);
             ctx.shadowColor = HOMING_MISSILE.color;
 
             ctx.beginPath();
@@ -317,7 +339,7 @@ export class HomingMissileSystem {
 
             // Nose tip
             ctx.fillStyle = '#ffffff';
-            ctx.shadowBlur = 5;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 5);
             ctx.shadowColor = '#ffffff';
             ctx.beginPath();
             ctx.arc(10, 0, 2, 0, Math.PI * 2);
@@ -334,7 +356,7 @@ export class HomingMissileSystem {
             outerFlameGrad.addColorStop(1, 'rgba(255, 50, 0, 0)');
 
             ctx.fillStyle = outerFlameGrad;
-            ctx.shadowBlur = 15;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 15);
             ctx.shadowColor = '#ff6600';
             ctx.beginPath();
             ctx.moveTo(-6, -4);
@@ -344,7 +366,7 @@ export class HomingMissileSystem {
 
             // Inner bright flame
             ctx.fillStyle = '#ffffff';
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 10);
             ctx.shadowColor = '#ffff00';
             ctx.beginPath();
             ctx.arc(-6, 0, 3 + flameFlicker * 1.5, 0, Math.PI * 2);
