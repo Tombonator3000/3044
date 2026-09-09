@@ -9,7 +9,7 @@
 - `manifest.json`: start og snarvei endret fra absolutte til relative adresser, med scope `./`.
 - `sw.js`: cachelistene og offline-fallback løses relativt til Service Worker-adressen, slik at `/3044/` fungerer. Cacheversjon oppdatert.
 - Før: `cache.addAll(CORE_ASSETS)`; etter: `cache.addAll(CORE_ASSETS.map(appUrl))`.
-- Testing: kontroller offentlig side, Turbo-meny og Service Worker under `/3044/`; fysisk mobiltest gjøres av brukeren.
+- Testing: JavaScript-syntaks og alle 88 cacheadresser verifisert både i domenets rot og under `/3044/`; alle lokale filer finnes. Manifestets startadresse verifisert. Offentlig nettlesertest blokkert fordi nettleserverktøyet ikke kunne verifisere administratorens sikkerhetspolicy; fysisk mobiltest gjøres av brukeren.
 - Offentlig testadresse: https://tombonator3000.github.io/3044/
 
 ## Date: 2026-09-09
