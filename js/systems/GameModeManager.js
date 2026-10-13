@@ -21,6 +21,16 @@ export const GAME_MODES = {
         }
     },
 
+    turbo: {
+        id: 'turbo', name: 'TURBO', icon: '⚡', color: '#ffbb33',
+        description: 'Shorter wave breaks, faster shots. Hold FIRE: railgun, chain lightning and missiles rotate each wave.',
+        settings: {
+            lives: 3, bombs: 3, canShoot: true, timeLimit: 0,
+            powerUps: true, enemySpawn: 'wave', scoreMultiplier: 1,
+            playerBulletSpeed: 1.25, waveBreakMultiplier: 0.55
+        }
+    },
+
     bossRush: {
         id: 'bossRush',
         name: 'BOSS RUSH',
@@ -129,6 +139,7 @@ export class GameModeManager {
 
         // Classic is always unlocked
         this.modes.classic.unlocked = true;
+        this.modes.turbo.unlocked = true;
     }
 
     /**
@@ -220,6 +231,7 @@ export class GameModeManager {
         gameState.canShoot = settings.canShoot;
         gameState.scoreMultiplier = settings.scoreMultiplier;
         gameState.gameMode = this.currentMode;
+        gameState.waveBreakMultiplier = settings.waveBreakMultiplier || 1;
 
         // Mode-specific initialization
         this.modeState = {};

@@ -4,7 +4,8 @@
  */
 
 import { CONFIG } from '../config.js';
-import { config, particleSystem, soundSystem } from '../globals.js';
+import { GameSettings } from '../ui/MenuManager.js';
+import { config, particleSystem as legacyParticles, soundSystem as legacySound } from '../globals.js';
 
 const CHAIN_LIGHTNING = {
     name: 'CHAIN LIGHTNING',
@@ -18,22 +19,31 @@ const CHAIN_LIGHTNING = {
 };
 
 export class ChainLightning {
-    constructor() {
+    constructor(context = {}) {
+        this.context = context;
         this.arcs = [];
         this.maxArcs = 20;  // Pool size
+        this._arcIndex = 0;
+        this._hitBuffer = [];
+        this._arcPool = Array.from({ length: this.maxArcs }, () => ({
+            active: false, life: 0, maxLife: CHAIN_LIGHTNING.arcDuration,
+            points: Array.from({ length: 10 }, () => ({ x: 0, y: 0 }))
+        }));
     }
 
     /**
      * Trigger chain lightning from a hit position
      */
     trigger(startX, startY, enemies, initialDamage) {
-        this.chainToNextEnemy(startX, startY, enemies, initialDamage, CHAIN_LIGHTNING.maxHops, []);
+        this._hitBuffer.length = 0;
+        this.chainToNextEnemy(startX, startY, enemies, initialDamage, CHAIN_LIGHTNING.maxHops, this._hitBuffer);
     }
 
     /**
      * Recursively chain to next enemy
      */
     chainToNextEnemy(x, y, enemies, damage, hopsLeft, hitEnemies) {
+        const soundSystem = this.context.soundSystem || legacySound;
         if (hopsLeft <= 0 || damage < 1) return;
 
         // Find nearest UNHIT enemy
@@ -61,7 +71,9 @@ export class ChainLightning {
         }
 
         // Apply damage
-        if (nearest.takeDamage) {
+        if (this.context.damageEnemy) {
+            this.context.damageEnemy(nearest, damage);
+        } else if (nearest.takeDamage) {
             nearest.takeDamage(damage);
         } else {
             nearest.hp -= damage;
@@ -73,62 +85,35 @@ export class ChainLightning {
         // Create impact sparks
         this.createImpactSparks(nearest.x, nearest.y);
 
-        // Chain to next (with delay for visual effect)
-        setTimeout(() => {
-            this.chainToNextEnemy(
-                nearest.x, nearest.y,
-                enemies,
-                damage * CHAIN_LIGHTNING.damageDecay,
-                hopsLeft - 1,
-                hitEnemies
-            );
-        }, 40);
+        // Resolve within this simulation tick; the arcs provide the visual lifetime.
+        this.chainToNextEnemy(nearest.x, nearest.y, enemies,
+            damage * CHAIN_LIGHTNING.damageDecay, hopsLeft - 1, hitEnemies);
     }
 
     /**
      * Create a lightning arc between two points
      */
     createArc(x1, y1, x2, y2) {
-        const arc = {
-            points: this.generateZigzag(x1, y1, x2, y2),
-            life: CHAIN_LIGHTNING.arcDuration,
-            maxLife: CHAIN_LIGHTNING.arcDuration,
-            active: true
-        };
-        this.arcs.push(arc);
-
-        // Cleanup old arcs
-        if (this.arcs.length > this.maxArcs) {
-            this.arcs = this.arcs.filter(a => a.active);
-        }
+        const arc = this._arcPool[this._arcIndex];
+        this._arcIndex = (this._arcIndex + 1) % this.maxArcs;
+        if (!arc.active) this.arcs.push(arc);
+        arc.active = true;
+        arc.life = CHAIN_LIGHTNING.arcDuration;
+        this.generateZigzag(x1, y1, x2, y2, arc.points);
     }
 
     /**
      * Generate zigzag points for lightning effect
      */
-    generateZigzag(x1, y1, x2, y2) {
-        const points = [{x: x1, y: y1}];
-        const numSegments = 6 + Math.floor(Math.random() * 4);
-        const dx = x2 - x1;
-        const dy = y2 - y1;
-        const perpX = -dy;
-        const perpY = dx;
-        const len = Math.hypot(perpX, perpY);
-
-        if (len === 0) {
-            points.push({x: x2, y: y2});
-            return points;
+    generateZigzag(x1, y1, x2, y2, points = Array.from({ length: 10 }, () => ({ x: 0, y: 0 }))) {
+        const dx = x2 - x1, dy = y2 - y1;
+        const length = Math.hypot(dx, dy) || 1;
+        for (let i = 0; i < points.length; i++) {
+            const t = i / (points.length - 1);
+            const offset = i === 0 || i === points.length - 1 ? 0 : (Math.random() - 0.5) * 30;
+            points[i].x = x1 + dx * t - dy / length * offset;
+            points[i].y = y1 + dy * t + dx / length * offset;
         }
-
-        for (let i = 1; i < numSegments; i++) {
-            const t = i / numSegments;
-            const offset = (Math.random() - 0.5) * 40;
-            points.push({
-                x: x1 + dx * t + (perpX / len) * offset,
-                y: y1 + dy * t + (perpY / len) * offset
-            });
-        }
-        points.push({x: x2, y: y2});
         return points;
     }
 
@@ -136,6 +121,7 @@ export class ChainLightning {
      * Create spark particles at impact point
      */
     createImpactSparks(x, y) {
+        const particleSystem = this.context.particleSystem || legacyParticles;
         if (particleSystem) {
             particleSystem.sparks(x, y, CHAIN_LIGHTNING.color, 10);
         }
@@ -145,11 +131,12 @@ export class ChainLightning {
      * Update all arcs
      */
     update() {
-        this.arcs = this.arcs.filter(arc => {
-            arc.life--;
-            arc.active = arc.life > 0;
-            return arc.active;
-        });
+        let count = 0;
+        for (const arc of this.arcs) {
+            arc.active = --arc.life > 0;
+            if (arc.active) this.arcs[count++] = arc;
+        }
+        this.arcs.length = count;
     }
 
     /**
@@ -169,7 +156,7 @@ export class ChainLightning {
             // Electric field background glow
             ctx.strokeStyle = `rgba(0, 150, 255, ${alpha * 0.15})`;
             ctx.lineWidth = 25;
-            ctx.shadowBlur = 40;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 40);
             ctx.shadowColor = '#0088ff';
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
@@ -185,21 +172,21 @@ export class ChainLightning {
             const pulseIntensity = 0.5 + Math.sin(time * 3) * 0.2;
             ctx.strokeStyle = `rgba(0, 255, 255, ${alpha * pulseIntensity})`;
             ctx.lineWidth = 8 + Math.sin(time * 5) * 2;
-            ctx.shadowBlur = 35;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 35);
             ctx.shadowColor = CHAIN_LIGHTNING.color;
             ctx.stroke();
 
             // Secondary electric layer
             ctx.strokeStyle = `rgba(100, 200, 255, ${alpha * 0.7})`;
             ctx.lineWidth = 4;
-            ctx.shadowBlur = 20;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 20);
             ctx.shadowColor = '#66ccff';
             ctx.stroke();
 
             // Inner bright core - white hot center
             ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
             ctx.lineWidth = 2;
-            ctx.shadowBlur = 15;
+            ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 15);
             ctx.shadowColor = '#ffffff';
             ctx.stroke();
 
@@ -213,7 +200,7 @@ export class ChainLightning {
 
                         ctx.strokeStyle = `rgba(0, 255, 255, ${alpha * 0.6})`;
                         ctx.lineWidth = 1.5;
-                        ctx.shadowBlur = 10;
+                        ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 10);
                         ctx.shadowColor = '#00ffff';
 
                         ctx.beginPath();
@@ -247,7 +234,7 @@ export class ChainLightning {
 
                 // Node core
                 ctx.fillStyle = `rgba(255, 255, 255, ${nodeAlpha})`;
-                ctx.shadowBlur = 15;
+                ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 15);
                 ctx.shadowColor = '#ffffff';
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, nodeSize * 0.5, 0, Math.PI * 2);
@@ -267,7 +254,7 @@ export class ChainLightning {
                         const py = p1.y + (p2.y - p1.y) * t + (Math.random() - 0.5) * 8;
 
                         ctx.fillStyle = `rgba(200, 255, 255, ${alpha * Math.random()})`;
-                        ctx.shadowBlur = 8;
+                        ctx.shadowBlur = (CONFIG.rendering.reducedEffectsMode || GameSettings.neonGlowIntensity === 'low') ? 0 : Math.min(8, 8);
                         ctx.shadowColor = '#00ffff';
                         ctx.beginPath();
                         ctx.arc(px, py, 1 + Math.random() * 2, 0, Math.PI * 2);

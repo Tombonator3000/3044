@@ -3,8 +3,10 @@
  * Enables offline gameplay and resource caching
  */
 
-const CACHE_NAME = 'geometry-3044-v1';
-const AUDIO_CACHE_NAME = 'geometry-3044-audio-v1';
+const CACHE_NAME = 'geometry-3044-neon-depth-mobile-20260909';
+const AUDIO_CACHE_NAME = 'geometry-3044-audio-v2';
+const APP_ROOT = new URL('./', self.location.href);
+const appUrl = (path) => new URL(path.replace(/^\//, ''), APP_ROOT).href;
 
 // Core files that must be cached for the app to work
 const CORE_ASSETS = [
@@ -15,12 +17,14 @@ const CORE_ASSETS = [
 
     // Main JavaScript
     '/js/main.js',
+    '/js/main.js?v=20260909',
     '/js/config.js',
     '/js/globals.js',
 
     // Core modules
     '/js/core/index.js',
     '/js/core/GameLoop.js',
+    '/js/core/FixedStepClock.js',
     '/js/core/GameState.js',
     '/js/core/InputHandler.js',
     '/js/core/CollisionSystem.js',
@@ -101,8 +105,15 @@ const CORE_ASSETS = [
 
     // Utils
     '/js/utils/index.js',
-    '/js/utils/DrawUtils.js',
+    '/js/utils/MathUtils.js',
     '/js/utils/Logger.js',
+
+    // Modules required by the active game entry point
+    '/js/entities/Asteroid.js',
+    '/js/systems/BonusRound.js',
+    '/js/systems/EnemyBestiary.js',
+    '/js/systems/UFOManager.js',
+    '/js/ui/BestiaryScreen.js',
 
     // Icons
     '/icons/icon-192x192.png',
@@ -124,12 +135,12 @@ self.addEventListener('install', (event) => {
             // Cache core assets
             caches.open(CACHE_NAME).then((cache) => {
                 console.log('[SW] Caching core assets...');
-                return cache.addAll(CORE_ASSETS);
+                return cache.addAll(CORE_ASSETS.map(appUrl));
             }),
             // Cache audio separately (larger files)
             caches.open(AUDIO_CACHE_NAME).then((cache) => {
                 console.log('[SW] Caching audio assets...');
-                return cache.addAll(AUDIO_ASSETS);
+                return cache.addAll(AUDIO_ASSETS.map(appUrl));
             })
         ]).then(() => {
             console.log('[SW] All assets cached successfully');
@@ -221,7 +232,7 @@ self.addEventListener('fetch', (event) => {
                 // Network failed and not in cache
                 // Return offline page for navigation requests
                 if (event.request.mode === 'navigate') {
-                    return caches.match('/index.html');
+                    return caches.match(appUrl('/index.html'));
                 }
 
                 // For other requests, return a simple error response

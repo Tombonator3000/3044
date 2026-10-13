@@ -2,11 +2,16 @@
 // GEOMETRY 3044 — BULLET POOL
 // ============================================
 
+import { config } from '../config.js';
+import { GameSettings } from '../ui/MenuManager.js';
+
 export class BulletPool {
     constructor(maxBullets = 200) {
         this.maxBullets = maxBullets;
         this.bullets = [];
         this.bulletIndex = 0;
+        this.speedMultiplier = 1;
+        this._drawGroups = new Map();
 
         // Cached counts to avoid filtering arrays
         this._activeCount = 0;
@@ -101,6 +106,8 @@ export class BulletPool {
             point.y = y;
         }
 
+        if (isPlayer) { bullet.vx *= this.speedMultiplier; bullet.vy *= this.speedMultiplier; }
+
         // Apply defaults
         bullet.size = options.size || (isPlayer ? 5 : 6);
         bullet.color = options.color || (isPlayer ? '#00ffff' : '#ff0066');
@@ -129,6 +136,8 @@ export class BulletPool {
 
         bullet.quantum = options.quantum || false;
 
+        bullet._cachedAngle = Math.atan2(bullet.vy, bullet.vx);
+        bullet._cachedSpeed = Math.hypot(bullet.vx, bullet.vy);
         return bullet;
     }
 
@@ -228,15 +237,32 @@ export class BulletPool {
     draw(ctx) {
         const time = Date.now() * 0.001;
         // OPTIMIZED: Cache canvas dimensions for off-screen culling
-        const canvasW = ctx.canvas?.width || 800;
-        const canvasH = ctx.canvas?.height || 600;
+        const canvasW = ctx.canvas?.logicalWidth || ctx.canvas?.width || 800;
+        const canvasH = ctx.canvas?.logicalHeight || ctx.canvas?.height || 600;
 
+        for (const group of this._drawGroups.values()) group.bullets.length = 0;
         for (const bullet of this.bullets) {
             if (!bullet.active) continue;
 
             // OPTIMIZED: Skip off-screen bullets
             if (bullet.x < -50 || bullet.x > canvasW + 50 || bullet.y < -50 || bullet.y > canvasH + 50) continue;
 
+            if (!(bullet.quantum || bullet.chain || bullet.explosive || bullet.pierce || bullet.homing || bullet.bounce)) {
+                let group = this._drawGroups.get(bullet.color);
+                if (!group && this._drawGroups.size < 32) {
+                    const glow = document.createElement('canvas');
+                    glow.width = glow.height = 48;
+                    const gc = glow.getContext('2d');
+                    const gradient = gc.createRadialGradient(24, 24, 0, 24, 24, 24);
+                    gradient.addColorStop(0, bullet.color);
+                    gradient.addColorStop(1, 'transparent');
+                    gc.fillStyle = gradient;
+                    gc.fillRect(0, 0, 48, 48);
+                    group = { bullets: [], glow };
+                    this._drawGroups.set(bullet.color, group);
+                }
+                if (group) { group.bullets.push(bullet); continue; }
+            }
             ctx.save();
 
             // Use cached angle from update() - avoids expensive Math.atan2 per frame
@@ -263,6 +289,62 @@ export class BulletPool {
 
             ctx.restore();
         }
+        this.drawStandardBullets(ctx);
+    }
+
+    drawStandardBullets(ctx) {
+        ctx.save();
+        ctx.shadowBlur = 0;
+        ctx.lineCap = 'round';
+        for (const [color, group] of this._drawGroups) {
+            if (!group.bullets.length) continue;
+            if (config.rendering.shadowsEnabled && !config.rendering.reducedEffectsMode && GameSettings.neonGlowIntensity !== 'low') {
+                ctx.globalAlpha = 0.35;
+                for (const b of group.bullets) ctx.drawImage(group.glow, b.x - 18, b.y - 18, 36, 36);
+            }
+            ctx.globalAlpha = 0.9;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            for (const b of group.bullets) {
+                const speed = b._cachedSpeed || 1;
+                const length = GameSettings.bulletTrails ? Math.min(speed * 1.6, 20) : 1;
+                ctx.moveTo(b.x - b.vx / speed * length, b.y - b.vy / speed * length);
+                ctx.lineTo(b.x, b.y);
+            }
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#efffff';
+            ctx.beginPath();
+            for (const b of group.bullets) {
+                const size = b.isPlayer ? 2 : Math.max(2.5, b.size * 0.55);
+                ctx.moveTo(b.x + size, b.y);
+                ctx.arc(b.x, b.y, size, 0, Math.PI * 2);
+            }
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    drawThreatCores(ctx) {
+        const w = ctx.canvas.logicalWidth || ctx.canvas.width;
+        const h = ctx.canvas.logicalHeight || ctx.canvas.height;
+        ctx.save();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#fff2d6';
+        ctx.strokeStyle = '#781f45';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (const b of this.bullets) {
+            if (!b.active || b.isPlayer || b.x < -20 || b.x > w + 20 || b.y < -20 || b.y > h + 20) continue;
+            const radius = Math.max(2.5, b.size * 0.55);
+            ctx.moveTo(b.x + radius, b.y);
+            ctx.arc(b.x, b.y, radius, 0, Math.PI * 2);
+        }
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
     }
 
     /**

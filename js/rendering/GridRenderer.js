@@ -3,6 +3,7 @@
 // ============================================
 
 import { config, getCurrentTheme } from '../config.js';
+import { GameSettings } from '../ui/MenuManager.js';
 
 // Performance settings - auto-adjusted based on device capability
 const perfSettings = {
@@ -43,6 +44,8 @@ const gridState = {
 function initGrid(canvas) {
     if (!canvas) return;
 
+    gridState.width = canvas.logicalWidth;
+    gridState.height = canvas.logicalHeight;
     gridState.cellSize = 40;
     gridState.gridCols = Math.ceil(canvas.logicalWidth / gridState.cellSize) + 2;
     gridState.gridRows = Math.ceil(canvas.logicalHeight / gridState.cellSize) + 2;
@@ -51,11 +54,12 @@ function initGrid(canvas) {
     for (let row = 0; row < gridState.gridRows; row++) {
         gridState.points[row] = [];
         for (let col = 0; col < gridState.gridCols; col++) {
+            const depth = row / (gridState.gridRows - 1);
+            const y = canvas.logicalHeight * (0.08 + 0.96 * Math.pow(depth, 1.65));
+            const spread = 0.22 + depth * 0.9;
+            const x = canvas.logicalWidth * (0.5 + (col / (gridState.gridCols - 1) - 0.5) * spread);
             gridState.points[row][col] = {
-                x: col * gridState.cellSize,
-                y: row * gridState.cellSize,
-                baseX: col * gridState.cellSize,
-                baseY: row * gridState.cellSize,
+                x, y, baseX: x, baseY: y,
                 vx: 0,
                 vy: 0,
                 offsetX: 0,
@@ -64,6 +68,8 @@ function initGrid(canvas) {
         }
     }
 
+    gridState.impacts.length = 0;
+    gridState.time = 0;
     gridState.initialized = true;
 }
 
@@ -107,11 +113,18 @@ export function addGridImpact(x, y, force = 50, radius = 150) {
 /**
  * Update grid physics - OPTIMIZED
  */
-function updateGrid(canvas) {
-    if (!gridState.initialized || !canvas) {
+export function resetGrid(canvas) {
+    initGrid(canvas);
+}
+
+export function updateGrid(canvas) {
+    if (!canvas) return;
+    if (!gridState.initialized || gridState.width !== canvas.logicalWidth || gridState.height !== canvas.logicalHeight) {
         initGrid(canvas);
         return;
     }
+
+    if (!GameSettings.backgroundGrid) return;
 
     // Skip frames for performance
     perfSettings.frameCounter++;
@@ -240,10 +253,9 @@ const bgCache = {
 export function drawWavingGrid(ctx, canvas, wave = 1) {
     if (!ctx || !canvas) return;
 
-    // Initialize or update grid
-    updateGrid(canvas);
-
-    if (!gridState.initialized) return;
+    // Rendering never advances simulation (including while paused).
+    if (!GameSettings.backgroundGrid) return;
+    if (!gridState.initialized) initGrid(canvas);
 
     const theme = getCurrentTheme(wave);
     const rows = gridState.gridRows;
@@ -251,7 +263,7 @@ export function drawWavingGrid(ctx, canvas, wave = 1) {
     const points = gridState.points;
 
     // Only recalculate colors when hue changes
-    if (colorCache.lastHue !== theme.gridHue) {
+    if (colorCache.lastHue !== theme.gridHue || colorCache.horizontalColors.length !== rows || colorCache.verticalColors.length !== cols) {
         colorCache.lastHue = theme.gridHue;
         colorCache.horizontalColors = [];
         colorCache.verticalColors = [];
@@ -273,11 +285,9 @@ export function drawWavingGrid(ctx, canvas, wave = 1) {
     ctx.save();
     ctx.lineWidth = 1;
 
-    // Only enable shadows on high-performance devices
-    if (perfSettings.enableShadows) {
-        ctx.shadowBlur = 6;
-        ctx.shadowColor = colorCache.shadowColorH;
-    }
+    // Grid strokes span the viewport: blur here is much more expensive than a
+    // narrow neon line. Reserve soft glow for ships and projectiles instead.
+    ctx.shadowBlur = 0;
 
     // Draw horizontal lines - batch by color groups
     for (let row = 0; row < rows; row++) {
@@ -289,11 +299,6 @@ export function drawWavingGrid(ctx, canvas, wave = 1) {
             ctx.lineTo(pointRow[col].x, pointRow[col].y);
         }
         ctx.stroke();
-    }
-
-    // Update shadow color for vertical lines
-    if (perfSettings.enableShadows) {
-        ctx.shadowColor = colorCache.shadowColorV;
     }
 
     // Draw vertical lines

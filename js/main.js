@@ -4,6 +4,8 @@
 
 // === IMPORTS ===
 import { config, getCurrentTheme, updateConfig, getDifficultySettings } from './config.js';
+import { FixedStepClock } from './core/FixedStepClock.js';
+import { WeaponManager } from './weapons/WeaponManager.js';
 import { Player } from './entities/Player.js';
 import { Enemy } from './entities/Enemy.js';
 import { Boss } from './entities/Boss.js';
@@ -18,7 +20,7 @@ import { RadicalSlang } from './effects/RadicalSlang.js';
 import { VHSEffect } from './effects/VHSEffect.js';
 import { SoundSystem } from './systems/SoundSystem.js';
 import { HUD } from './ui/HUD.js';
-import { drawWavingGrid, drawBackground, addGridImpact } from './rendering/GridRenderer.js';
+import { drawWavingGrid, drawBackground, addGridImpact, updateGrid, resetGrid } from './rendering/GridRenderer.js';
 import { initCachedUI, setSoundSystem } from './globals.js';
 import { MenuManager, GameSettings } from './ui/MenuManager.js';
 import { MobileControls } from './ui/MobileControls.js';
@@ -45,6 +47,9 @@ const LOGICAL_CANVAS_SIZE = 900;
 let gameState = null;
 let gameLoopId = null;
 let lastTime = 0;
+const simulationClock = new FixedStepClock();
+let weaponManager = null;
+const weaponTargets = [];
 
 // === SYSTEMS ===
 let player = null;
@@ -210,6 +215,8 @@ function applyGameSettings() {
     if (particleSystem) {
         particleSystem.setIntensity(GameSettings.particleIntensity);
     }
+
+    if (gameState) gameState.reducedFlash = GameSettings.reducedFlash;
 
     // Apply music settings
     if (musicManager) {
@@ -591,6 +598,9 @@ function handleTouchStart(e) {
         return;
     }
 
+    // The canvas control system owns gameplay touches when enabled.
+    if (mobileControls?.enabled) return;
+
     // Left half = joystick
     if (x < canvas.logicalWidth / 2) {
         touchJoystick.active = true;
@@ -611,6 +621,7 @@ function handleTouchStart(e) {
 
 function handleTouchMove(e) {
     e.preventDefault();
+    if (mobileControls?.enabled) return;
 
     if (touchJoystick.active && e.touches[0]) {
         const touch = e.touches[0];
@@ -622,6 +633,7 @@ function handleTouchMove(e) {
 
 function handleTouchEnd(e) {
     e.preventDefault();
+    if (mobileControls?.enabled) return;
     touchJoystick.active = false;
     touchButtons.fire = false;
     touchButtons.bomb = false;
@@ -1526,6 +1538,13 @@ function updateAttractModeAI() {
     keys[' '] = attractModeAI.shootTimer % 10 < 5;
 
     // Update promo text
+    backstoryTimer++;
+    if (backstoryTimer % 3 === 0) backstoryCharIndex++;
+    const story = getCurrentBackstoryTexts();
+    if (backstoryCharIndex > story[currentBackstoryIndex].length + 30) {
+        backstoryCharIndex = 0;
+        currentBackstoryIndex = (currentBackstoryIndex + 1) % story.length;
+    }
     promoTimer++;
     if (promoTimer > 120) {
         promoTimer = 0;
@@ -1691,6 +1710,11 @@ function setupGameplayLayout() {
 }
 
 function initGame(isAttractMode = false) {
+    simulationClock.reset();
+    mobileControls?.resetState();
+    bombPressedLastFrame = false;
+    touchButtons.bomb = false;
+    resetGrid(canvas);
     // Reset death screen state
     deathScreenState = 'none';
     isNewHighScore = false;
@@ -1814,6 +1838,23 @@ function initGame(isAttractMode = false) {
         }
     };
 
+    // Explicit context: the active game does not use the legacy globals.
+    weaponManager = new WeaponManager({
+        starterArsenal: true,
+        particleSystem, soundSystem, gameState, canvas,
+        damageEnemy(enemy, damage) {
+            if (!enemy.active) return;
+            const killed = enemy.takeDamage?.(damage);
+            if (enemy !== gameState.boss && (killed || !enemy.active)) {
+                collisionSystem.handleEnemyKill(enemy);
+            }
+        }
+    });
+    collisionSystem.gameState = gameState;
+    collisionSystem.particleSystem = particleSystem;
+    collisionSystem.soundSystem = soundSystem;
+    bulletPool.speedMultiplier = modeSettings.playerBulletSpeed || 1;
+
     applyGameSettings();
 
     // Initialize game mode
@@ -1835,7 +1876,7 @@ function initGame(isAttractMode = false) {
 
 function gameLoop(currentTime) {
     // Calculate delta time
-    const deltaTime = Math.min((currentTime - lastTime) / 16.67, 3);
+    const elapsed = currentTime - lastTime;
     lastTime = currentTime;
 
     // Continue loop
@@ -1846,8 +1887,8 @@ function gameLoop(currentTime) {
         return;
     }
 
-    // Update VHS effect
-    if (vhsEffect) vhsEffect.update();
+    const ticks = (gameState.paused || gameState.gameOver || document.hidden)
+        ? (simulationClock.reset(), 0) : simulationClock.advance(elapsed);
 
     // Paused?
     if (gameState.paused) {
@@ -1863,13 +1904,13 @@ function gameLoop(currentTime) {
         return;
     }
 
-    // Attract mode AI
-    if (attractMode && attractModeAI) {
-        updateAttractModeAI();
+    // Legacy timers advance exactly 60 times per second on every display.
+    for (let tick = 0; tick < ticks; tick++) {
+        if (!gameState.running || gameState.paused || gameState.gameOver) break;
+        if (attractMode && attractModeAI) updateAttractModeAI();
+        if (vhsEffect) vhsEffect.update();
+        update(1);
     }
-
-    // Update
-    update(deltaTime);
 
     // Render
     render();
@@ -1890,6 +1931,7 @@ function gameLoop(currentTime) {
 // ============================================
 
 function update(deltaTime) {
+    updateGrid(canvas);
     // Apply slow motion if active
     // OPTIMIZED: Only run SlowMotionSystem math when actually active
     let adjustedDeltaTime = deltaTime;
@@ -1906,8 +1948,16 @@ function update(deltaTime) {
     // Update starfield
     if (starfield) starfield.update(adjustedDeltaTime);
 
-    // Trigger bomb on button press (not hold)
-    if (touchButtons.bomb && !bombPressedLastFrame && gameState?.running && !gameState.paused) {
+    // Sample touch before movement/shooting, and consume short bomb taps once.
+    if (mobileControls?.enabled) {
+        mobileControls.update(deltaTime);
+        const stick = mobileControls.joystick;
+        touchJoystick.active = stick.active;
+        touchJoystick.currentX = touchJoystick.startX + stick.dx * 50;
+        touchJoystick.currentY = touchJoystick.startY + stick.dy * 50;
+        touchButtons.fire = mobileControls.isFiring();
+        if (mobileControls.consumeBombPress()) useBomb();
+    } else if (touchButtons.bomb && !bombPressedLastFrame) {
         useBomb();
     }
     bombPressedLastFrame = touchButtons.bomb;
@@ -1989,6 +2039,14 @@ function update(deltaTime) {
 
             gameState.boss = null;
         }
+    }
+
+    if (weaponManager && gameState.gameMode === 'turbo') {
+        weaponTargets.length = 0;
+        for (const enemy of gameState.enemies) if (enemy.active) weaponTargets.push(enemy);
+        if (gameState.boss?.active) weaponTargets.push(gameState.boss);
+        const firing = !!(keys[' '] || keys.Space || touchButtons.fire || player?.autoFire);
+        weaponManager.updateStarter(player, weaponTargets, firing && gameState.canShoot, gameState.wave);
     }
 
     // Update wave manager
@@ -2199,24 +2257,6 @@ function update(deltaTime) {
         hud.updatePerformanceEntityCounts(bulletPool, enemyBulletPool, particleSystem);
     }
 
-    // Update mobile controls (canvas-based)
-    if (mobileControls && mobileControls.enabled) {
-        mobileControls.update(deltaTime);
-
-        // Get input from mobile controls
-        const movement = mobileControls.getMovement();
-        if (movement.x !== 0 || movement.y !== 0) {
-            touchJoystick.active = true;
-            touchJoystick.currentX = touchJoystick.startX + movement.x * 50;
-            touchJoystick.currentY = touchJoystick.startY + movement.y * 50;
-        }
-
-        touchButtons.fire = mobileControls.isFiring();
-        if (mobileControls.isBombing() && !bombPressedLastFrame) {
-            touchButtons.bomb = true;
-        }
-    }
-
     // Update PC HUD elements
     if (isPcLayout) {
         updatePcHud();
@@ -2307,6 +2347,8 @@ function render() {
         ufoManager.draw(ctx);
     }
 
+    if (weaponManager && gameState.gameMode === 'turbo') weaponManager.draw(ctx, player);
+
     // Player bullets
     if (bulletPool) bulletPool.draw(ctx);
 
@@ -2320,6 +2362,7 @@ function render() {
     // PARTICLES - Draw ON TOP of entities for maximum visibility!
     // This is key for Geometry Wars-style explosions to look spectacular
     if (particleSystem) particleSystem.draw(ctx);
+    if (enemyBulletPool) enemyBulletPool.drawThreatCores(ctx);
 
     // Bonus Round (draw on top of everything except HUD)
     if (bonusRound?.active) {
@@ -2407,52 +2450,67 @@ function drawModeHUD(ctx, modeInfo) {
 // PC/MOBILE HUD UPDATES
 // ============================================
 
+// Cache only the HUD elements; all values are updated when they actually change.
+const hudElements = new Map();
+function getHudElement(id) {
+    if (!hudElements.has(id)) hudElements.set(id, document.getElementById(id));
+    return hudElements.get(id);
+}
+function setHudValue(element, value, formatted = false) {
+    if (!element || element._hudValue === value) return;
+    element._hudValue = value;
+    element.textContent = formatted ? value.toLocaleString() : String(value);
+}
+
 function updatePcHud() {
     if (!gameState) return;
 
     // Left panel elements
-    const livesEl = document.getElementById('pcLivesDisplay');
-    const bombsEl = document.getElementById('pcBombsDisplay');
-    const weaponEl = document.getElementById('pcWeaponDisplay');
-    const comboEl = document.getElementById('pcComboDisplay');
+    const livesEl = getHudElement('pcLivesDisplay');
+    const bombsEl = getHudElement('pcBombsDisplay');
+    const weaponEl = getHudElement('pcWeaponDisplay');
+    const comboEl = getHudElement('pcComboDisplay');
 
     // Right panel elements
-    const scoreEl = document.getElementById('pcScoreDisplay');
-    const highScoreEl = document.getElementById('pcHighScoreDisplay');
-    const waveEl = document.getElementById('pcWaveDisplay');
-    const multiplierEl = document.getElementById('pcMultiplierDisplay');
-    const bossSection = document.getElementById('pcBossSection');
-    const bossHealthFill = document.getElementById('pcBossHealthFill');
+    const scoreEl = getHudElement('pcScoreDisplay');
+    const highScoreEl = getHudElement('pcHighScoreDisplay');
+    const waveEl = getHudElement('pcWaveDisplay');
+    const multiplierEl = getHudElement('pcMultiplierDisplay');
+    const bossSection = getHudElement('pcBossSection');
+    const bossHealthFill = getHudElement('pcBossHealthFill');
 
     // Update left panel
-    if (livesEl) livesEl.textContent = gameState.lives || 0;
-    if (bombsEl) bombsEl.textContent = gameState.bombs || 0;
+    if (livesEl) setHudValue(livesEl, gameState.lives || 0);
+    if (bombsEl) setHudValue(bombsEl, gameState.bombs || 0);
     if (weaponEl) {
-        const weaponName = player?.currentWeapon?.name || 'STANDARD';
-        weaponEl.textContent = weaponName.toUpperCase();
+        const weaponName = gameState.gameMode === 'turbo' ? weaponManager.starterLabel : (player?.currentWeapon?.name || 'STANDARD');
+        setHudValue(weaponEl, weaponName.toUpperCase());
     }
     if (comboEl) {
         const combo = gameState.combo || 0;
-        comboEl.textContent = combo > 1 ? `x${combo}` : 'x1';
+        setHudValue(comboEl, combo > 1 ? `x${combo}` : 'x1');
     }
 
     // Update right panel
-    if (scoreEl) scoreEl.textContent = Math.floor(gameState.score || 0).toLocaleString();
-    if (highScoreEl) highScoreEl.textContent = Math.floor(gameState.highScore || 0).toLocaleString();
-    if (waveEl) waveEl.textContent = gameState.wave || 1;
+    if (scoreEl) setHudValue(scoreEl, Math.floor(gameState.score || 0), true);
+    if (highScoreEl) setHudValue(highScoreEl, Math.floor(gameState.highScore || 0), true);
+    if (waveEl) setHudValue(waveEl, gameState.wave || 1);
 
     // Calculate multiplier from combo (matches CollisionSystem.updateScoreAndCombo formula)
     const multiplier = 1 + Math.floor((gameState.combo || 0) / 5);
-    if (multiplierEl) multiplierEl.textContent = `x${multiplier}`;
+    if (multiplierEl) setHudValue(multiplierEl, `x${multiplier}`);
 
     // Boss health bar
     if (bossSection && bossHealthFill) {
         if (gameState.boss && gameState.boss.active) {
-            bossSection.classList.add('visible');
+            if (!bossSection.classList.contains('visible')) bossSection.classList.add('visible');
             const healthPercent = (gameState.boss.hp / gameState.boss.maxHp) * 100;
-            bossHealthFill.style.width = `${healthPercent}%`;
+            if (bossHealthFill._health !== healthPercent) {
+                bossHealthFill._health = healthPercent;
+                bossHealthFill.style.width = `${healthPercent}%`;
+            }
         } else {
-            bossSection.classList.remove('visible');
+            if (bossSection.classList.contains('visible')) bossSection.classList.remove('visible');
         }
     }
 
@@ -2461,7 +2519,7 @@ function updatePcHud() {
 }
 
 function updatePcPowerUpSlots() {
-    const slotsContainer = document.getElementById('pcPowerUpSlots');
+    const slotsContainer = getHudElement('pcPowerUpSlots');
     if (!slotsContainer || !powerUpManager) return;
 
     const activePowerUps = powerUpManager.getActivePowerUps ? powerUpManager.getActivePowerUps() : [];
@@ -2470,8 +2528,8 @@ function updatePcPowerUpSlots() {
     if (slotsContainer.children.length === 0) {
         for (let i = 0; i < 3; i++) {
             const slot = document.createElement('div');
-            slot.className = 'power-up-slot';
-            slot.textContent = '-';
+            if (slot.className !== 'power-up-slot') slot.className = 'power-up-slot';
+            setHudValue(slot, '-');
             slotsContainer.appendChild(slot);
         }
     }
@@ -2481,11 +2539,11 @@ function updatePcPowerUpSlots() {
         const slot = slotsContainer.children[i];
         if (slot) {
             if (activePowerUps[i]) {
-                slot.className = 'power-up-slot active';
-                slot.textContent = activePowerUps[i].name || activePowerUps[i].type || 'PWR';
+                if (slot.className !== 'power-up-slot active') slot.className = 'power-up-slot active';
+                setHudValue(slot, activePowerUps[i].name || activePowerUps[i].type || 'PWR');
             } else {
-                slot.className = 'power-up-slot';
-                slot.textContent = '-';
+                if (slot.className !== 'power-up-slot') slot.className = 'power-up-slot';
+                setHudValue(slot, '-');
             }
         }
     }
@@ -2494,13 +2552,13 @@ function updatePcPowerUpSlots() {
 function updateMobileHud() {
     if (!gameState) return;
 
-    const scoreEl = document.getElementById('mobileScoreDisplay');
-    const livesEl = document.getElementById('mobileLivesDisplay');
-    const waveEl = document.getElementById('mobileWaveDisplay');
+    const scoreEl = getHudElement('mobileScoreDisplay');
+    const livesEl = getHudElement('mobileLivesDisplay');
+    const waveEl = getHudElement('mobileWaveDisplay');
 
-    if (scoreEl) scoreEl.textContent = Math.floor(gameState.score || 0).toLocaleString();
-    if (livesEl) livesEl.textContent = gameState.lives || 0;
-    if (waveEl) waveEl.textContent = gameState.wave || 1;
+    if (scoreEl) setHudValue(scoreEl, Math.floor(gameState.score || 0), true);
+    if (livesEl) setHudValue(livesEl, gameState.lives || 0);
+    if (waveEl) setHudValue(waveEl, gameState.gameMode === 'turbo' ? `${gameState.wave} · ${weaponManager.starterLabel === 'CHAIN LIGHTNING' ? 'CHAIN' : weaponManager.starterLabel === 'HOMING MISSILES' ? 'MISSILE' : 'RAIL'}` : (gameState.wave || 1));
 }
 
 // ============================================
@@ -2521,6 +2579,8 @@ function menuLoop() {
         starfield.draw(ctx);
     }
 
+    // Menu animation is decorative; gameplay grid physics runs in update().
+    updateGrid(canvas);
     // Draw waving grid (subtle)
     drawWavingGrid(ctx, canvas, 1);
 
@@ -2661,6 +2721,9 @@ function togglePause() {
     if (!gameState || gameState.gameOver) return;
 
     gameState.paused = !gameState.paused;
+    mobileControls?.resetState();
+    simulationClock.reset();
+    lastTime = performance.now();
 
     if (gameState.paused) {
         if (musicManager) musicManager.pauseMusic();
@@ -3401,21 +3464,9 @@ function drawAttractModeOverlay() {
     const backstoryY = 80;
     ctx.font = 'bold 16px "Courier New", monospace';
 
-    // Update backstory animation
-    backstoryTimer++;
-    if (backstoryTimer % 3 === 0) { // Typewriter speed
-        backstoryCharIndex++;
-    }
-
     const backstoryTexts = getCurrentBackstoryTexts();
     const currentText = backstoryTexts[currentBackstoryIndex];
     const displayText = currentText.substring(0, backstoryCharIndex);
-
-    // Move to next line when current is complete
-    if (backstoryCharIndex > currentText.length + 30) { // +30 for pause
-        backstoryCharIndex = 0;
-        currentBackstoryIndex = (currentBackstoryIndex + 1) % backstoryTexts.length;
-    }
 
     // Draw backstory text with green terminal effect
     ctx.fillStyle = '#00ff00';

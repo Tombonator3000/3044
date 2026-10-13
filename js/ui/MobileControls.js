@@ -35,6 +35,7 @@ export class MobileControls {
 
         this.bombButton = {
             active: false,
+            pressed: false,
             x: 0,
             y: 0,
             touchId: null
@@ -145,6 +146,7 @@ export class MobileControls {
         this.fireButton.active = false;
         this.fireButton.touchId = null;
         this.bombButton.active = false;
+        this.bombButton.pressed = false;
         this.bombButton.touchId = null;
     }
 
@@ -267,6 +269,7 @@ export class MobileControls {
             // Check bomb button
             if (this.bombButton.touchId === null && this.isOnBombButton(pos.x, pos.y)) {
                 this.bombButton.active = true;
+                this.bombButton.pressed = true;
                 this.bombButton.touchId = touch.identifier;
                 continue;
             }
@@ -377,6 +380,12 @@ export class MobileControls {
     /**
      * Check if bomb button is pressed
      */
+    consumeBombPress() {
+        const pressed = this.bombButton.pressed;
+        this.bombButton.pressed = false;
+        return pressed;
+    }
+
     isBombing() {
         return this.bombButton.active;
     }

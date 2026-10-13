@@ -191,6 +191,10 @@ class Particle {
         this.friction = options.friction || 0.98;
         this.gravity = options.gravity || 0;
         this.type = options.type || 'default';
+        this.originX = x;
+        this.originY = y;
+        this.depth = 0;
+        this.depthVelocity = this.type === 'depthShard' ? (Math.random() - 0.35) * 3 : 0;
         this.rotation = options.rotation || 0;
         this.rotationSpeed = options.rotationSpeed || 0;
         this.active = true;
@@ -233,6 +237,7 @@ class Particle {
             this.rotation = Math.atan2(this.vy, this.vx);
         }
 
+        this.depth = Math.max(-160, Math.min(180, this.depth + this.depthVelocity));
         this.x += this.vx;
         this.y += this.vy;
         this.vx *= this.friction;
@@ -242,8 +247,8 @@ class Particle {
         // Geometry Wars-style wall bouncing
         if (this.bounce) {
             const margin = this.size || 2;
-            const width = CONFIG.canvas?.width || 800;
-            const height = CONFIG.canvas?.height || 600;
+            const width = CONFIG.screen.width;
+            const height = CONFIG.screen.height;
 
             // Bounce off left/right walls
             if (this.x < margin) {
@@ -300,6 +305,29 @@ class Particle {
 
         // Restore context state after drawing
         ctx.restore();
+    }
+
+    drawDepthShard(ctx, size) {
+        const scale = 260 / (260 - this.depth);
+        ctx.translate(this.originX + (this.x - this.originX) * scale,
+                      this.originY + (this.y - this.originY) * scale);
+        ctx.rotate(this.rotation);
+        ctx.scale(scale, scale * (0.45 + Math.abs(Math.cos(this.rotation)) * 0.55));
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.moveTo(0, -size * 1.8);
+        ctx.lineTo(size, size);
+        ctx.lineTo(-size, size);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#efffff';
+        ctx.beginPath();
+        ctx.moveTo(0, -size * 1.8);
+        ctx.lineTo(0, size * 0.2);
+        ctx.lineTo(-size, size);
+        ctx.closePath();
+        ctx.fill();
     }
 
     drawDefault(ctx, size) {
@@ -752,80 +780,26 @@ class Particle {
      */
     drawLine(ctx, alpha) {
         const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        const dynamicLength = Math.max(12, this.length * (0.5 + speed * 0.25));
-        const visibleAlpha = Math.max(0.5, alpha);
-
-        const cos = Math.cos(this.rotation);
-        const sin = Math.sin(this.rotation);
-        const halfLen = dynamicLength / 2;
-
-        const x1 = this.x - cos * halfLen;
-        const y1 = this.y - sin * halfLen;
-        const x2 = this.x + cos * halfLen;
-        const y2 = this.y + sin * halfLen;
-
-        // OPTIMIZED: Consolidated from 3 save/restore pairs to 1
-        ctx.save();
-
-        // Draw motion blur trail using circular buffer
-        if (this.trail && this.trailCount > 0) {
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.strokeStyle = this.color;
-            ctx.lineWidth = 3;
-            const trailHalfLen = halfLen * 0.6;
-
-            for (let i = 0; i < this.trailCount; i++) {
-                const bufferIdx = (this.trailIndex - this.trailCount + i + this.maxTrail) % this.maxTrail;
-                const t = this.trail[bufferIdx];
-                if (!t || (t.x === 0 && t.y === 0)) continue;
-
-                const trailAlpha = (i + 1) / this.trailCount;
-                ctx.globalAlpha = visibleAlpha * trailAlpha * 0.5;
-                ctx.beginPath();
-                ctx.moveTo(t.x - cos * trailHalfLen, t.y - sin * trailHalfLen);
-                ctx.lineTo(t.x + cos * trailHalfLen, t.y + sin * trailHalfLen);
-                ctx.stroke();
-            }
-        }
-
-        // Main line particle
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = visibleAlpha;
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = 5;
-        ctx.lineCap = 'round';
-
-        if (particlePerfSettings.enableShadows) {
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = this.color;
-        }
-
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-
-        // White core
-        ctx.globalAlpha = visibleAlpha * 0.95;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
+        const half = Math.max(10, this.length * (0.5 + speed * 0.25)) / 2;
+        const dx = Math.cos(this.rotation) * half;
+        const dy = Math.sin(this.rotation) * half;
         ctx.shadowBlur = 0;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-
-        // Additive glow layer
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = visibleAlpha * 0.6;
+        ctx.lineCap = 'round';
+        ctx.globalCompositeOperation = 'source-over';
         ctx.strokeStyle = this.color;
-        ctx.lineWidth = 8;
         ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
+        ctx.moveTo(this.x - dx, this.y - dy);
+        ctx.lineTo(this.x + dx, this.y + dy);
+        // Reuse the path for a soft border and a bright centre.
+        ctx.globalAlpha = alpha * 0.18;
+        ctx.lineWidth = 9;
         ctx.stroke();
-
-        ctx.restore();
+        ctx.globalAlpha = alpha * 0.85;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.strokeStyle = '#eaffff';
+        ctx.lineWidth = 1;
+        ctx.stroke();
     }
 
     /**
@@ -840,7 +814,7 @@ class Particle {
         // First layer: Solid fill with source-over for guaranteed visibility
         ctx.save();
         ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = visibleAlpha * 0.8;
+        ctx.globalAlpha = alpha * (GameSettings.reducedFlash ? 0.18 : 0.4);
 
         // Create radial gradient for glow
         const gradient = ctx.createRadialGradient(
@@ -858,10 +832,10 @@ class Particle {
         ctx.fill();
 
         // Bright white core
-        ctx.globalAlpha = visibleAlpha;
+        ctx.globalAlpha = alpha * (GameSettings.reducedFlash ? 0.2 : 0.55);
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(this.x, this.y, currentSize * 0.25, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, currentSize * 0.12, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.restore();
@@ -869,7 +843,7 @@ class Particle {
         // Second layer: Additive glow for extra brightness
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = visibleAlpha * 0.5;
+        ctx.globalAlpha = alpha * 0.06;
         ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, currentSize * 0.8, 0, Math.PI * 2);
@@ -939,6 +913,7 @@ class Particle {
  * Adding a new particle type only requires adding an entry here and the draw method.
  */
 Particle.renderers = {
+    depthShard: { fn: Particle.prototype.drawDepthShard },
     // Standard particle types (receive currentSize)
     spark:      { fn: Particle.prototype.drawSpark },
     trail:      { fn: Particle.prototype.drawTrail },
@@ -1345,8 +1320,8 @@ export class ParticleSystem {
      * @private
      */
     _drawDirect(ctx) {
-        const w = CONFIG.canvas?.width || 800;
-        const h = CONFIG.canvas?.height || 600;
+        const w = ctx.canvas?.logicalWidth || CONFIG.screen.width;
+        const h = ctx.canvas?.logicalHeight || CONFIG.screen.height;
         for (let i = 0; i < this.particles.length; i++) {
             const particle = this.particles[i];
             if (particle.active) {
@@ -1373,8 +1348,8 @@ export class ParticleSystem {
 
         const glowTypes = ParticleSystem._glowTypes;
         // OPTIMIZED: Off-screen culling during batch collection
-        const w = CONFIG.canvas?.width || 800;
-        const h = CONFIG.canvas?.height || 600;
+        const w = ctx.canvas?.logicalWidth || CONFIG.screen.width;
+        const h = ctx.canvas?.logicalHeight || CONFIG.screen.height;
 
         for (let i = 0; i < this.particles.length; i++) {
             const particle = this.particles[i];
@@ -2127,6 +2102,16 @@ export class ParticleSystem {
      * @param {number} intensity - Explosion intensity multiplier (default 1)
      */
     addGeometryWarsExplosion(x, y, color = '#ff6600', intensity = 1) {
+        // Small pooled fragments add depth without flooding the playfield.
+        const shardCount = GameSettings.particleIntensity === 'low' ? 3 : 7;
+        for (let i = 0; i < shardCount; i++) {
+            this.getParticle().reset(x, y, {
+                type: 'depthShard', color, size: 3 + Math.random() * 3,
+                vx: (Math.random() - 0.5) * 7, vy: (Math.random() - 0.5) * 7,
+                rotationSpeed: (Math.random() - 0.5) * 0.25,
+                life: 30 + Math.random() * 15, friction: 0.97
+            });
+        }
         // Increased from 50 to 70 after optimization pass (culling + trail pre-alloc)
         const baseCount = Math.floor(70 * intensity);
         const adjustedCount = getAdjustedCount(baseCount);

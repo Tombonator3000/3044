@@ -30,6 +30,9 @@ export class CollisionSystem {
         // OPTIMIZED: Increased from 50 to 80 for fewer cells with 200+ enemies
         this.cellSize = 80;
         this.grid = new Map();
+        this._entryPool = [];
+        this._entryCount = 0;
+        this._cellPool = [];
         this.maxEnemyRadius = 0;
         // Support both old style (gameState directly) and new style (options object)
         if (options.gameState) {
@@ -793,7 +796,7 @@ export class CollisionSystem {
     reset() {
         this.stats.checksPerFrame = 0;
         this.stats.collisionsDetected = 0;
-        this.grid.clear();
+        this.clearGrid();
     }
 
     // ============================================
@@ -804,7 +807,13 @@ export class CollisionSystem {
      * Clear spatial hash grid
      */
     clearGrid() {
+        for (const cell of this.grid.values()) {
+            cell.length = 0;
+            this._cellPool.push(cell);
+        }
         this.grid.clear();
+        for (let i = 0; i < this._entryCount; i++) this._entryPool[i].entity = null;
+        this._entryCount = 0;
     }
 
     /**
@@ -813,7 +822,10 @@ export class CollisionSystem {
     getCellKey(x, y) {
         const cellX = Math.floor(x / this.cellSize);
         const cellY = Math.floor(y / this.cellSize);
-        return `${cellX},${cellY}`;
+        // Cantor pairing of signed cell coordinates: numeric keys, no strings.
+        const a = cellX >= 0 ? cellX * 2 : -cellX * 2 - 1;
+        const b = cellY >= 0 ? cellY * 2 : -cellY * 2 - 1;
+        return (a + b) * (a + b + 1) / 2 + b;
     }
 
     /**
@@ -824,9 +836,14 @@ export class CollisionSystem {
 
         const key = this.getCellKey(entity.x, entity.y);
         if (!this.grid.has(key)) {
-            this.grid.set(key, []);
+            this.grid.set(key, this._cellPool.pop() || []);
         }
-        this.grid.get(key).push({ entity, type });
+        let entry = this._entryPool[this._entryCount];
+        if (!entry) this._entryPool[this._entryCount] = entry = { entity: null, type: '' };
+        entry.entity = entity;
+        entry.type = type;
+        this._entryCount++;
+        this.grid.get(key).push(entry);
     }
 
     /**
@@ -845,7 +862,7 @@ export class CollisionSystem {
 
         for (let dx = -cellRadius; dx <= cellRadius; dx++) {
             for (let dy = -cellRadius; dy <= cellRadius; dy++) {
-                const key = `${centerCellX + dx},${centerCellY + dy}`;
+                const key = this.getCellKey((centerCellX + dx) * this.cellSize, (centerCellY + dy) * this.cellSize);
                 const cell = this.grid.get(key);
                 if (cell) {
                     // OPTIMIZED: Push items individually instead of spread operator

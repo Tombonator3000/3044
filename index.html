@@ -470,14 +470,14 @@
     </div>
 
     <!-- ES6 Module entry point -->
-    <script type="module" src="js/main.js?v=20241219"></script>
+    <script type="module" src="js/main.js?v=20260909"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>
         // Register Service Worker for PWA functionality
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
+                navigator.serviceWorker.register('./sw.js')
                     .then((registration) => {
                         console.log('[PWA] Service Worker registered:', registration.scope);
 

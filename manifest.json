@@ -2,7 +2,8 @@
   "name": "Geometry 3044 - Enhanced Arcade Edition",
   "short_name": "Geometry 3044",
   "description": "Retro-inspired arcade shooter with synthwave aesthetics. Destroy geometric enemies, collect power-ups, and chase high scores!",
-  "start_url": "/index.html",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "fullscreen",
   "orientation": "landscape",
   "background_color": "#0a0015",
@@ -71,7 +72,7 @@
       "name": "Quick Play",
       "short_name": "Play",
       "description": "Start a new game immediately",
-      "url": "/index.html?quickplay=true",
+      "url": "./index.html?quickplay=true",
       "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
     }
   ],

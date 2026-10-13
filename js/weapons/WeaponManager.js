@@ -16,8 +16,19 @@ import { DroneCompanionSystem } from './DroneCompanion.js';
 import { TimeFracture } from './TimeFracture.js';
 import { SynthwaveAnnihilator } from './SynthwaveAnnihilator.js';
 
+const STARTER_LABELS = ['RAILGUN', 'CHAIN LIGHTNING', 'HOMING MISSILES'];
+
 export class WeaponManager {
-    constructor() {
+    constructor(context = {}) {
+        this.context = context;
+        if (context.starterArsenal) {
+            this.chainLightning = new ChainLightning(context);
+            this.railgun = new Railgun(context);
+            this.homingMissiles = new HomingMissileSystem(context);
+            this.chainCooldown = 0;
+            this.starterLabel = 'RAILGUN';
+            return;
+        }
         // Initialize all weapon systems
         this.chainLightning = new ChainLightning();
         this.plasmaBeam = new PlasmaBeam();
@@ -110,6 +121,31 @@ export class WeaponManager {
     /**
      * Update all weapon systems
      */
+    // A support weapon follows FIRE in Turbo, with the same desktop/touch input.
+    updateStarter(player, enemies, firing, wave) {
+        this.chainLightning.update();
+        this.homingMissiles.update(enemies);
+        if (!player?.isAlive || !player.canShoot) {
+            this.railgun.charging = false;
+            for (const p of this.railgun.chargeParticles) p.active = false;
+            this.railgun.chargeParticles.length = 0;
+            firing = false;
+        }
+        this.railgun.update(player, enemies);
+        if (this.chainCooldown > 0) this.chainCooldown--;
+        const slot = (Math.max(1, wave) - 1) % 3;
+        this.starterLabel = STARTER_LABELS[slot];
+        if (!firing || !enemies.length) return;
+        if (slot === 0 && !this.railgun.charging && this.railgun.cooldown <= 0) {
+            this.railgun.startCharge();
+        } else if (slot === 1 && this.chainCooldown <= 0) {
+            this.chainLightning.trigger(player.x, player.y, enemies, 18);
+            this.chainCooldown = 45;
+        } else if (slot === 2) {
+            this.homingMissiles.fire(player, enemies);
+        }
+    }
+
     update(player, enemies, keys) {
         // Update weapon timers
         if (this.weaponTimers.chainLightning > 0) {
@@ -147,6 +183,12 @@ export class WeaponManager {
      * Draw all active weapon effects
      */
     draw(ctx, player) {
+        if (this.context.starterArsenal) {
+            this.chainLightning.draw(ctx);
+            this.railgun.draw(ctx, player);
+            this.homingMissiles.draw(ctx);
+            return;
+        }
         this.chainLightning.draw(ctx);
         this.plasmaBeam.draw(ctx, player);
         this.railgun.draw(ctx, player);
@@ -163,7 +205,7 @@ export class WeaponManager {
      * Called when bullet hits enemy (for chain lightning)
      */
     onBulletHit(x, y, enemies, damage) {
-        if (this.activeWeapons.chainLightning) {
+        if (this.activeWeapons?.chainLightning) {
             this.chainLightning.trigger(x, y, enemies, damage);
         }
     }
@@ -172,6 +214,7 @@ export class WeaponManager {
      * Get cooldown status for UI
      */
     getCooldowns() {
+        if (this.context.starterArsenal) return { railgun: this.railgun.cooldown, chainLightning: this.chainCooldown, homingMissiles: this.homingMissiles.cooldown };
         return {
             railgun: this.railgun.cooldown,
             spreadNova: this.spreadNova.cooldown,
@@ -187,13 +230,20 @@ export class WeaponManager {
      * Check if a weapon is active
      */
     isWeaponActive(weaponName) {
-        return this.activeWeapons[weaponName] || false;
+        return this.activeWeapons?.[weaponName] || false;
     }
 
     /**
      * Reset all weapons (on game restart)
      */
     reset() {
+        if (this.context.starterArsenal) {
+            this.chainLightning = new ChainLightning(this.context);
+            this.railgun = new Railgun(this.context);
+            this.homingMissiles = new HomingMissileSystem(this.context);
+            this.chainCooldown = 0;
+            return;
+        }
         this.chainLightning = new ChainLightning();
         this.plasmaBeam = new PlasmaBeam();
         this.railgun = new Railgun();
@@ -217,6 +267,7 @@ export class WeaponManager {
      * Get stats for debugging
      */
     getStats() {
+        if (this.context.starterArsenal) return { cooldowns: this.getCooldowns(), activeMissiles: this.homingMissiles.missiles.length, chainLightningArcs: this.chainLightning.arcs.length };
         return {
             activeWeapons: { ...this.activeWeapons },
             cooldowns: this.getCooldowns(),
